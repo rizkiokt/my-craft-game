@@ -9,6 +9,8 @@
   <body>
     <div class="app-shell">
       <canvas id="game" width="960" height="540" tabindex="0" aria-label="MyCraft game canvas"></canvas>
+      <div class="crosshair" aria-hidden="true"></div>
+      <div id="hotbar" class="hotbar" aria-hidden="true"></div>
       <div class="hud">
         <div id="hud-primary"></div>
         <div id="hud-secondary"></div>
@@ -23,11 +25,12 @@
           </p>
           <ul class="controls">
             <li><span>Move</span><strong>WASD or Arrow Keys</strong></li>
+            <li><span>Sprint</span><strong>Hold Shift</strong></li>
             <li><span>Look</span><strong>Mouse or Drag</strong></li>
             <li><span>Jump</span><strong>Space</strong></li>
             <li><span>Break</span><strong>Left Click</strong></li>
             <li><span>Place</span><strong>Right Click or B</strong></li>
-            <li><span>Select Block</span><strong>1 2 3</strong></li>
+            <li><span>Select Block</span><strong>1 2 3 4 5 or Wheel</strong></li>
             <li><span>Fullscreen</span><strong>F</strong></li>
           </ul>
           <button id="start-btn" type="button">Enter World</button>

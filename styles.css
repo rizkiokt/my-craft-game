@@ -61,6 +61,80 @@ canvas {
   color: var(--text);
 }
 
+.crosshair {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 26px;
+  height: 26px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.crosshair::before,
+.crosshair::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  background: rgba(255, 250, 220, 0.9);
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.32);
+  transform: translate(-50%, -50%);
+}
+
+.crosshair::before {
+  width: 2px;
+  height: 26px;
+}
+
+.crosshair::after {
+  width: 26px;
+  height: 2px;
+}
+
+.hotbar {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  display: flex;
+  gap: 10px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.hotbar-slot {
+  min-width: 72px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  background: rgba(9, 13, 20, 0.72);
+  color: rgba(236, 242, 248, 0.82);
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.24);
+}
+
+.hotbar-slot strong,
+.hotbar-slot span {
+  display: block;
+}
+
+.hotbar-slot strong {
+  font-size: 13px;
+}
+
+.hotbar-slot span {
+  margin-top: 4px;
+  font-size: 11px;
+  color: rgba(236, 242, 248, 0.58);
+}
+
+.hotbar-slot.is-active {
+  border-color: rgba(255, 226, 143, 0.9);
+  color: #fff7de;
+  background: rgba(44, 34, 15, 0.82);
+  transform: translateY(-4px);
+}
+
 .menu {
   position: absolute;
   inset: 0;
@@ -155,6 +229,16 @@ button:hover {
 
   .menu-card {
     padding: 22px 18px 18px;
+  }
+
+  .hotbar {
+    gap: 6px;
+    bottom: 10px;
+  }
+
+  .hotbar-slot {
+    min-width: 58px;
+    padding: 8px 10px;
   }
 
   .controls li {
