@@ -11,6 +11,33 @@
       <canvas id="game" width="960" height="540" tabindex="0" aria-label="MyCraft game canvas"></canvas>
       <div class="crosshair" aria-hidden="true"></div>
       <div id="hotbar" class="hotbar" aria-hidden="true"></div>
+      <div id="inventory-panel" class="inventory-panel is-hidden">
+        <div class="inventory-card">
+          <div class="inventory-head">
+            <div>
+              <p class="eyebrow">Inventory</p>
+              <h2>Crafting Bench</h2>
+            </div>
+            <button id="inventory-close" class="inventory-close" type="button">Close</button>
+          </div>
+          <div class="inventory-body">
+            <section class="inventory-section">
+              <div class="section-title">
+                <h3>Backpack</h3>
+                <span>Click an item to equip it</span>
+              </div>
+              <div id="inventory-grid" class="inventory-grid"></div>
+            </section>
+            <section class="inventory-section inventory-section-wide">
+              <div class="section-title">
+                <h3>Recipes</h3>
+                <span>`E` opens and closes crafting</span>
+              </div>
+              <div id="recipe-list" class="recipe-list"></div>
+            </section>
+          </div>
+        </div>
+      </div>
       <div class="hud">
         <div id="hud-primary"></div>
         <div id="hud-secondary"></div>
@@ -30,7 +57,8 @@
             <li><span>Jump</span><strong>Space</strong></li>
             <li><span>Break</span><strong>Left Click</strong></li>
             <li><span>Place</span><strong>Right Click or B</strong></li>
-            <li><span>Select Block</span><strong>1 2 3 4 5 or Wheel</strong></li>
+            <li><span>Select Block</span><strong>1 to 8 or Wheel</strong></li>
+            <li><span>Inventory</span><strong>E</strong></li>
             <li><span>Fullscreen</span><strong>F</strong></li>
           </ul>
           <button id="start-btn" type="button">Enter World</button>

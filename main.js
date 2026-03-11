@@ -24,6 +24,10 @@ const canvas = document.getElementById("game");
 const menu = document.getElementById("menu");
 const startButton = document.getElementById("start-btn");
 const hotbar = document.getElementById("hotbar");
+const inventoryPanel = document.getElementById("inventory-panel");
+const inventoryGrid = document.getElementById("inventory-grid");
+const recipeList = document.getElementById("recipe-list");
+const inventoryClose = document.getElementById("inventory-close");
 const hudPrimary = document.getElementById("hud-primary");
 const hudSecondary = document.getElementById("hud-secondary");
 
@@ -35,6 +39,9 @@ const BLOCKS = {
   sand: 4,
   wood: 5,
   leaves: 6,
+  planks: 7,
+  bricks: 8,
+  glass: 9,
 };
 
 const BLOCK_NAMES = {
@@ -45,6 +52,9 @@ const BLOCK_NAMES = {
   [BLOCKS.sand]: "Sand",
   [BLOCKS.wood]: "Wood",
   [BLOCKS.leaves]: "Leaves",
+  [BLOCKS.planks]: "Planks",
+  [BLOCKS.bricks]: "Bricks",
+  [BLOCKS.glass]: "Glass",
 };
 
 const PLACEABLE_BLOCKS = [
@@ -52,7 +62,46 @@ const PLACEABLE_BLOCKS = [
   BLOCKS.dirt,
   BLOCKS.stone,
   BLOCKS.wood,
+  BLOCKS.planks,
   BLOCKS.sand,
+  BLOCKS.bricks,
+  BLOCKS.glass,
+];
+
+const RECIPES = [
+  {
+    id: "planks",
+    output: BLOCKS.planks,
+    count: 4,
+    pattern: [
+      [BLOCKS.wood, null],
+      [null, null],
+    ],
+    ingredients: { [BLOCKS.wood]: 1 },
+    description: "Saw logs into sturdy building planks.",
+  },
+  {
+    id: "bricks",
+    output: BLOCKS.bricks,
+    count: 3,
+    pattern: [
+      [BLOCKS.stone, BLOCKS.sand],
+      [BLOCKS.stone, null],
+    ],
+    ingredients: { [BLOCKS.stone]: 2, [BLOCKS.sand]: 1 },
+    description: "Combine stone and sand into masonry blocks.",
+  },
+  {
+    id: "glass",
+    output: BLOCKS.glass,
+    count: 2,
+    pattern: [
+      [BLOCKS.sand, BLOCKS.sand],
+      [BLOCKS.sand, null],
+    ],
+    ingredients: { [BLOCKS.sand]: 3 },
+    description: "Melted-looking transparent blocks for windows.",
+  },
 ];
 
 const FACE_DEFS = [
@@ -197,7 +246,17 @@ function floorVector(vector) {
 
 function createTextureSet() {
   const textures = {};
-  for (const blockType of [BLOCKS.grass, BLOCKS.dirt, BLOCKS.stone, BLOCKS.sand, BLOCKS.wood, BLOCKS.leaves]) {
+  for (const blockType of [
+    BLOCKS.grass,
+    BLOCKS.dirt,
+    BLOCKS.stone,
+    BLOCKS.sand,
+    BLOCKS.wood,
+    BLOCKS.leaves,
+    BLOCKS.planks,
+    BLOCKS.bricks,
+    BLOCKS.glass,
+  ]) {
     textures[blockType] = {
       top: new Uint8Array(16 * 16 * 3),
       side: new Uint8Array(16 * 16 * 3),
@@ -318,6 +377,60 @@ function createTextureSet() {
         104 + leafNoise * 0.85,
         46 + leafNoise * 0.3,
       ]);
+
+      const plankNoise = hash3(x, y, 8) * 18 - 9;
+      const seam = y % 4 === 0 ? -18 : 0;
+      paint(textures[BLOCKS.planks].top, x, y, [
+        171 + plankNoise + seam,
+        125 + plankNoise * 0.72 + seam * 0.42,
+        74 + plankNoise * 0.45,
+      ]);
+      paint(textures[BLOCKS.planks].side, x, y, [
+        161 + plankNoise + seam,
+        116 + plankNoise * 0.72 + seam * 0.42,
+        69 + plankNoise * 0.45,
+      ]);
+      paint(textures[BLOCKS.planks].bottom, x, y, [
+        156 + plankNoise + seam,
+        111 + plankNoise * 0.72 + seam * 0.42,
+        66 + plankNoise * 0.45,
+      ]);
+
+      const brickNoise = hash3(x, y, 9) * 14 - 7;
+      const mortar = x % 8 === 0 || y % 4 === 0 ? 34 : 0;
+      paint(textures[BLOCKS.bricks].top, x, y, [
+        168 + brickNoise - mortar,
+        78 + brickNoise * 0.45 - mortar,
+        56 + brickNoise * 0.35 - mortar,
+      ]);
+      paint(textures[BLOCKS.bricks].side, x, y, [
+        160 + brickNoise - mortar,
+        72 + brickNoise * 0.45 - mortar,
+        50 + brickNoise * 0.35 - mortar,
+      ]);
+      paint(textures[BLOCKS.bricks].bottom, x, y, [
+        150 + brickNoise - mortar,
+        66 + brickNoise * 0.45 - mortar,
+        46 + brickNoise * 0.35 - mortar,
+      ]);
+
+      const glassNoise = hash3(x, y, 10) * 10 - 5;
+      const frame = x % 5 === 0 || y % 5 === 0 ? 28 : 0;
+      paint(textures[BLOCKS.glass].top, x, y, [
+        186 + glassNoise - frame * 0.3,
+        224 + glassNoise - frame * 0.15,
+        236 + glassNoise - frame * 0.05,
+      ]);
+      paint(textures[BLOCKS.glass].side, x, y, [
+        172 + glassNoise - frame * 0.3,
+        214 + glassNoise - frame * 0.15,
+        232 + glassNoise - frame * 0.05,
+      ]);
+      paint(textures[BLOCKS.glass].bottom, x, y, [
+        162 + glassNoise - frame * 0.3,
+        204 + glassNoise - frame * 0.15,
+        224 + glassNoise - frame * 0.05,
+      ]);
     }
   }
   return textures;
@@ -327,7 +440,7 @@ function createAtlasTexture() {
   const textureSet = createTextureSet();
   const tileSize = 16;
   const columns = 4;
-  const rows = 2;
+  const rows = 3;
   const atlas = document.createElement("canvas");
   atlas.width = columns * tileSize;
   atlas.height = rows * tileSize;
@@ -344,6 +457,10 @@ function createAtlasTexture() {
     textureSet[BLOCKS.wood].top,
     textureSet[BLOCKS.wood].side,
     textureSet[BLOCKS.leaves].side,
+    textureSet[BLOCKS.planks].side,
+    textureSet[BLOCKS.bricks].side,
+    textureSet[BLOCKS.glass].side,
+    textureSet[BLOCKS.glass].top,
   ];
 
   tileData.forEach((tile, index) => {
@@ -389,7 +506,16 @@ function getTileIndex(blockType, faceKey) {
   if (blockType === BLOCKS.wood) {
     return faceKey === "py" || faceKey === "ny" ? 5 : 6;
   }
-  return 7;
+  if (blockType === BLOCKS.leaves) {
+    return 7;
+  }
+  if (blockType === BLOCKS.planks) {
+    return 8;
+  }
+  if (blockType === BLOCKS.bricks) {
+    return 9;
+  }
+  return faceKey === "py" || faceKey === "ny" ? 11 : 10;
 }
 
 function atlasUv(columns, rows, tileIndex, u, v) {
@@ -405,6 +531,9 @@ function atlasUv(columns, rows, tileIndex, u, v) {
 
 function setSelectedBlock(blockType) {
   state.selectedBlock = blockType;
+  if (state.inventoryOpen) {
+    updateInventoryPanel();
+  }
 }
 
 function isCollectibleBlock(blockType) {
@@ -781,6 +910,7 @@ const state = {
   running: false,
   pointerLocked: false,
   suppressAnimationTick: false,
+  inventoryOpen: false,
   keys: new Set(),
   mouseDown: { left: false, right: false },
   selectedBlock: BLOCKS.grass,
@@ -800,7 +930,10 @@ const state = {
     [BLOCKS.dirt]: 18,
     [BLOCKS.stone]: 24,
     [BLOCKS.wood]: 10,
+    [BLOCKS.planks]: 0,
     [BLOCKS.sand]: 16,
+    [BLOCKS.bricks]: 0,
+    [BLOCKS.glass]: 0,
   },
   player: {
     x: 0.5,
@@ -839,6 +972,52 @@ sunLight.position.set(32, 48, 18);
 scene.add(sunLight);
 
 const atlasInfo = createAtlasTexture();
+const itemIcons = new Map();
+
+function getTileCanvas(tileIndex) {
+  const tileCanvas = document.createElement("canvas");
+  tileCanvas.width = 16;
+  tileCanvas.height = 16;
+  const tileCtx = tileCanvas.getContext("2d");
+  tileCtx.imageSmoothingEnabled = false;
+  const sx = (tileIndex % atlasInfo.columns) * 16;
+  const sy = Math.floor(tileIndex / atlasInfo.columns) * 16;
+  tileCtx.drawImage(atlasInfo.texture.image, sx, sy, 16, 16, 0, 0, 16, 16);
+  return tileCanvas;
+}
+
+function createItemIcon(blockType) {
+  const canvasIcon = document.createElement("canvas");
+  canvasIcon.width = 48;
+  canvasIcon.height = 48;
+  const ctxIcon = canvasIcon.getContext("2d");
+  ctxIcon.imageSmoothingEnabled = false;
+  const top = getTileCanvas(getTileIndex(blockType, "py"));
+  const side = getTileCanvas(getTileIndex(blockType, "pz"));
+  const right = getTileCanvas(getTileIndex(blockType, "px"));
+
+  ctxIcon.fillStyle = "rgba(0,0,0,0.2)";
+  ctxIcon.beginPath();
+  ctxIcon.ellipse(24, 38, 14, 5, 0, 0, PI * 2);
+  ctxIcon.fill();
+
+  ctxIcon.drawImage(side, 11, 18, 18, 18);
+  ctxIcon.globalAlpha = 0.9;
+  ctxIcon.drawImage(right, 22, 18, 13, 18);
+  ctxIcon.globalAlpha = 1;
+  ctxIcon.drawImage(top, 13, 7, 20, 14);
+  ctxIcon.strokeStyle = "rgba(255,255,255,0.08)";
+  ctxIcon.strokeRect(9.5, 5.5, 26, 32);
+  return canvasIcon.toDataURL("image/png");
+}
+
+for (const blockType of Object.values(BLOCKS)) {
+  if (blockType === BLOCKS.air) {
+    continue;
+  }
+  itemIcons.set(blockType, createItemIcon(blockType));
+}
+
 const worldMaterial = new THREE.MeshLambertMaterial({
   map: atlasInfo.texture,
 });
@@ -916,6 +1095,12 @@ function getBlockColor(blockType) {
       return [0xd7c47e, 0xcbb56f];
     case BLOCKS.wood:
       return [0x9b6b3d, 0x7a4f2c];
+    case BLOCKS.planks:
+      return [0xc59a5a, 0x9a7440];
+    case BLOCKS.bricks:
+      return [0xa75339, 0x7c3524];
+    case BLOCKS.glass:
+      return [0xcdeefd, 0x91d8ef];
     default:
       return [0x6cab57, 0x84c56f];
   }
@@ -1006,7 +1191,10 @@ function buildHotbar() {
     const slot = document.createElement("div");
     slot.className = "hotbar-slot";
     slot.dataset.block = String(blockType);
-    slot.innerHTML = `<strong>${BLOCK_NAMES[blockType]}</strong><span>${index + 1}</span>`;
+    slot.innerHTML =
+      `<div class="slot-icon"></div>` +
+      `<strong>${BLOCK_NAMES[blockType]}</strong>` +
+      `<span>${index + 1}</span>`;
     hotbar.appendChild(slot);
   });
 }
@@ -1014,7 +1202,12 @@ function buildHotbar() {
 function updateHotbar() {
   for (const slot of hotbar.children) {
     const blockType = Number(slot.dataset.block);
+    const icon = slot.querySelector(".slot-icon");
     slot.classList.toggle("is-active", blockType === state.selectedBlock);
+    slot.classList.toggle("is-empty", (state.inventory[blockType] ?? 0) <= 0);
+    if (icon) {
+      icon.style.backgroundImage = `url("${itemIcons.get(blockType)}")`;
+    }
     const countLabel = slot.querySelector("span");
     if (countLabel) {
       const index = PLACEABLE_BLOCKS.indexOf(blockType);
@@ -1024,19 +1217,133 @@ function updateHotbar() {
   }
 }
 
+function createInventorySlot(blockType, count, selected) {
+  const slot = document.createElement("button");
+  slot.type = "button";
+  slot.className = "inventory-slot";
+  slot.dataset.block = String(blockType);
+  if (selected) {
+    slot.classList.add("is-selected");
+  }
+  if (count <= 0) {
+    slot.classList.add("is-empty");
+  }
+  slot.innerHTML =
+    `<div class="slot-icon"></div>` +
+    `<strong>${BLOCK_NAMES[blockType]}</strong>` +
+    `<span>${count} in bag</span>`;
+  slot.querySelector(".slot-icon").style.backgroundImage = `url("${itemIcons.get(blockType)}")`;
+  return slot;
+}
+
+function canCraft(recipe) {
+  return Object.entries(recipe.ingredients).every(([blockType, needed]) => (state.inventory[Number(blockType)] ?? 0) >= needed);
+}
+
+function craftRecipe(recipeId) {
+  const recipe = RECIPES.find((entry) => entry.id === recipeId);
+  if (!recipe || !canCraft(recipe)) {
+    return;
+  }
+  for (const [blockType, needed] of Object.entries(recipe.ingredients)) {
+    state.inventory[Number(blockType)] -= needed;
+  }
+  state.inventory[recipe.output] = (state.inventory[recipe.output] ?? 0) + recipe.count;
+  setSelectedBlock(recipe.output);
+  state.uiMessage = `Crafted ${recipe.count} ${BLOCK_NAMES[recipe.output]}`;
+  state.uiMessageTimer = 1.4;
+  updateInventoryPanel();
+  updateHotbar();
+}
+
+function updateInventoryPanel() {
+  inventoryGrid.replaceChildren();
+  PLACEABLE_BLOCKS.forEach((blockType) => {
+    const slot = createInventorySlot(
+      blockType,
+      state.inventory[blockType] ?? 0,
+      blockType === state.selectedBlock,
+    );
+    slot.addEventListener("click", () => {
+      setSelectedBlock(blockType);
+      updateInventoryPanel();
+      updateHotbar();
+    });
+    inventoryGrid.appendChild(slot);
+  });
+
+  recipeList.replaceChildren();
+  RECIPES.forEach((recipe) => {
+    const card = document.createElement("div");
+    const enabled = canCraft(recipe);
+    card.className = `recipe-card${enabled ? "" : " is-disabled"}`;
+
+    const info = document.createElement("div");
+    info.className = "recipe-info";
+    const ingredients = Object.entries(recipe.ingredients)
+      .map(([blockType, needed]) => `${needed} ${BLOCK_NAMES[Number(blockType)]}`)
+      .join(" + ");
+    info.innerHTML = `<strong>${BLOCK_NAMES[recipe.output]} x${recipe.count}</strong><span>${recipe.description} ${ingredients}</span>`;
+
+    const pattern = document.createElement("div");
+    pattern.className = "recipe-pattern";
+    for (const row of recipe.pattern) {
+      for (const cell of row) {
+        const recipeCell = document.createElement("div");
+        recipeCell.className = "recipe-cell";
+        if (cell !== null) {
+          recipeCell.innerHTML = `<div class="slot-icon"></div>`;
+          recipeCell.querySelector(".slot-icon").style.backgroundImage = `url("${itemIcons.get(cell)}")`;
+        }
+        pattern.appendChild(recipeCell);
+      }
+    }
+
+    const craftWrap = document.createElement("div");
+    craftWrap.className = "recipe-craft";
+    craftWrap.innerHTML =
+      `<div class="recipe-output"><div class="slot-icon"></div><span>x${recipe.count}</span></div>` +
+      `<button class="recipe-button" type="button"${enabled ? "" : " disabled"}>Craft</button>`;
+    craftWrap.querySelector(".slot-icon").style.backgroundImage = `url("${itemIcons.get(recipe.output)}")`;
+    craftWrap.querySelector(".recipe-button").addEventListener("click", () => craftRecipe(recipe.id));
+
+    card.append(info, pattern, craftWrap);
+    recipeList.appendChild(card);
+  });
+}
+
+function toggleInventory(forceOpen) {
+  const nextValue = typeof forceOpen === "boolean" ? forceOpen : !state.inventoryOpen;
+  state.inventoryOpen = nextValue;
+  inventoryPanel.classList.toggle("is-hidden", !nextValue);
+  if (nextValue) {
+    exitPointerLock();
+    updateInventoryPanel();
+  } else if (state.running) {
+    requestPointerLock();
+  }
+}
+
 function setMode(mode) {
   state.mode = mode;
   state.running = mode === "playing";
   menu.classList.toggle("is-hidden", state.running);
+  if (!state.running) {
+    toggleInventory(false);
+  }
 }
 
 function startGame() {
   setMode("playing");
+  toggleInventory(false);
   canvas.focus();
   requestPointerLock();
 }
 
 function requestPointerLock() {
+  if (state.inventoryOpen) {
+    return;
+  }
   if (canvas.requestPointerLock) {
     canvas.requestPointerLock().catch(() => {});
   }
@@ -1272,6 +1579,11 @@ function interact(breaking) {
 }
 
 function handleInput(dt) {
+  if (state.inventoryOpen) {
+    state.player.vx = 0;
+    state.player.vz = 0;
+    return;
+  }
   const player = state.player;
   const forwardIntent = (state.keys.has("KeyW") || state.keys.has("ArrowUp") ? 1 : 0)
     + (state.keys.has("KeyS") || state.keys.has("ArrowDown") ? -1 : 0);
@@ -1323,6 +1635,15 @@ function handleInput(dt) {
   if (state.keys.has("Digit5")) {
     setSelectedBlock(PLACEABLE_BLOCKS[4]);
   }
+  if (state.keys.has("Digit6")) {
+    setSelectedBlock(PLACEABLE_BLOCKS[5]);
+  }
+  if (state.keys.has("Digit7")) {
+    setSelectedBlock(PLACEABLE_BLOCKS[6]);
+  }
+  if (state.keys.has("Digit8")) {
+    setSelectedBlock(PLACEABLE_BLOCKS[7]);
+  }
 
   if (state.keys.has("KeyF")) {
     state.keys.delete("KeyF");
@@ -1359,7 +1680,7 @@ function updateHud() {
   hudSecondary.textContent =
     `XYZ ${player.x.toFixed(1)}, ${player.y.toFixed(1)}, ${player.z.toFixed(1)}\n` +
     `Yaw ${player.yaw.toFixed(2)} Pitch ${player.pitch.toFixed(2)}\n` +
-    `${state.pointerLocked ? "Pointer lock" : "Click canvas to lock mouse"} | ${state.keys.has("ShiftLeft") || state.keys.has("ShiftRight") ? "Sprinting" : "Walk"} | Day ${(state.dayTime * 24).toFixed(1)}h${state.uiMessageTimer > 0 ? ` | ${state.uiMessage}` : ""}`;
+    `${state.inventoryOpen ? "Inventory open" : state.pointerLocked ? "Pointer lock" : "Click canvas to lock mouse"} | ${state.keys.has("ShiftLeft") || state.keys.has("ShiftRight") ? "Sprinting" : "Walk"} | Day ${(state.dayTime * 24).toFixed(1)}h${state.uiMessageTimer > 0 ? ` | ${state.uiMessage}` : ""}`;
 }
 
 function render() {
@@ -1422,6 +1743,7 @@ function renderGameToText() {
   return JSON.stringify({
     title: "MyCraft",
     mode: state.mode,
+    inventoryOpen: state.inventoryOpen,
     coords_note: "Origin near spawn. x east-west, y up, z north-south. Player position is feet center.",
     player: {
       x: Number(player.x.toFixed(2)),
@@ -1437,6 +1759,7 @@ function renderGameToText() {
     selectedBlock: BLOCK_NAMES[state.selectedBlock],
     hotbar: PLACEABLE_BLOCKS.map((blockType) => BLOCK_NAMES[blockType]),
     inventory: Object.fromEntries(PLACEABLE_BLOCKS.map((blockType) => [BLOCK_NAMES[blockType], state.inventory[blockType] ?? 0])),
+    craftable: RECIPES.filter(canCraft).map((recipe) => `${BLOCK_NAMES[recipe.output]} x${recipe.count}`),
     target: state.target
       ? {
           block: state.target.block,
@@ -1475,11 +1798,12 @@ window.advanceTime = (ms) => {
 };
 
 startButton.addEventListener("click", startGame);
+inventoryClose.addEventListener("click", () => toggleInventory(false));
 
 canvas.addEventListener("click", () => {
   if (!state.running) {
     startGame();
-  } else {
+  } else if (!state.inventoryOpen) {
     requestPointerLock();
   }
 });
@@ -1489,6 +1813,9 @@ canvas.addEventListener("contextmenu", (event) => {
 });
 
 canvas.addEventListener("mousedown", (event) => {
+  if (state.inventoryOpen) {
+    return;
+  }
   if (event.button === 0) {
     state.mouseDown.left = true;
   }
@@ -1513,6 +1840,9 @@ window.addEventListener("mouseup", (event) => {
 });
 
 window.addEventListener("mousemove", (event) => {
+  if (state.inventoryOpen) {
+    return;
+  }
   if (state.pointerLocked) {
     moveLook(event.movementX, event.movementY);
     return;
@@ -1526,7 +1856,7 @@ window.addEventListener("mousemove", (event) => {
 window.addEventListener("pointerlockchange", updatePointerState);
 window.addEventListener("resize", resizeRenderer);
 window.addEventListener("wheel", (event) => {
-  if (!PLACEABLE_BLOCKS.length) {
+  if (!PLACEABLE_BLOCKS.length || state.inventoryOpen) {
     return;
   }
   event.preventDefault();
@@ -1536,8 +1866,19 @@ window.addEventListener("wheel", (event) => {
 }, { passive: false });
 
 window.addEventListener("keydown", (event) => {
+  if (event.code === "KeyE") {
+    event.preventDefault();
+    if (state.running) {
+      toggleInventory();
+    }
+    return;
+  }
   if (event.code === "Escape") {
-    exitPointerLock();
+    if (state.inventoryOpen) {
+      toggleInventory(false);
+    } else {
+      exitPointerLock();
+    }
   }
   if (
     event.code === "Space" ||
@@ -1555,6 +1896,7 @@ window.addEventListener("keyup", (event) => {
 
 resizeRenderer();
 buildHotbar();
+updateInventoryPanel();
 world.updateLoadedChunks(state.player.x, state.player.z);
 chunkMeshes.syncLoadedChunks();
 updateTarget();
