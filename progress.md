@@ -12,6 +12,7 @@ Original prompt: Create a minimal Minecraft-style voxel game, call it MyCraft. B
 - Added more Minecraft-like systems: a centered hotbar, five placeable block types, scroll-wheel selection, sprinting, a day/night lighting cycle, beach/sand terrain, and simple tree generation with wood and leaf blocks.
 - Added a fun/feedback pass: survival-style hotbar counts, break/place resource collection, cloud animation, movement bob/FOV/landing bounce, and voxel particle bursts for interaction and landing.
 - Added a proper inventory/crafting layer with icon-based slots, a crafting overlay toggled by `E`, and new craftable blocks (planks, bricks, glass).
+- Added progression systems: local save/load, water/cave/ore generation, crafting-table and furnace progression, and basic pickaxe tier gating for mining.
 - Verification notes:
 - `node --check main.js` passes.
 - Playwright smoke run on the local server produced visible voxel terrain screenshots and valid `render_game_to_text` payloads.
@@ -21,4 +22,5 @@ Original prompt: Create a minimal Minecraft-style voxel game, call it MyCraft. B
 - Feature-pass screenshot shows the corrected forward movement, new sand biomes, generated trees, and the hotbar UI together in the active build.
 - Fun-pass screenshot shows inventory counts in the hotbar and HUD with the animated-world build; movement/landing/cloud effects are implemented but only partially represented by a single captured frame.
 - Crafting-pass screenshot confirms the icon hotbar and expanded placeable set; `render_game_to_text` also reports craftable recipes and inventory counts for the new crafting system.
+- Progression-pass screenshot confirms water generation, the new hotbar/tool state, and progression-aware inventory text; crafting overlay behavior was verified by code path and state wiring, while automated capture still focused on gameplay view.
 - TODO: if a future pass adds inventory or more block types, add targeted interaction tests with more dramatic before/after visuals.

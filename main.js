@@ -18,6 +18,7 @@ const MIN_WORLD_Y = -2;
 const MAX_WORLD_Y = 64;
 const CLOUD_COUNT = 18;
 const PARTICLE_POOL_SIZE = 192;
+const BREAK_RESET_TIME = 1.15;
 const PI = Math.PI;
 
 const canvas = document.getElementById("game");
@@ -42,6 +43,19 @@ const BLOCKS = {
   planks: 7,
   bricks: 8,
   glass: 9,
+  water: 10,
+  coal_ore: 11,
+  iron_ore: 12,
+  crafting_table: 13,
+  furnace: 14,
+};
+
+const ITEMS = {
+  stick: 101,
+  coal: 102,
+  iron_ingot: 103,
+  wood_pickaxe: 104,
+  stone_pickaxe: 105,
 };
 
 const BLOCK_NAMES = {
@@ -55,9 +69,21 @@ const BLOCK_NAMES = {
   [BLOCKS.planks]: "Planks",
   [BLOCKS.bricks]: "Bricks",
   [BLOCKS.glass]: "Glass",
+  [BLOCKS.water]: "Water",
+  [BLOCKS.coal_ore]: "Coal Ore",
+  [BLOCKS.iron_ore]: "Iron Ore",
+  [BLOCKS.crafting_table]: "Crafting Table",
+  [BLOCKS.furnace]: "Furnace",
+  [ITEMS.stick]: "Stick",
+  [ITEMS.coal]: "Coal",
+  [ITEMS.iron_ingot]: "Iron Ingot",
+  [ITEMS.wood_pickaxe]: "Wood Pickaxe",
+  [ITEMS.stone_pickaxe]: "Stone Pickaxe",
 };
 
 const PLACEABLE_BLOCKS = [
+  BLOCKS.crafting_table,
+  BLOCKS.furnace,
   BLOCKS.grass,
   BLOCKS.dirt,
   BLOCKS.stone,
@@ -68,7 +94,11 @@ const PLACEABLE_BLOCKS = [
   BLOCKS.glass,
 ];
 
-const RECIPES = [
+const HOTBAR_SIZE = 8;
+const WATER_LEVEL = 7;
+const SAVE_KEY = "mycraft-save-v2";
+
+const HAND_RECIPES = [
   {
     id: "planks",
     output: BLOCKS.planks,
@@ -78,31 +108,112 @@ const RECIPES = [
       [null, null],
     ],
     ingredients: { [BLOCKS.wood]: 1 },
-    description: "Saw logs into sturdy building planks.",
+    description: "Saw a log into planks.",
+  },
+  {
+    id: "sticks",
+    output: ITEMS.stick,
+    count: 4,
+    pattern: [
+      [BLOCKS.planks, null],
+      [BLOCKS.planks, null],
+    ],
+    ingredients: { [BLOCKS.planks]: 2 },
+    description: "Shape planks into sticks.",
+  },
+];
+
+const TABLE_RECIPES = [
+  {
+    id: "crafting_table",
+    output: BLOCKS.crafting_table,
+    count: 1,
+    pattern: [
+      [BLOCKS.planks, BLOCKS.planks, null],
+      [BLOCKS.planks, BLOCKS.planks, null],
+      [null, null, null],
+    ],
+    ingredients: { [BLOCKS.planks]: 4 },
+    description: "Unlock bigger recipes.",
+  },
+  {
+    id: "furnace",
+    output: BLOCKS.furnace,
+    count: 1,
+    pattern: [
+      [BLOCKS.stone, BLOCKS.stone, BLOCKS.stone],
+      [BLOCKS.stone, null, BLOCKS.stone],
+      [BLOCKS.stone, BLOCKS.stone, BLOCKS.stone],
+    ],
+    ingredients: { [BLOCKS.stone]: 8 },
+    description: "Smelt sand and ore.",
+  },
+  {
+    id: "wood_pickaxe",
+    output: ITEMS.wood_pickaxe,
+    count: 1,
+    pattern: [
+      [BLOCKS.planks, BLOCKS.planks, BLOCKS.planks],
+      [null, ITEMS.stick, null],
+      [null, ITEMS.stick, null],
+    ],
+    ingredients: { [BLOCKS.planks]: 3, [ITEMS.stick]: 2 },
+    description: "Break stone and coal ore faster.",
+  },
+  {
+    id: "stone_pickaxe",
+    output: ITEMS.stone_pickaxe,
+    count: 1,
+    pattern: [
+      [BLOCKS.stone, BLOCKS.stone, BLOCKS.stone],
+      [null, ITEMS.stick, null],
+      [null, ITEMS.stick, null],
+    ],
+    ingredients: { [BLOCKS.stone]: 3, [ITEMS.stick]: 2 },
+    description: "Mine iron ore and tougher blocks.",
   },
   {
     id: "bricks",
     output: BLOCKS.bricks,
-    count: 3,
+    count: 4,
     pattern: [
-      [BLOCKS.stone, BLOCKS.sand],
-      [BLOCKS.stone, null],
+      [BLOCKS.stone, BLOCKS.stone, null],
+      [BLOCKS.sand, BLOCKS.sand, null],
+      [null, null, null],
     ],
-    ingredients: { [BLOCKS.stone]: 2, [BLOCKS.sand]: 1 },
-    description: "Combine stone and sand into masonry blocks.",
+    ingredients: { [BLOCKS.stone]: 2, [BLOCKS.sand]: 2 },
+    description: "Decorative masonry block.",
   },
+];
+
+const FURNACE_RECIPES = [
   {
     id: "glass",
     output: BLOCKS.glass,
     count: 2,
-    pattern: [
-      [BLOCKS.sand, BLOCKS.sand],
-      [BLOCKS.sand, null],
-    ],
-    ingredients: { [BLOCKS.sand]: 3 },
-    description: "Melted-looking transparent blocks for windows.",
+    input: BLOCKS.sand,
+    fuel: ITEMS.coal,
+    fuelCount: 1,
+    inputCount: 2,
+    description: "Smelt sand into glass.",
+  },
+  {
+    id: "iron_ingot",
+    output: ITEMS.iron_ingot,
+    count: 1,
+    input: BLOCKS.iron_ore,
+    fuel: ITEMS.coal,
+    fuelCount: 1,
+    inputCount: 1,
+    description: "Refine iron ore into ingots.",
   },
 ];
+
+const TOOL_STATS = {
+  hand: { power: 0, speed: 1 },
+  [ITEMS.wood_pickaxe]: { power: 1, speed: 2.8 },
+  [ITEMS.stone_pickaxe]: { power: 2, speed: 4 },
+};
 
 const FACE_DEFS = [
   {
@@ -244,6 +355,15 @@ function floorVector(vector) {
   };
 }
 
+function wrapAngle(angle) {
+  const fullTurn = PI * 2;
+  return ((((angle + PI) % fullTurn) + fullTurn) % fullTurn) - PI;
+}
+
+function lerpAngle(from, to, t) {
+  return from + wrapAngle(to - from) * t;
+}
+
 function createTextureSet() {
   const textures = {};
   for (const blockType of [
@@ -256,6 +376,11 @@ function createTextureSet() {
     BLOCKS.planks,
     BLOCKS.bricks,
     BLOCKS.glass,
+    BLOCKS.water,
+    BLOCKS.coal_ore,
+    BLOCKS.iron_ore,
+    BLOCKS.crafting_table,
+    BLOCKS.furnace,
   ]) {
     textures[blockType] = {
       top: new Uint8Array(16 * 16 * 3),
@@ -431,6 +556,93 @@ function createTextureSet() {
         204 + glassNoise - frame * 0.15,
         224 + glassNoise - frame * 0.05,
       ]);
+
+      const waterNoise = hash3(x, y, 11) * 18 - 9;
+      const ripple = y % 4 === 0 ? 12 : 0;
+      paint(textures[BLOCKS.water].top, x, y, [
+        46 + waterNoise,
+        110 + waterNoise * 0.6 + ripple,
+        182 + waterNoise * 0.8 + ripple,
+      ]);
+      paint(textures[BLOCKS.water].side, x, y, [
+        38 + waterNoise,
+        94 + waterNoise * 0.6 + ripple,
+        168 + waterNoise * 0.8 + ripple,
+      ]);
+      paint(textures[BLOCKS.water].bottom, x, y, [
+        30 + waterNoise,
+        76 + waterNoise * 0.6,
+        136 + waterNoise * 0.8,
+      ]);
+
+      const coalSpark = x % 5 === 0 && y % 5 === 0 ? 28 : 0;
+      paint(textures[BLOCKS.coal_ore].top, x, y, [
+        102 + rock - coalSpark,
+        106 + rock - coalSpark,
+        112 + rock - coalSpark,
+      ]);
+      paint(textures[BLOCKS.coal_ore].side, x, y, [
+        94 + rock - coalSpark,
+        98 + rock - coalSpark,
+        106 + rock - coalSpark,
+      ]);
+      paint(textures[BLOCKS.coal_ore].bottom, x, y, [
+        84 + rock - coalSpark,
+        88 + rock - coalSpark,
+        94 + rock - coalSpark,
+      ]);
+
+      const ironSpark = (x + y) % 6 === 0 ? 32 : 0;
+      paint(textures[BLOCKS.iron_ore].top, x, y, [
+        132 + rock * 0.45 + ironSpark,
+        108 + rock * 0.35 + ironSpark * 0.5,
+        90 + rock * 0.25,
+      ]);
+      paint(textures[BLOCKS.iron_ore].side, x, y, [
+        122 + rock * 0.45 + ironSpark,
+        100 + rock * 0.35 + ironSpark * 0.5,
+        82 + rock * 0.25,
+      ]);
+      paint(textures[BLOCKS.iron_ore].bottom, x, y, [
+        112 + rock * 0.45 + ironSpark,
+        92 + rock * 0.35 + ironSpark * 0.5,
+        74 + rock * 0.25,
+      ]);
+
+      const tableNoise = hash3(x, y, 12) * 14 - 7;
+      const gridLine = x % 4 === 0 || y % 4 === 0 ? 20 : 0;
+      paint(textures[BLOCKS.crafting_table].top, x, y, [
+        166 + tableNoise - gridLine,
+        118 + tableNoise * 0.7 - gridLine * 0.45,
+        72 + tableNoise * 0.4,
+      ]);
+      paint(textures[BLOCKS.crafting_table].side, x, y, [
+        118 + barkNoise,
+        82 + barkNoise * 0.6,
+        52 + barkNoise * 0.4,
+      ]);
+      paint(textures[BLOCKS.crafting_table].bottom, x, y, [
+        146 + ringNoise,
+        102 + ringNoise * 0.65,
+        64 + ringNoise * 0.45,
+      ]);
+
+      const furnaceGlow = x > 4 && x < 11 && y > 6 && y < 12 ? 24 : 0;
+      paint(textures[BLOCKS.furnace].top, x, y, [
+        110 + rock,
+        114 + rock,
+        122 + rock,
+      ]);
+      paint(textures[BLOCKS.furnace].side, x, y, [
+        98 + rock + furnaceGlow,
+        102 + rock + furnaceGlow * 0.65,
+        110 + rock,
+      ]);
+      paint(textures[BLOCKS.furnace].bottom, x, y, [
+        92 + rock,
+        96 + rock,
+        104 + rock,
+      ]);
     }
   }
   return textures;
@@ -440,7 +652,7 @@ function createAtlasTexture() {
   const textureSet = createTextureSet();
   const tileSize = 16;
   const columns = 4;
-  const rows = 3;
+  const rows = 4;
   const atlas = document.createElement("canvas");
   atlas.width = columns * tileSize;
   atlas.height = rows * tileSize;
@@ -461,6 +673,12 @@ function createAtlasTexture() {
     textureSet[BLOCKS.bricks].side,
     textureSet[BLOCKS.glass].side,
     textureSet[BLOCKS.glass].top,
+    textureSet[BLOCKS.water].side,
+    textureSet[BLOCKS.coal_ore].side,
+    textureSet[BLOCKS.iron_ore].side,
+    textureSet[BLOCKS.crafting_table].top,
+    textureSet[BLOCKS.crafting_table].side,
+    textureSet[BLOCKS.furnace].side,
   ];
 
   tileData.forEach((tile, index) => {
@@ -515,7 +733,22 @@ function getTileIndex(blockType, faceKey) {
   if (blockType === BLOCKS.bricks) {
     return 9;
   }
-  return faceKey === "py" || faceKey === "ny" ? 11 : 10;
+  if (blockType === BLOCKS.glass) {
+    return faceKey === "py" || faceKey === "ny" ? 11 : 10;
+  }
+  if (blockType === BLOCKS.water) {
+    return 12;
+  }
+  if (blockType === BLOCKS.coal_ore) {
+    return 13;
+  }
+  if (blockType === BLOCKS.iron_ore) {
+    return 14;
+  }
+  if (blockType === BLOCKS.crafting_table) {
+    return faceKey === "py" ? 15 : 16;
+  }
+  return 17;
 }
 
 function atlasUv(columns, rows, tileIndex, u, v) {
@@ -537,7 +770,95 @@ function setSelectedBlock(blockType) {
 }
 
 function isCollectibleBlock(blockType) {
-  return PLACEABLE_BLOCKS.includes(blockType);
+  return blockType !== BLOCKS.water && blockType !== BLOCKS.air;
+}
+
+function isWorldBlock(itemId) {
+  return typeof itemId === "number" && itemId < 100 && itemId !== BLOCKS.air;
+}
+
+function isPlaceableItem(itemId) {
+  return PLACEABLE_BLOCKS.includes(itemId);
+}
+
+function isToolItem(itemId) {
+  return itemId === ITEMS.wood_pickaxe || itemId === ITEMS.stone_pickaxe;
+}
+
+function getSelectedItem() {
+  return state.hotbarSlots[state.activeSlot] ?? null;
+}
+
+function getToolProfile() {
+  return TOOL_STATS[getSelectedItem()] ?? TOOL_STATS.hand;
+}
+
+function canMineBlock(blockType) {
+  const tool = getToolProfile();
+  if (blockType === BLOCKS.stone || blockType === BLOCKS.coal_ore) {
+    return tool.power >= 1;
+  }
+  if (blockType === BLOCKS.iron_ore || blockType === BLOCKS.furnace) {
+    return tool.power >= 2;
+  }
+  return true;
+}
+
+function getInteractionCooldown(blockType, breaking) {
+  if (!breaking) {
+    return 0.16;
+  }
+  const tool = getToolProfile();
+  if (blockType === BLOCKS.stone || blockType === BLOCKS.coal_ore || blockType === BLOCKS.iron_ore || blockType === BLOCKS.furnace) {
+    return 0.48 / tool.speed;
+  }
+  if (blockType === BLOCKS.wood || blockType === BLOCKS.planks || blockType === BLOCKS.crafting_table) {
+    return 0.26;
+  }
+  return 0.14;
+}
+
+function getBreakHardness(blockType) {
+  if (blockType === BLOCKS.stone || blockType === BLOCKS.coal_ore) {
+    return 5.4;
+  }
+  if (blockType === BLOCKS.iron_ore || blockType === BLOCKS.furnace) {
+    return 7.2;
+  }
+  if (blockType === BLOCKS.wood || blockType === BLOCKS.planks || blockType === BLOCKS.crafting_table) {
+    return 3.8;
+  }
+  if (blockType === BLOCKS.bricks) {
+    return 5.8;
+  }
+  if (blockType === BLOCKS.leaves || blockType === BLOCKS.glass) {
+    return 1.8;
+  }
+  return 2.2;
+}
+
+function getBreakDamage(blockType) {
+  const tool = getToolProfile();
+  if (blockType === BLOCKS.stone || blockType === BLOCKS.coal_ore || blockType === BLOCKS.iron_ore || blockType === BLOCKS.furnace) {
+    return 1 + tool.speed * 0.68;
+  }
+  if (blockType === BLOCKS.wood || blockType === BLOCKS.planks || blockType === BLOCKS.crafting_table) {
+    return 0.95 + tool.speed * 0.4;
+  }
+  return 1 + tool.speed * 0.3;
+}
+
+function getDropForBlock(blockType) {
+  if (blockType === BLOCKS.leaves) {
+    return Math.random() > 0.72 ? ITEMS.stick : null;
+  }
+  if (blockType === BLOCKS.coal_ore) {
+    return ITEMS.coal;
+  }
+  if (blockType === BLOCKS.iron_ore) {
+    return BLOCKS.iron_ore;
+  }
+  return blockType;
 }
 
 class World {
@@ -585,6 +906,7 @@ class World {
       maxBuildY: maxHeight,
       sandy: new Uint8Array(CHUNK_SIZE * CHUNK_SIZE),
       trees: [],
+      fauna: [],
     };
 
     for (let z = 1; z < CHUNK_SIZE - 1; z++) {
@@ -616,6 +938,48 @@ class World {
         }
       }
     }
+
+    const canSpawnFaunaAt = (x, z, { allowSand = false, minHeight = 8, maxHeight: maxAllowedHeight = 18 } = {}) => {
+      const index = z * CHUNK_SIZE + x;
+      const height = heights[index];
+      if (height < minHeight || height > maxAllowedHeight) {
+        return false;
+      }
+      if (!allowSand && chunk.sandy[index] === 1) {
+        return false;
+      }
+      const flatEnough =
+        Math.abs(height - heights[index - 1]) <= 1 &&
+        Math.abs(height - heights[index + 1]) <= 1 &&
+        Math.abs(height - heights[index - CHUNK_SIZE]) <= 1 &&
+        Math.abs(height - heights[index + CHUNK_SIZE]) <= 1;
+      if (!flatEnough) {
+        return false;
+      }
+      return !chunk.trees.some((tree) => Math.abs(tree.x - (cx * CHUNK_SIZE + x)) <= 2 && Math.abs(tree.z - (cz * CHUNK_SIZE + z)) <= 2);
+    };
+
+    const tryAddFauna = (kind, seed, threshold, options) => {
+      if (hash3(cx, seed, cz) < threshold) {
+        return;
+      }
+      const x = 2 + Math.floor(hash3(cx, seed + 1, cz) * (CHUNK_SIZE - 4));
+      const z = 2 + Math.floor(hash3(cx, seed + 2, cz) * (CHUNK_SIZE - 4));
+      if (!canSpawnFaunaAt(x, z, options)) {
+        return;
+      }
+      const height = heights[z * CHUNK_SIZE + x];
+      chunk.fauna.push({
+        kind,
+        x: cx * CHUNK_SIZE + x + 0.5,
+        y: height + 1,
+        z: cz * CHUNK_SIZE + z + 0.5,
+      });
+    };
+
+    tryAddFauna("sheep", 61, 0.44, { allowSand: false, minHeight: 9, maxHeight: 18 });
+    tryAddFauna("sheep", 71, 0.68, { allowSand: false, minHeight: 9, maxHeight: 18 });
+    tryAddFauna("villager", 81, 0.84, { allowSand: false, minHeight: 10, maxHeight: 16 });
 
     this.chunks.set(key, chunk);
     this.totalGenerated++;
@@ -656,6 +1020,10 @@ class World {
     const lz = ((wz % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
     const height = chunk.heights[lz * CHUNK_SIZE + lx];
     const sandy = chunk.sandy[lz * CHUNK_SIZE + lx] === 1;
+    const caveNoise =
+      Math.abs(perlin2(wx / 21 + wy * 0.08, wz / 21)) +
+      Math.abs(perlin2(wx / 25, wy / 9 + wz * 0.04));
+    const caveCarve = wy < height - 1 && wy > 2 && caveNoise > 1.06;
     if (wy > height) {
       for (const tree of chunk.trees) {
         const dx = wx - tree.x;
@@ -676,6 +1044,15 @@ class World {
           return BLOCKS.leaves;
         }
       }
+      if (wy <= WATER_LEVEL) {
+        return BLOCKS.water;
+      }
+      return BLOCKS.air;
+    }
+    if (caveCarve) {
+      if (wy <= WATER_LEVEL - 1) {
+        return BLOCKS.water;
+      }
       return BLOCKS.air;
     }
     if (sandy) {
@@ -686,6 +1063,13 @@ class World {
     }
     if (wy >= height - 3) {
       return BLOCKS.dirt;
+    }
+    const oreRoll = hash3(wx * 0.21, wy * 0.37, wz * 0.19);
+    if (wy < 18 && oreRoll > 0.83 && oreRoll < 0.9) {
+      return BLOCKS.coal_ore;
+    }
+    if (wy < 12 && oreRoll > 0.93) {
+      return BLOCKS.iron_ore;
     }
     return BLOCKS.stone;
   }
@@ -736,7 +1120,8 @@ class World {
   }
 
   isSolid(wx, wy, wz) {
-    return this.getBlock(wx, wy, wz) !== BLOCKS.air;
+    const blockType = this.getBlock(wx, wy, wz);
+    return blockType !== BLOCKS.air && blockType !== BLOCKS.water;
   }
 
   getChunkMaxY(cx, cz) {
@@ -905,15 +1290,41 @@ class ChunkMeshManager {
 const world = new World();
 const spawnHeight = world.getHeightAt(0, 0) + 1;
 
+function getSurfaceData(x, z) {
+  const wx = Math.floor(x);
+  const wz = Math.floor(z);
+  const ceiling = Math.min(MAX_BUILD_HEIGHT, world.getHeightAt(wx, wz) + 12);
+  for (let y = ceiling; y >= MIN_WORLD_Y; y--) {
+    const blockType = world.getBlock(wx, y, wz);
+    if (blockType !== BLOCKS.air && blockType !== BLOCKS.water && blockType !== BLOCKS.leaves) {
+      return { x: wx, y: y + 1, z: wz, blockType };
+    }
+  }
+  return { x: wx, y: world.getHeightAt(wx, wz) + 1, z: wz, blockType: BLOCKS.grass };
+}
+
 const state = {
   mode: "menu",
   running: false,
   pointerLocked: false,
   suppressAnimationTick: false,
   inventoryOpen: false,
+  saveDirty: false,
+  saveCooldown: 0,
   keys: new Set(),
   mouseDown: { left: false, right: false },
   selectedBlock: BLOCKS.grass,
+  activeSlot: 0,
+  hotbarSlots: [
+    ITEMS.wood_pickaxe,
+    BLOCKS.grass,
+    BLOCKS.dirt,
+    BLOCKS.stone,
+    BLOCKS.wood,
+    BLOCKS.planks,
+    BLOCKS.crafting_table,
+    BLOCKS.furnace,
+  ],
   lastInteractionTime: 0,
   elapsed: 0,
   target: null,
@@ -925,6 +1336,14 @@ const state = {
   viewBob: 0,
   stepPhase: 0,
   landingBounce: 0,
+  breakState: {
+    key: null,
+    blockType: BLOCKS.air,
+    progress: 0,
+    hardness: 1,
+    lastHitTime: -999,
+    pulse: 0,
+  },
   inventory: {
     [BLOCKS.grass]: 20,
     [BLOCKS.dirt]: 18,
@@ -934,6 +1353,15 @@ const state = {
     [BLOCKS.sand]: 16,
     [BLOCKS.bricks]: 0,
     [BLOCKS.glass]: 0,
+    [BLOCKS.crafting_table]: 0,
+    [BLOCKS.furnace]: 0,
+    [BLOCKS.coal_ore]: 0,
+    [BLOCKS.iron_ore]: 0,
+    [ITEMS.stick]: 0,
+    [ITEMS.coal]: 0,
+    [ITEMS.iron_ingot]: 0,
+    [ITEMS.wood_pickaxe]: 1,
+    [ITEMS.stone_pickaxe]: 0,
   },
   player: {
     x: 0.5,
@@ -947,6 +1375,80 @@ const state = {
     onGround: false,
   },
 };
+
+function serializeWorldEdits() {
+  const chunks = {};
+  for (const [key, chunk] of world.chunks) {
+    if (chunk.edits.size === 0) {
+      continue;
+    }
+    chunks[key] = Object.fromEntries(chunk.edits);
+  }
+  return chunks;
+}
+
+function hydrateWorldEdits(savedChunks) {
+  for (const [key, edits] of Object.entries(savedChunks || {})) {
+    const [cx, cz] = key.split(",").map(Number);
+    const chunk = world.ensureChunk(cx, cz);
+    for (const [editKey, blockType] of Object.entries(edits)) {
+      chunk.edits.set(editKey, blockType);
+      const [, y] = editKey.split(",").map(Number);
+      chunk.maxBuildY = Math.max(chunk.maxBuildY, y);
+    }
+  }
+}
+
+function saveGame() {
+  try {
+    const payload = {
+      inventory: state.inventory,
+      hotbarSlots: state.hotbarSlots,
+      activeSlot: state.activeSlot,
+      selectedBlock: state.selectedBlock,
+      player: state.player,
+      dayTime: state.dayTime,
+      worldEdits: serializeWorldEdits(),
+    };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
+    state.saveDirty = false;
+    state.saveCooldown = 1.5;
+  } catch {
+    state.uiMessage = "Save failed";
+    state.uiMessageTimer = 1.1;
+  }
+}
+
+function loadGame() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) {
+      return;
+    }
+    const payload = JSON.parse(raw);
+    Object.assign(state.inventory, payload.inventory || {});
+    if (Array.isArray(payload.hotbarSlots)) {
+      state.hotbarSlots = payload.hotbarSlots.slice(0, HOTBAR_SIZE);
+      while (state.hotbarSlots.length < HOTBAR_SIZE) {
+        state.hotbarSlots.push(null);
+      }
+    }
+    state.activeSlot = clamp(payload.activeSlot ?? state.activeSlot, 0, HOTBAR_SIZE - 1);
+    state.selectedBlock = payload.selectedBlock ?? state.selectedBlock;
+    if (payload.player) {
+      Object.assign(state.player, payload.player);
+    }
+    state.dayTime = payload.dayTime ?? state.dayTime;
+    hydrateWorldEdits(payload.worldEdits);
+    const selectedItem = getSelectedItem();
+    if (isPlaceableItem(selectedItem)) {
+      state.selectedBlock = selectedItem;
+    }
+  } catch {
+    state.uiMessage = "Save data was invalid";
+    state.uiMessageTimer = 1.1;
+  }
+}
 
 const renderer = new THREE.WebGLRenderer({
   canvas,
@@ -1011,17 +1513,330 @@ function createItemIcon(blockType) {
   return canvasIcon.toDataURL("image/png");
 }
 
-for (const blockType of Object.values(BLOCKS)) {
-  if (blockType === BLOCKS.air) {
-    continue;
-  }
-  itemIcons.set(blockType, createItemIcon(blockType));
+function createFlatIcon(background, accent, glyph) {
+  const icon = document.createElement("canvas");
+  icon.width = 48;
+  icon.height = 48;
+  const iconCtx = icon.getContext("2d");
+  iconCtx.fillStyle = background;
+  iconCtx.fillRect(8, 8, 32, 32);
+  iconCtx.strokeStyle = "rgba(255,255,255,0.12)";
+  iconCtx.strokeRect(8.5, 8.5, 31, 31);
+  iconCtx.fillStyle = accent;
+  glyph(iconCtx);
+  return icon.toDataURL("image/png");
 }
+
+function createStickGlyph(ctxGlyph) {
+  ctxGlyph.fillRect(22, 13, 4, 20);
+  ctxGlyph.fillRect(20, 29, 8, 6);
+}
+
+function createCoalGlyph(ctxGlyph) {
+  ctxGlyph.beginPath();
+  ctxGlyph.moveTo(18, 14);
+  ctxGlyph.lineTo(31, 18);
+  ctxGlyph.lineTo(28, 33);
+  ctxGlyph.lineTo(16, 30);
+  ctxGlyph.closePath();
+  ctxGlyph.fill();
+}
+
+function createPickaxeGlyph(ctxGlyph, tint) {
+  ctxGlyph.fillStyle = tint;
+  ctxGlyph.fillRect(14, 13, 20, 5);
+  ctxGlyph.fillRect(24, 13, 4, 22);
+  ctxGlyph.fillRect(18, 18, 8, 5);
+}
+
+for (const blockType of Object.values(BLOCKS)) {
+  if (blockType !== BLOCKS.air) {
+    itemIcons.set(blockType, createItemIcon(blockType));
+  }
+}
+itemIcons.set(ITEMS.stick, createFlatIcon("#2b3343", "#d1ab6a", createStickGlyph));
+itemIcons.set(ITEMS.coal, createFlatIcon("#2b3343", "#101217", createCoalGlyph));
+itemIcons.set(ITEMS.iron_ingot, createFlatIcon("#2b3343", "#d7dce4", (ctxGlyph) => {
+  ctxGlyph.fillRect(14, 20, 20, 10);
+  ctxGlyph.fillRect(16, 16, 16, 4);
+}));
+itemIcons.set(ITEMS.wood_pickaxe, createFlatIcon("#2b3343", "#9a7440", (ctxGlyph) => createPickaxeGlyph(ctxGlyph, "#caa061")));
+itemIcons.set(ITEMS.stone_pickaxe, createFlatIcon("#2b3343", "#8a949d", (ctxGlyph) => createPickaxeGlyph(ctxGlyph, "#c0c7cf")));
 
 const worldMaterial = new THREE.MeshLambertMaterial({
   map: atlasInfo.texture,
 });
 const chunkMeshes = new ChunkMeshManager(world, scene, worldMaterial, atlasInfo);
+
+const mobMaterials = {
+  sheepBody: new THREE.MeshLambertMaterial({ color: 0xf3efe6 }),
+  sheepFace: new THREE.MeshLambertMaterial({ color: 0x3d2f2a }),
+  sheepLeg: new THREE.MeshLambertMaterial({ color: 0x5b4f4a }),
+  villagerRobe: new THREE.MeshLambertMaterial({ color: 0x866148 }),
+  villagerSkin: new THREE.MeshLambertMaterial({ color: 0xdab18e }),
+  villagerTrim: new THREE.MeshLambertMaterial({ color: 0x5e4537 }),
+};
+
+const mobGeometry = {
+  sheepBody: new THREE.BoxGeometry(0.95, 0.7, 1.4),
+  sheepHead: new THREE.BoxGeometry(0.5, 0.48, 0.48),
+  sheepLeg: new THREE.BoxGeometry(0.16, 0.48, 0.16),
+  villagerBody: new THREE.BoxGeometry(0.74, 1.14, 0.48),
+  villagerHead: new THREE.BoxGeometry(0.46, 0.48, 0.46),
+  villagerNose: new THREE.BoxGeometry(0.1, 0.14, 0.12),
+  villagerArms: new THREE.BoxGeometry(0.56, 0.16, 0.16),
+};
+
+function createMobLeg(geometry, material, x, y, z) {
+  const leg = new THREE.Mesh(geometry, material);
+  leg.position.set(x, y, z);
+  return leg;
+}
+
+function createSheepModel() {
+  const root = new THREE.Group();
+  const body = new THREE.Mesh(mobGeometry.sheepBody, mobMaterials.sheepBody);
+  body.position.set(0, 0.85, 0);
+  root.add(body);
+
+  const headPivot = new THREE.Group();
+  headPivot.position.set(0, 0.95, 0.82);
+  const head = new THREE.Mesh(mobGeometry.sheepHead, mobMaterials.sheepFace);
+  head.position.set(0, 0, 0.2);
+  headPivot.add(head);
+  root.add(headPivot);
+
+  const legs = [
+    createMobLeg(mobGeometry.sheepLeg, mobMaterials.sheepLeg, -0.26, 0.3, -0.4),
+    createMobLeg(mobGeometry.sheepLeg, mobMaterials.sheepLeg, 0.26, 0.3, -0.4),
+    createMobLeg(mobGeometry.sheepLeg, mobMaterials.sheepLeg, -0.26, 0.3, 0.42),
+    createMobLeg(mobGeometry.sheepLeg, mobMaterials.sheepLeg, 0.26, 0.3, 0.42),
+  ];
+  legs.forEach((leg) => root.add(leg));
+
+  root.userData.parts = {
+    body,
+    headPivot,
+    legs,
+  };
+  return root;
+}
+
+function createVillagerModel() {
+  const root = new THREE.Group();
+  const body = new THREE.Mesh(mobGeometry.villagerBody, mobMaterials.villagerRobe);
+  body.position.set(0, 0.94, 0);
+  root.add(body);
+
+  const trim = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.14, 0.54), mobMaterials.villagerTrim);
+  trim.position.set(0, 0.42, 0);
+  root.add(trim);
+
+  const headPivot = new THREE.Group();
+  headPivot.position.set(0, 1.55, 0);
+  const head = new THREE.Mesh(mobGeometry.villagerHead, mobMaterials.villagerSkin);
+  headPivot.add(head);
+  const nose = new THREE.Mesh(mobGeometry.villagerNose, mobMaterials.villagerTrim);
+  nose.position.set(0, -0.02, 0.28);
+  headPivot.add(nose);
+  root.add(headPivot);
+
+  const arms = new THREE.Mesh(mobGeometry.villagerArms, mobMaterials.villagerTrim);
+  arms.position.set(0, 1.02, 0.26);
+  root.add(arms);
+
+  const legs = [
+    createMobLeg(mobGeometry.sheepLeg, mobMaterials.villagerTrim, -0.14, 0.27, 0),
+    createMobLeg(mobGeometry.sheepLeg, mobMaterials.villagerTrim, 0.14, 0.27, 0),
+  ];
+  legs.forEach((leg) => root.add(leg));
+
+  root.userData.parts = {
+    body,
+    headPivot,
+    arms,
+    legs,
+  };
+  return root;
+}
+
+class PassiveMobManager {
+  constructor(world, scene) {
+    this.world = world;
+    this.root = new THREE.Group();
+    this.entities = new Map();
+    this.totalEntities = 0;
+    scene.add(this.root);
+  }
+
+  createEntity(definition) {
+    const model = definition.kind === "villager" ? createVillagerModel() : createSheepModel();
+    const phase = hash3(definition.x, definition.y, definition.z) * PI * 2;
+    const entity = {
+      kind: definition.kind,
+      group: model,
+      parts: model.userData.parts,
+      x: definition.x,
+      y: definition.y,
+      z: definition.z,
+      homeX: definition.x,
+      homeZ: definition.z,
+      targetX: definition.x,
+      targetZ: definition.z,
+      heading: phase,
+      speed: definition.kind === "villager" ? 0.95 : 1.18,
+      moveTimer: 0.3 + hash3(definition.x, 9, definition.z) * 1.4,
+      phase,
+      stride: 0,
+      headTurn: hash3(definition.x, 5, definition.z) * PI * 2,
+    };
+    model.position.set(entity.x, entity.y, entity.z);
+    this.root.add(model);
+    return entity;
+  }
+
+  disposeEntity(entity) {
+    this.root.remove(entity.group);
+  }
+
+  syncLoadedChunks() {
+    for (const key of this.world.loadedKeys) {
+      if (this.entities.has(key)) {
+        continue;
+      }
+      const chunk = this.world.chunks.get(key);
+      const spawned = (chunk?.fauna ?? []).map((definition) => this.createEntity(definition));
+      this.entities.set(key, spawned);
+      this.totalEntities += spawned.length;
+    }
+
+    for (const [key, entities] of this.entities) {
+      if (this.world.loadedKeys.has(key)) {
+        continue;
+      }
+      entities.forEach((entity) => this.disposeEntity(entity));
+      this.totalEntities -= entities.length;
+      this.entities.delete(key);
+    }
+  }
+
+  pickTarget(entity) {
+    const radius = entity.kind === "villager" ? 5.4 : 4.2;
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const angle = Math.random() * PI * 2;
+      const distance = 0.8 + Math.random() * radius;
+      const candidateX = entity.homeX + Math.cos(angle) * distance;
+      const candidateZ = entity.homeZ + Math.sin(angle) * distance;
+      const surface = getSurfaceData(candidateX, candidateZ);
+      if (
+        surface.blockType !== BLOCKS.water &&
+        surface.blockType !== BLOCKS.leaves &&
+        Math.abs(surface.y - entity.y) <= 1.6
+      ) {
+        entity.targetX = candidateX;
+        entity.targetZ = candidateZ;
+        entity.moveTimer = 1.8 + Math.random() * 3.2;
+        return;
+      }
+    }
+    entity.targetX = entity.homeX;
+    entity.targetZ = entity.homeZ;
+    entity.moveTimer = 1.2 + Math.random() * 1.4;
+  }
+
+  updateEntity(entity, dt) {
+    entity.moveTimer -= dt;
+    const startDx = entity.targetX - entity.x;
+    const startDz = entity.targetZ - entity.z;
+    if (Math.hypot(startDx, startDz) <= 0.16 || entity.moveTimer <= 0) {
+      this.pickTarget(entity);
+    }
+
+    const dx = entity.targetX - entity.x;
+    const dz = entity.targetZ - entity.z;
+    const distance = Math.hypot(dx, dz);
+    const walkAmount = Math.min(distance, entity.speed * dt);
+    if (distance > 0.001) {
+      const dirX = dx / distance;
+      const dirZ = dz / distance;
+      const nextX = entity.x + dirX * walkAmount;
+      const nextZ = entity.z + dirZ * walkAmount;
+      const surface = getSurfaceData(nextX, nextZ);
+      if (
+        surface.blockType === BLOCKS.water ||
+        surface.blockType === BLOCKS.leaves ||
+        Math.abs(surface.y - entity.y) > 1.6
+      ) {
+        entity.moveTimer = 0;
+      } else {
+        entity.x = nextX;
+        entity.z = nextZ;
+        entity.y = lerp(entity.y, surface.y, clamp(dt * 5.5, 0, 1));
+        entity.heading = lerpAngle(entity.heading, Math.atan2(dirX, dirZ), clamp(dt * 4.5, 0, 1));
+        entity.stride += dt * (entity.kind === "villager" ? 9 : 11);
+      }
+    }
+
+    const bob = Math.sin(state.elapsed * 3.1 + entity.phase) * 0.035;
+    entity.group.position.set(entity.x, entity.y + bob, entity.z);
+    entity.group.rotation.y = wrapAngle(entity.heading);
+
+    const strideSwing = Math.sin(entity.stride) * 0.48;
+    const idleTurn = Math.sin(state.elapsed * 0.9 + entity.headTurn) * 0.18;
+
+    if (entity.parts.headPivot) {
+      entity.parts.headPivot.rotation.y = idleTurn;
+      entity.parts.headPivot.rotation.x = entity.kind === "villager"
+        ? 0.04
+        : Math.abs(Math.sin(state.elapsed * 1.3 + entity.phase)) * 0.05;
+    }
+    if (entity.parts.arms) {
+      entity.parts.arms.rotation.x = Math.sin(entity.stride * 0.5) * 0.08;
+    }
+    if (entity.parts.body) {
+      entity.parts.body.position.y = entity.kind === "villager" ? 0.94 + bob * 0.35 : 0.85 + bob * 0.3;
+    }
+    if (entity.parts.legs) {
+      entity.parts.legs.forEach((leg, index) => {
+        const direction = index % 2 === 0 ? 1 : -1;
+        leg.rotation.x = distance > 0.18 ? strideSwing * direction : 0;
+      });
+    }
+  }
+
+  update(dt) {
+    for (const entities of this.entities.values()) {
+      entities.forEach((entity) => this.updateEntity(entity, dt));
+    }
+  }
+
+  getEntityCount() {
+    return this.totalEntities;
+  }
+
+  getNearbyEntities(limit = 6) {
+    const nearby = [];
+    for (const entities of this.entities.values()) {
+      entities.forEach((entity) => {
+        const distance = Math.hypot(entity.x - state.player.x, entity.z - state.player.z);
+        nearby.push({
+          kind: entity.kind,
+          x: Number(entity.x.toFixed(1)),
+          y: Number(entity.y.toFixed(1)),
+          z: Number(entity.z.toFixed(1)),
+          distance,
+        });
+      });
+    }
+    nearby.sort((a, b) => a.distance - b.distance);
+    return nearby.slice(0, limit).map(({ distance, ...entity }) => ({
+      ...entity,
+      distance: Number(distance.toFixed(1)),
+    }));
+  }
+}
+
+const passiveMobs = new PassiveMobManager(world, scene);
 
 const cloudGroup = new THREE.Group();
 scene.add(cloudGroup);
@@ -1174,6 +1989,21 @@ const targetHighlight = new THREE.LineSegments(highlightGeometry, highlightMater
 targetHighlight.visible = false;
 scene.add(targetHighlight);
 
+const breakOverlayMaterial = new THREE.MeshBasicMaterial({
+  color: 0xffd57e,
+  transparent: true,
+  opacity: 0,
+  depthWrite: false,
+});
+const breakOverlay = new THREE.Mesh(new THREE.BoxGeometry(1.01, 1.01, 1.01), breakOverlayMaterial);
+breakOverlay.visible = false;
+breakOverlay.renderOrder = 3;
+scene.add(breakOverlay);
+
+const highlightBaseColor = new THREE.Color(0xffe899);
+const highlightDamageColor = new THREE.Color(0xff7f52);
+const workingHighlightColor = new THREE.Color();
+
 const raycaster = new THREE.Raycaster();
 raycaster.far = INTERACTION_RANGE;
 
@@ -1185,43 +2015,86 @@ function resizeRenderer() {
   camera.updateProjectionMatrix();
 }
 
+function getTargetKey(target) {
+  return target ? `${target.block.x},${target.block.y},${target.block.z}` : null;
+}
+
+function resetBreakState() {
+  state.breakState.key = null;
+  state.breakState.blockType = BLOCKS.air;
+  state.breakState.progress = 0;
+  state.breakState.hardness = 1;
+  state.breakState.lastHitTime = -999;
+  state.breakState.pulse = 0;
+  updateBreakVisuals();
+}
+
+function updateBreakVisuals() {
+  const activeKey = getTargetKey(state.target);
+  const showDamage =
+    state.target &&
+    state.breakState.key === activeKey &&
+    state.breakState.progress > 0;
+
+  if (!showDamage) {
+    highlightMaterial.color.copy(highlightBaseColor);
+    highlightMaterial.opacity = 0.95;
+    breakOverlay.visible = false;
+    return;
+  }
+
+  const fraction = clamp(state.breakState.progress / state.breakState.hardness, 0, 1);
+  workingHighlightColor.copy(highlightBaseColor).lerp(highlightDamageColor, fraction);
+  highlightMaterial.color.copy(workingHighlightColor);
+  highlightMaterial.opacity = 0.78 + fraction * 0.2;
+  breakOverlay.visible = true;
+  breakOverlay.position.copy(targetHighlight.position);
+  breakOverlay.scale.setScalar(0.96 + fraction * 0.08 + state.breakState.pulse * 0.035);
+  breakOverlayMaterial.color.copy(workingHighlightColor);
+  breakOverlayMaterial.opacity = 0.04 + fraction * 0.16 + state.breakState.pulse * 0.06;
+}
+
 function buildHotbar() {
   hotbar.replaceChildren();
-  PLACEABLE_BLOCKS.forEach((blockType, index) => {
+  for (let index = 0; index < HOTBAR_SIZE; index++) {
     const slot = document.createElement("div");
     slot.className = "hotbar-slot";
-    slot.dataset.block = String(blockType);
+    slot.dataset.slot = String(index);
     slot.innerHTML =
       `<div class="slot-icon"></div>` +
-      `<strong>${BLOCK_NAMES[blockType]}</strong>` +
+      `<strong>Empty</strong>` +
       `<span>${index + 1}</span>`;
     hotbar.appendChild(slot);
-  });
+  }
 }
 
 function updateHotbar() {
   for (const slot of hotbar.children) {
-    const blockType = Number(slot.dataset.block);
+    const slotIndex = Number(slot.dataset.slot);
+    const itemId = state.hotbarSlots[slotIndex];
     const icon = slot.querySelector(".slot-icon");
-    slot.classList.toggle("is-active", blockType === state.selectedBlock);
-    slot.classList.toggle("is-empty", (state.inventory[blockType] ?? 0) <= 0);
+    const count = itemId == null ? 0 : (state.inventory[itemId] ?? 0);
+    slot.classList.toggle("is-active", slotIndex === state.activeSlot);
+    slot.classList.toggle("is-empty", itemId == null || count <= 0);
     if (icon) {
-      icon.style.backgroundImage = `url("${itemIcons.get(blockType)}")`;
+      icon.style.backgroundImage = itemId == null ? "none" : `url("${itemIcons.get(itemId)}")`;
     }
+    const nameLabel = slot.querySelector("strong");
     const countLabel = slot.querySelector("span");
+    if (nameLabel) {
+      nameLabel.textContent = itemId == null ? "Empty" : BLOCK_NAMES[itemId];
+    }
     if (countLabel) {
-      const index = PLACEABLE_BLOCKS.indexOf(blockType);
-      const count = state.inventory[blockType] ?? 0;
-      countLabel.textContent = `${index + 1} · ${count}`;
+      countLabel.textContent = `${slotIndex + 1} · ${count}`;
     }
   }
 }
 
-function createInventorySlot(blockType, count, selected) {
+function createInventorySlot(itemId, count, selected) {
   const slot = document.createElement("button");
   slot.type = "button";
   slot.className = "inventory-slot";
-  slot.dataset.block = String(blockType);
+  slot.dataset.item = String(itemId);
   if (selected) {
     slot.classList.add("is-selected");
   }
@@ -1230,9 +2103,9 @@ function createInventorySlot(blockType, count, selected) {
   }
   slot.innerHTML =
     `<div class="slot-icon"></div>` +
-    `<strong>${BLOCK_NAMES[blockType]}</strong>` +
+    `<strong>${BLOCK_NAMES[itemId]}</strong>` +
     `<span>${count} in bag</span>`;
-  slot.querySelector(".slot-icon").style.backgroundImage = `url("${itemIcons.get(blockType)}")`;
+  slot.querySelector(".slot-icon").style.backgroundImage = `url("${itemIcons.get(itemId)}")`;
   return slot;
 }
 
@@ -1240,8 +2113,13 @@ function canCraft(recipe) {
   return Object.entries(recipe.ingredients).every(([blockType, needed]) => (state.inventory[Number(blockType)] ?? 0) >= needed);
 }
 
-function craftRecipe(recipeId) {
-  const recipe = RECIPES.find((entry) => entry.id === recipeId);
+function canSmelt(recipe) {
+  return (state.inventory[recipe.input] ?? 0) >= recipe.inputCount &&
+    (state.inventory[recipe.fuel] ?? 0) >= recipe.fuelCount;
+}
+
+function craftRecipe(recipeId, collection) {
+  const recipe = collection.find((entry) => entry.id === recipeId);
   if (!recipe || !canCraft(recipe)) {
     return;
   }
@@ -1249,23 +2127,138 @@ function craftRecipe(recipeId) {
     state.inventory[Number(blockType)] -= needed;
   }
   state.inventory[recipe.output] = (state.inventory[recipe.output] ?? 0) + recipe.count;
-  setSelectedBlock(recipe.output);
+  setActiveItem(recipe.output);
   state.uiMessage = `Crafted ${recipe.count} ${BLOCK_NAMES[recipe.output]}`;
   state.uiMessageTimer = 1.4;
+  state.saveDirty = true;
   updateInventoryPanel();
   updateHotbar();
 }
 
+function smeltRecipe(recipeId) {
+  const recipe = FURNACE_RECIPES.find((entry) => entry.id === recipeId);
+  if (!recipe || !canSmelt(recipe)) {
+    return;
+  }
+  state.inventory[recipe.input] -= recipe.inputCount;
+  state.inventory[recipe.fuel] -= recipe.fuelCount;
+  state.inventory[recipe.output] = (state.inventory[recipe.output] ?? 0) + recipe.count;
+  setActiveItem(recipe.output);
+  state.uiMessage = `Smelted ${recipe.count} ${BLOCK_NAMES[recipe.output]}`;
+  state.uiMessageTimer = 1.4;
+  state.saveDirty = true;
+  updateInventoryPanel();
+  updateHotbar();
+}
+
+function getAccessibleStations() {
+  const result = {
+    table: false,
+    furnace: false,
+  };
+  if (!state.target) {
+    return result;
+  }
+  if (state.target.distance > 5.5) {
+    return result;
+  }
+  if (state.target.block.type === BLOCKS.crafting_table) {
+    result.table = true;
+  }
+  if (state.target.block.type === BLOCKS.furnace) {
+    result.furnace = true;
+  }
+  return result;
+}
+
+function createPatternGrid(pattern) {
+  const grid = document.createElement("div");
+  grid.className = "recipe-pattern";
+  grid.style.gridTemplateColumns = `repeat(${pattern[0].length}, 42px)`;
+  for (const row of pattern) {
+    for (const cell of row) {
+      const recipeCell = document.createElement("div");
+      recipeCell.className = "recipe-cell";
+      if (cell !== null) {
+        recipeCell.innerHTML = `<div class="slot-icon"></div>`;
+        recipeCell.querySelector(".slot-icon").style.backgroundImage = `url("${itemIcons.get(cell)}")`;
+      }
+      grid.appendChild(recipeCell);
+    }
+  }
+  return grid;
+}
+
+function buildRecipeSection(title, subtitle, recipes, type) {
+  const wrapper = document.createElement("section");
+  wrapper.className = "inventory-section inventory-section-wide";
+  wrapper.innerHTML = `<div class="section-title"><h3>${title}</h3><span>${subtitle}</span></div>`;
+  const list = document.createElement("div");
+  list.className = "recipe-list";
+
+  for (const recipe of recipes) {
+    const enabled = type === "smelt" ? canSmelt(recipe) : canCraft(recipe);
+    const card = document.createElement("div");
+    card.className = `recipe-card${enabled ? "" : " is-disabled"}`;
+
+    const info = document.createElement("div");
+    info.className = "recipe-info";
+    const ingredients = type === "smelt"
+      ? `${recipe.inputCount} ${BLOCK_NAMES[recipe.input]} + ${recipe.fuelCount} ${BLOCK_NAMES[recipe.fuel]}`
+      : Object.entries(recipe.ingredients)
+          .map(([itemId, needed]) => `${needed} ${BLOCK_NAMES[Number(itemId)]}`)
+          .join(" + ");
+    info.innerHTML = `<strong>${BLOCK_NAMES[recipe.output]} x${recipe.count}</strong><span>${recipe.description} ${ingredients}</span>`;
+
+    const pattern = type === "smelt"
+      ? createPatternGrid([
+          [recipe.input, recipe.fuel],
+          [null, null],
+        ])
+      : createPatternGrid(recipe.pattern);
+
+    const craftWrap = document.createElement("div");
+    craftWrap.className = "recipe-craft";
+    craftWrap.innerHTML =
+      `<div class="recipe-output"><div class="slot-icon"></div><span>x${recipe.count}</span></div>` +
+      `<button class="recipe-button" type="button"${enabled ? "" : " disabled"}>${type === "smelt" ? "Smelt" : "Craft"}</button>`;
+    craftWrap.querySelector(".slot-icon").style.backgroundImage = `url("${itemIcons.get(recipe.output)}")`;
+    craftWrap.querySelector(".recipe-button").addEventListener("click", () => {
+      if (type === "smelt") {
+        smeltRecipe(recipe.id);
+      } else {
+        craftRecipe(recipe.id, recipes);
+      }
+    });
+
+    card.append(info, pattern, craftWrap);
+    list.appendChild(card);
+  }
+  wrapper.appendChild(list);
+  return wrapper;
+}
+
 function updateInventoryPanel() {
   inventoryGrid.replaceChildren();
-  PLACEABLE_BLOCKS.forEach((blockType) => {
+  const allItems = [...new Set([
+    ...PLACEABLE_BLOCKS,
+    ITEMS.stick,
+    ITEMS.coal,
+    ITEMS.iron_ingot,
+    ITEMS.wood_pickaxe,
+    ITEMS.stone_pickaxe,
+    BLOCKS.coal_ore,
+    BLOCKS.iron_ore,
+  ])];
+  allItems.forEach((itemId) => {
     const slot = createInventorySlot(
-      blockType,
-      state.inventory[blockType] ?? 0,
-      blockType === state.selectedBlock,
+      itemId,
+      state.inventory[itemId] ?? 0,
+      itemId === getSelectedItem(),
     );
     slot.addEventListener("click", () => {
-      setSelectedBlock(blockType);
+      state.hotbarSlots[state.activeSlot] = itemId;
+      setActiveItem(itemId);
       updateInventoryPanel();
       updateHotbar();
     });
@@ -1273,43 +2266,14 @@ function updateInventoryPanel() {
   });
 
   recipeList.replaceChildren();
-  RECIPES.forEach((recipe) => {
-    const card = document.createElement("div");
-    const enabled = canCraft(recipe);
-    card.className = `recipe-card${enabled ? "" : " is-disabled"}`;
-
-    const info = document.createElement("div");
-    info.className = "recipe-info";
-    const ingredients = Object.entries(recipe.ingredients)
-      .map(([blockType, needed]) => `${needed} ${BLOCK_NAMES[Number(blockType)]}`)
-      .join(" + ");
-    info.innerHTML = `<strong>${BLOCK_NAMES[recipe.output]} x${recipe.count}</strong><span>${recipe.description} ${ingredients}</span>`;
-
-    const pattern = document.createElement("div");
-    pattern.className = "recipe-pattern";
-    for (const row of recipe.pattern) {
-      for (const cell of row) {
-        const recipeCell = document.createElement("div");
-        recipeCell.className = "recipe-cell";
-        if (cell !== null) {
-          recipeCell.innerHTML = `<div class="slot-icon"></div>`;
-          recipeCell.querySelector(".slot-icon").style.backgroundImage = `url("${itemIcons.get(cell)}")`;
-        }
-        pattern.appendChild(recipeCell);
-      }
-    }
-
-    const craftWrap = document.createElement("div");
-    craftWrap.className = "recipe-craft";
-    craftWrap.innerHTML =
-      `<div class="recipe-output"><div class="slot-icon"></div><span>x${recipe.count}</span></div>` +
-      `<button class="recipe-button" type="button"${enabled ? "" : " disabled"}>Craft</button>`;
-    craftWrap.querySelector(".slot-icon").style.backgroundImage = `url("${itemIcons.get(recipe.output)}")`;
-    craftWrap.querySelector(".recipe-button").addEventListener("click", () => craftRecipe(recipe.id));
-
-    card.append(info, pattern, craftWrap);
-    recipeList.appendChild(card);
-  });
+  recipeList.appendChild(buildRecipeSection("Hand Crafting", "Always available", HAND_RECIPES, "craft"));
+  const stations = getAccessibleStations();
+  if (stations.table) {
+    recipeList.appendChild(buildRecipeSection("Crafting Table", "Look at a placed table to unlock", TABLE_RECIPES, "craft"));
+  }
+  if (stations.furnace) {
+    recipeList.appendChild(buildRecipeSection("Furnace", "Look at a placed furnace to smelt", FURNACE_RECIPES, "smelt"));
+  }
 }
 
 function toggleInventory(forceOpen) {
@@ -1322,6 +2286,17 @@ function toggleInventory(forceOpen) {
   } else if (state.running) {
     requestPointerLock();
   }
+}
+
+function setActiveItem(itemId) {
+  const existingIndex = state.hotbarSlots.indexOf(itemId);
+  if (existingIndex !== -1) {
+    state.activeSlot = existingIndex;
+  } else {
+    state.hotbarSlots[state.activeSlot] = itemId;
+  }
+  state.selectedBlock = isPlaceableItem(itemId) ? itemId : state.selectedBlock;
+  state.saveDirty = true;
 }
 
 function setMode(mode) {
@@ -1341,11 +2316,15 @@ function startGame() {
 }
 
 function requestPointerLock() {
-  if (state.inventoryOpen) {
+  if (state.inventoryOpen || !state.running || state.pointerLocked) {
     return;
   }
   if (canvas.requestPointerLock) {
-    canvas.requestPointerLock().catch(() => {});
+    const lockRequest = canvas.requestPointerLock();
+    lockRequest?.catch(() => {
+      state.uiMessage = "Mouse look fallback: hold and drag on the canvas";
+      state.uiMessageTimer = 1.4;
+    });
   }
 }
 
@@ -1357,6 +2336,10 @@ function exitPointerLock() {
 
 function updatePointerState() {
   state.pointerLocked = document.pointerLockElement === canvas;
+  if (state.pointerLocked) {
+    state.dragLook = false;
+    state.dragAnchor = null;
+  }
 }
 
 function moveLook(deltaX, deltaY) {
@@ -1499,6 +2482,8 @@ function updateTarget() {
   if (!hit || !hit.face) {
     state.target = null;
     targetHighlight.visible = false;
+    breakOverlay.visible = false;
+    updateBreakVisuals();
     return;
   }
 
@@ -1510,6 +2495,8 @@ function updateTarget() {
   if (blockType === BLOCKS.air) {
     state.target = null;
     targetHighlight.visible = false;
+    breakOverlay.visible = false;
+    updateBreakVisuals();
     return;
   }
 
@@ -1526,25 +2513,59 @@ function updateTarget() {
     blockCoords.y + 0.5,
     blockCoords.z + 0.5,
   );
+  updateBreakVisuals();
 }
 
 function interact(breaking) {
-  if (state.elapsed - state.lastInteractionTime < 0.16) {
+  updateTarget();
+  if (!state.target) {
+    if (breaking) {
+      resetBreakState();
+    }
+    return;
+  }
+  const cooldown = getInteractionCooldown(state.target.block.type, breaking);
+  if (state.elapsed - state.lastInteractionTime < cooldown) {
     return;
   }
   state.lastInteractionTime = state.elapsed;
-  updateTarget();
-  if (!state.target) {
-    return;
-  }
 
   if (breaking) {
+    if (!canMineBlock(state.target.block.type)) {
+      state.uiMessage = `Need a better tool for ${BLOCK_NAMES[state.target.block.type]}`;
+      state.uiMessageTimer = 1.1;
+      resetBreakState();
+      return;
+    }
+    const targetKey = getTargetKey(state.target);
+    if (state.breakState.key !== targetKey || state.breakState.blockType !== state.target.block.type) {
+      state.breakState.key = targetKey;
+      state.breakState.blockType = state.target.block.type;
+      state.breakState.progress = 0;
+      state.breakState.hardness = getBreakHardness(state.target.block.type);
+    }
+    state.breakState.progress += getBreakDamage(state.target.block.type);
+    state.breakState.lastHitTime = state.elapsed;
+    state.breakState.pulse = 1;
+    spawnParticles(
+      state.target.block.x + 0.5,
+      state.target.block.y + 0.5,
+      state.target.block.z + 0.5,
+      state.target.block.type,
+      3,
+      0.85,
+    );
+    if (state.breakState.progress < state.breakState.hardness) {
+      updateBreakVisuals();
+      return;
+    }
     const brokenType = state.target.block.type;
     if (world.setBlock(state.target.block.x, state.target.block.y, state.target.block.z, BLOCKS.air)) {
       chunkMeshes.markDirtyAtWorld(state.target.block.x, state.target.block.z);
-      if (isCollectibleBlock(brokenType)) {
-        state.inventory[brokenType] = (state.inventory[brokenType] ?? 0) + 1;
-        state.uiMessage = `Collected ${BLOCK_NAMES[brokenType]}`;
+      const dropId = getDropForBlock(brokenType);
+      if (dropId != null && isCollectibleBlock(brokenType)) {
+        state.inventory[dropId] = (state.inventory[dropId] ?? 0) + 1;
+        state.uiMessage = `Collected ${BLOCK_NAMES[dropId]}`;
         state.uiMessageTimer = 1.1;
       }
       spawnParticles(
@@ -1555,27 +2576,39 @@ function interact(breaking) {
         10,
         2.2,
       );
+      state.saveDirty = true;
     }
-  } else if (canPlaceBlock(state.target.place.x, state.target.place.y, state.target.place.z)) {
-    if ((state.inventory[state.selectedBlock] ?? 0) <= 0) {
-      state.uiMessage = `Out of ${BLOCK_NAMES[state.selectedBlock]}`;
-      state.uiMessageTimer = 0.9;
-    } else if (world.setBlock(state.target.place.x, state.target.place.y, state.target.place.z, state.selectedBlock)) {
-      state.inventory[state.selectedBlock] -= 1;
-      chunkMeshes.markDirtyAtWorld(state.target.place.x, state.target.place.z);
-      spawnParticles(
-        state.target.place.x + 0.5,
-        state.target.place.y + 0.5,
-        state.target.place.z + 0.5,
-        state.selectedBlock,
-        6,
-        1.6,
-      );
+    resetBreakState();
+  } else {
+    resetBreakState();
+    const selectedItem = getSelectedItem();
+    if (!isPlaceableItem(selectedItem)) {
+      return;
+    }
+    if (canPlaceBlock(state.target.place.x, state.target.place.y, state.target.place.z)) {
+      if ((state.inventory[selectedItem] ?? 0) <= 0) {
+        state.uiMessage = `Out of ${BLOCK_NAMES[selectedItem]}`;
+        state.uiMessageTimer = 0.9;
+      } else if (world.setBlock(state.target.place.x, state.target.place.y, state.target.place.z, selectedItem)) {
+        state.inventory[selectedItem] -= 1;
+        chunkMeshes.markDirtyAtWorld(state.target.place.x, state.target.place.z);
+        spawnParticles(
+          state.target.place.x + 0.5,
+          state.target.place.y + 0.5,
+          state.target.place.z + 0.5,
+          selectedItem,
+          6,
+          1.6,
+        );
+        state.saveDirty = true;
+      }
     }
   }
 
   chunkMeshes.syncLoadedChunks();
   updateTarget();
+  updateInventoryPanel();
+  updateHotbar();
 }
 
 function handleInput(dt) {
@@ -1620,29 +2653,14 @@ function handleInput(dt) {
     player.onGround = false;
   }
 
-  if (state.keys.has("Digit1")) {
-    setSelectedBlock(PLACEABLE_BLOCKS[0]);
-  }
-  if (state.keys.has("Digit2")) {
-    setSelectedBlock(PLACEABLE_BLOCKS[1]);
-  }
-  if (state.keys.has("Digit3")) {
-    setSelectedBlock(PLACEABLE_BLOCKS[2]);
-  }
-  if (state.keys.has("Digit4")) {
-    setSelectedBlock(PLACEABLE_BLOCKS[3]);
-  }
-  if (state.keys.has("Digit5")) {
-    setSelectedBlock(PLACEABLE_BLOCKS[4]);
-  }
-  if (state.keys.has("Digit6")) {
-    setSelectedBlock(PLACEABLE_BLOCKS[5]);
-  }
-  if (state.keys.has("Digit7")) {
-    setSelectedBlock(PLACEABLE_BLOCKS[6]);
-  }
-  if (state.keys.has("Digit8")) {
-    setSelectedBlock(PLACEABLE_BLOCKS[7]);
+  for (let i = 0; i < HOTBAR_SIZE; i++) {
+    if (state.keys.has(`Digit${i + 1}`)) {
+      state.activeSlot = i;
+      const itemId = getSelectedItem();
+      if (isPlaceableItem(itemId)) {
+        state.selectedBlock = itemId;
+      }
+    }
   }
 
   if (state.keys.has("KeyF")) {
@@ -1667,20 +2685,25 @@ function handleInput(dt) {
 
 function updateHud() {
   const player = state.player;
+  const activeItem = getSelectedItem();
   const targetText = state.target
     ? `${BLOCK_NAMES[state.target.block.type]} @ ${state.target.block.x}, ${state.target.block.y}, ${state.target.block.z}`
     : "none";
+  const breakProgress = state.breakState.key && state.breakState.hardness > 0
+    ? `${Math.round(clamp(state.breakState.progress / state.breakState.hardness, 0, 1) * 100)}%`
+    : "0%";
 
   hudPrimary.textContent =
-    `Selected: ${BLOCK_NAMES[state.selectedBlock]}\n` +
+    `Selected: ${activeItem == null ? "Empty" : BLOCK_NAMES[activeItem]}\n` +
     `Target: ${targetText}\n` +
+    `Break: ${breakProgress}\n` +
     `Chunks: ${world.loadedKeys.size} active / ${world.chunks.size} cached\n` +
     `Bag: ${PLACEABLE_BLOCKS.map((blockType) => `${BLOCK_NAMES[blockType][0]}:${state.inventory[blockType] ?? 0}`).join(" ")}`;
 
   hudSecondary.textContent =
     `XYZ ${player.x.toFixed(1)}, ${player.y.toFixed(1)}, ${player.z.toFixed(1)}\n` +
     `Yaw ${player.yaw.toFixed(2)} Pitch ${player.pitch.toFixed(2)}\n` +
-    `${state.inventoryOpen ? "Inventory open" : state.pointerLocked ? "Pointer lock" : "Click canvas to lock mouse"} | ${state.keys.has("ShiftLeft") || state.keys.has("ShiftRight") ? "Sprinting" : "Walk"} | Day ${(state.dayTime * 24).toFixed(1)}h${state.uiMessageTimer > 0 ? ` | ${state.uiMessage}` : ""}`;
+    `${state.inventoryOpen ? "Inventory open" : state.pointerLocked ? "Pointer lock" : "Click or drag on canvas"} | ${state.keys.has("ShiftLeft") || state.keys.has("ShiftRight") ? "Sprinting" : "Walk"} | Mobs ${passiveMobs.getEntityCount()} | Day ${(state.dayTime * 24).toFixed(1)}h${state.uiMessageTimer > 0 ? ` | ${state.uiMessage}` : ""}`;
 }
 
 function render() {
@@ -1703,8 +2726,11 @@ function update(dt, shouldRender = true) {
   state.dayTime = (state.dayTime + dt * 0.01) % 1;
   state.uiMessageTimer = Math.max(0, state.uiMessageTimer - dt);
   state.viewBob = Math.max(0, state.viewBob - dt * 1.8);
+  state.saveCooldown = Math.max(0, state.saveCooldown - dt);
+  state.breakState.pulse = Math.max(0, state.breakState.pulse - dt * 4.2);
   world.updateLoadedChunks(state.player.x, state.player.z);
   chunkMeshes.syncLoadedChunks();
+  passiveMobs.syncLoadedChunks();
   handleInput(dt);
 
   const wasOnGround = state.player.onGround;
@@ -1731,7 +2757,30 @@ function update(dt, shouldRender = true) {
   }
 
   updateParticles(dt);
+  passiveMobs.update(dt);
   updateTarget();
+
+  if (state.breakState.progress > 0) {
+    const activeTargetKey = getTargetKey(state.target);
+    const shouldDecay =
+      state.breakState.key !== activeTargetKey ||
+      state.elapsed - state.breakState.lastHitTime > BREAK_RESET_TIME;
+    if (shouldDecay) {
+      state.breakState.progress = Math.max(
+        0,
+        state.breakState.progress - dt * state.breakState.hardness * 1.2,
+      );
+      if (state.breakState.progress <= 0.01) {
+        resetBreakState();
+      } else {
+        updateBreakVisuals();
+      }
+    }
+  }
+
+  if (state.saveCooldown <= 0 && (state.saveDirty || Math.floor(state.elapsed) % 8 === 0)) {
+    saveGame();
+  }
 
   if (shouldRender) {
     render();
@@ -1757,9 +2806,19 @@ function renderGameToText() {
       onGround: player.onGround,
     },
     selectedBlock: BLOCK_NAMES[state.selectedBlock],
-    hotbar: PLACEABLE_BLOCKS.map((blockType) => BLOCK_NAMES[blockType]),
-    inventory: Object.fromEntries(PLACEABLE_BLOCKS.map((blockType) => [BLOCK_NAMES[blockType], state.inventory[blockType] ?? 0])),
-    craftable: RECIPES.filter(canCraft).map((recipe) => `${BLOCK_NAMES[recipe.output]} x${recipe.count}`),
+    selectedItem: getSelectedItem() == null ? "Empty" : BLOCK_NAMES[getSelectedItem()],
+    hotbar: state.hotbarSlots.map((itemId) => itemId == null ? "Empty" : BLOCK_NAMES[itemId]),
+    inventory: Object.fromEntries(
+      Object.entries(state.inventory)
+        .filter(([, count]) => count > 0)
+        .map(([itemId, count]) => [BLOCK_NAMES[Number(itemId)], count]),
+    ),
+    craftable: HAND_RECIPES.filter(canCraft).map((recipe) => `${BLOCK_NAMES[recipe.output]} x${recipe.count}`),
+    tableCraftable: TABLE_RECIPES.filter(canCraft).map((recipe) => `${BLOCK_NAMES[recipe.output]} x${recipe.count}`),
+    furnaceCraftable: FURNACE_RECIPES.filter(canSmelt).map((recipe) => `${BLOCK_NAMES[recipe.output]} x${recipe.count}`),
+    breakProgress: state.breakState.key && state.breakState.hardness > 0
+      ? Number((state.breakState.progress / state.breakState.hardness).toFixed(2))
+      : 0,
     target: state.target
       ? {
           block: state.target.block,
@@ -1767,6 +2826,7 @@ function renderGameToText() {
           distance: Number(state.target.distance.toFixed(2)),
         }
       : null,
+    nearbyMobs: passiveMobs.getNearbyEntities(),
     dayTimeHours: Number((state.dayTime * 24).toFixed(2)),
     chunkStats: {
       active: world.loadedKeys.size,
@@ -1816,6 +2876,9 @@ canvas.addEventListener("mousedown", (event) => {
   if (state.inventoryOpen) {
     return;
   }
+  if (state.running && !state.pointerLocked) {
+    requestPointerLock();
+  }
   if (event.button === 0) {
     state.mouseDown.left = true;
   }
@@ -1825,6 +2888,12 @@ canvas.addEventListener("mousedown", (event) => {
   if (!state.pointerLocked) {
     state.dragLook = true;
     state.dragAnchor = { x: event.clientX, y: event.clientY };
+  }
+});
+
+canvas.addEventListener("pointerdown", () => {
+  if (state.running && !state.inventoryOpen && !state.pointerLocked) {
+    requestPointerLock();
   }
 });
 
@@ -1854,15 +2923,21 @@ window.addEventListener("mousemove", (event) => {
 });
 
 window.addEventListener("pointerlockchange", updatePointerState);
+window.addEventListener("pointerlockerror", () => {
+  state.uiMessage = "Mouse look fallback: hold and drag on the canvas";
+  state.uiMessageTimer = 1.4;
+});
 window.addEventListener("resize", resizeRenderer);
 window.addEventListener("wheel", (event) => {
-  if (!PLACEABLE_BLOCKS.length || state.inventoryOpen) {
+  if (state.inventoryOpen) {
     return;
   }
   event.preventDefault();
-  const currentIndex = PLACEABLE_BLOCKS.indexOf(state.selectedBlock);
-  const nextIndex = (currentIndex + (event.deltaY > 0 ? 1 : -1) + PLACEABLE_BLOCKS.length) % PLACEABLE_BLOCKS.length;
-  setSelectedBlock(PLACEABLE_BLOCKS[nextIndex]);
+  state.activeSlot = (state.activeSlot + (event.deltaY > 0 ? 1 : -1) + HOTBAR_SIZE) % HOTBAR_SIZE;
+  const itemId = getSelectedItem();
+  if (isPlaceableItem(itemId)) {
+    state.selectedBlock = itemId;
+  }
 }, { passive: false });
 
 window.addEventListener("keydown", (event) => {
@@ -1894,12 +2969,19 @@ window.addEventListener("keyup", (event) => {
   state.keys.delete(event.code);
 });
 
+window.addEventListener("beforeunload", () => {
+  saveGame();
+});
+
 resizeRenderer();
 buildHotbar();
 updateInventoryPanel();
+loadGame();
 world.updateLoadedChunks(state.player.x, state.player.z);
 chunkMeshes.syncLoadedChunks();
+passiveMobs.syncLoadedChunks();
 updateTarget();
 updateHotbar();
+updateInventoryPanel();
 render();
 requestAnimationFrame(animationLoop(performance.now()));

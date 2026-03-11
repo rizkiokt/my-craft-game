@@ -304,7 +304,6 @@ canvas {
 
 .recipe-pattern {
   display: grid;
-  grid-template-columns: repeat(2, 42px);
   gap: 6px;
 }
 

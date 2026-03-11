@@ -1,0 +1,57 @@
+{
+  "before": {
+    "target": null,
+    "breakProgress": 0
+  },
+  "aimed": {
+    "target": {
+      "block": {
+        "x": 1,
+        "y": 8,
+        "z": -2,
+        "type": 4
+      },
+      "place": {
+        "x": 1,
+        "y": 9,
+        "z": -2
+      },
+      "distance": 3.47
+    },
+    "breakProgress": 0
+  },
+  "during": {
+    "target": {
+      "block": {
+        "x": 2,
+        "y": 8,
+        "z": -2,
+        "type": 4
+      },
+      "place": {
+        "x": 1,
+        "y": 8,
+        "z": -2
+      },
+      "distance": 4.42
+    },
+    "breakProgress": 0
+  },
+  "after": {
+    "target": {
+      "block": {
+        "x": 2,
+        "y": 8,
+        "z": -2,
+        "type": 4
+      },
+      "place": {
+        "x": 1,
+        "y": 8,
+        "z": -2
+      },
+      "distance": 4.42
+    },
+    "breakProgress": 0
+  }
+}
