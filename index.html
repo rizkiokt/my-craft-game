@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MyCraft</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <canvas id="game" width="960" height="540" tabindex="0" aria-label="MyCraft game canvas"></canvas>
+      <div class="hud">
+        <div id="hud-primary"></div>
+        <div id="hud-secondary"></div>
+      </div>
+      <div id="menu" class="menu">
+        <div class="menu-card">
+          <p class="eyebrow">MyCraft</p>
+          <h1>Voxel Sandbox</h1>
+          <p class="intro">
+            Procedural chunks, block breaking, block placing, and a compact
+            first-person renderer.
+          </p>
+          <ul class="controls">
+            <li><span>Move</span><strong>WASD or Arrow Keys</strong></li>
+            <li><span>Look</span><strong>Mouse or Drag</strong></li>
+            <li><span>Jump</span><strong>Space</strong></li>
+            <li><span>Break</span><strong>Left Click</strong></li>
+            <li><span>Place</span><strong>Right Click or B</strong></li>
+            <li><span>Select Block</span><strong>1 2 3</strong></li>
+            <li><span>Fullscreen</span><strong>F</strong></li>
+          </ul>
+          <button id="start-btn" type="button">Enter World</button>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
