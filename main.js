@@ -48,6 +48,10 @@ const BLOCKS = {
   iron_ore: 12,
   crafting_table: 13,
   furnace: 14,
+  snow: 15,
+  ice: 16,
+  pine_wood: 17,
+  pine_leaves: 18,
 };
 
 const ITEMS = {
@@ -74,6 +78,10 @@ const BLOCK_NAMES = {
   [BLOCKS.iron_ore]: "Iron Ore",
   [BLOCKS.crafting_table]: "Crafting Table",
   [BLOCKS.furnace]: "Furnace",
+  [BLOCKS.snow]: "Snow",
+  [BLOCKS.ice]: "Ice",
+  [BLOCKS.pine_wood]: "Pine Wood",
+  [BLOCKS.pine_leaves]: "Pine Leaves",
   [ITEMS.stick]: "Stick",
   [ITEMS.coal]: "Coal",
   [ITEMS.iron_ingot]: "Iron Ingot",
@@ -88,10 +96,13 @@ const PLACEABLE_BLOCKS = [
   BLOCKS.dirt,
   BLOCKS.stone,
   BLOCKS.wood,
+  BLOCKS.pine_wood,
   BLOCKS.planks,
   BLOCKS.sand,
   BLOCKS.bricks,
   BLOCKS.glass,
+  BLOCKS.snow,
+  BLOCKS.ice,
 ];
 
 const HOTBAR_SIZE = 8;
@@ -112,6 +123,15 @@ const SUBURB_PLAN = {
   minZ: -52,
   maxZ: 24,
 };
+const SNOW_REALM = {
+  minX: 72,
+  maxX: 152,
+  minZ: 24,
+  maxZ: 108,
+  baseHeight: 14,
+  pathSpacing: 16,
+  pathWidth: 3,
+};
 const DEFAULT_SPAWN = {
   x: 4.5,
   z: -1.5,
@@ -130,6 +150,17 @@ const HAND_RECIPES = [
     ],
     ingredients: { [BLOCKS.wood]: 1 },
     description: "Saw a log into planks.",
+  },
+  {
+    id: "pine_planks",
+    output: BLOCKS.planks,
+    count: 4,
+    pattern: [
+      [BLOCKS.pine_wood, null],
+      [null, null],
+    ],
+    ingredients: { [BLOCKS.pine_wood]: 1 },
+    description: "Saw a pine log into planks.",
   },
   {
     id: "sticks",
@@ -408,6 +439,23 @@ function getCityTargetHeight(wx, wz) {
   return CITY_PLAN.baseHeight + Math.round(perlin2(wx / 28 + 17, wz / 28 + 23) * 0.7);
 }
 
+function getSnowCenter() {
+  return {
+    x: (SNOW_REALM.minX + SNOW_REALM.maxX) * 0.5,
+    z: (SNOW_REALM.minZ + SNOW_REALM.maxZ) * 0.5,
+  };
+}
+
+function getSnowTargetHeight(wx, wz) {
+  const ridge = Math.abs(perlin2(wx / 32 + 9, wz / 32 + 27)) * 2.8;
+  const detail = perlin2(wx / 18 + 3, wz / 18 + 8) * 1.6;
+  return SNOW_REALM.baseHeight + Math.round(ridge + detail);
+}
+
+function getSnowBlend(wx, wz) {
+  return isInsideRect(wx, wz, SNOW_REALM) ? 0.92 : 0;
+}
+
 function getSettlementBlend(wx, wz) {
   if (isInsideRect(wx, wz, CITY_PLAN)) {
     return 0.96;
@@ -416,6 +464,62 @@ function getSettlementBlend(wx, wz) {
     return 0.58;
   }
   return 0;
+}
+
+function getSnowParcel(wx, wz) {
+  if (!isInsideRect(wx, wz, SNOW_REALM)) {
+    return null;
+  }
+
+  const relX = wx - SNOW_REALM.minX;
+  const relZ = wz - SNOW_REALM.minZ;
+  const spacing = SNOW_REALM.pathSpacing;
+  const pathWidth = SNOW_REALM.pathWidth;
+  const modX = ((relX % spacing) + spacing) % spacing;
+  const modZ = ((relZ % spacing) + spacing) % spacing;
+  const pathX = modX < pathWidth;
+  const pathZ = modZ < pathWidth;
+  const lotX = Math.floor(relX / spacing);
+  const lotZ = Math.floor(relZ / spacing);
+
+  if (pathX || pathZ) {
+    return {
+      kind: "path",
+      lotX,
+      lotZ,
+      modX,
+      modZ,
+      isIntersection: pathX && pathZ,
+    };
+  }
+
+  const innerX = modX - pathWidth;
+  const innerZ = modZ - pathWidth;
+  const seed = hash3(lotX, 211, lotZ);
+  const style = seed > 0.74 ? "lodge" : seed > 0.42 ? "hall" : "igloo";
+  const width = style === "igloo" ? 7 : style === "hall" ? 8 : 6;
+  const depth = style === "igloo" ? 7 : style === "hall" ? 7 : 6;
+  const offsetX = 2;
+  const offsetZ = style === "hall" ? 3 : 2;
+  const footprint =
+    innerX >= offsetX &&
+    innerX < offsetX + width &&
+    innerZ >= offsetZ &&
+    innerZ < offsetZ + depth;
+
+  return {
+    kind: "lot",
+    lotX,
+    lotZ,
+    innerX,
+    innerZ,
+    style,
+    width,
+    depth,
+    offsetX,
+    offsetZ,
+    footprint,
+  };
 }
 
 function getCityParcel(wx, wz) {
@@ -728,6 +832,113 @@ function getStructureBlock(wx, wy, wz, height) {
   if (wy === baseY + wallHeight) {
     return BLOCKS.wood;
   }
+
+  const snowParcel = getSnowParcel(wx, wz);
+  if (!snowParcel) {
+    return null;
+  }
+
+  const snowFloor = getSnowTargetHeight(wx, wz);
+  if (snowParcel.kind === "path") {
+    if (wy === snowFloor) {
+      return snowParcel.isIntersection || snowParcel.modX === SNOW_REALM.pathWidth - 1 || snowParcel.modZ === SNOW_REALM.pathWidth - 1
+        ? BLOCKS.pine_wood
+        : BLOCKS.ice;
+    }
+    if (wy === snowFloor - 1) {
+      return BLOCKS.snow;
+    }
+    const beaconSpot =
+      snowParcel.modX === 1 &&
+      snowParcel.modZ === 1 &&
+      ((snowParcel.lotX + snowParcel.lotZ) % 2 === 0);
+    if (beaconSpot) {
+      if (wy > snowFloor && wy <= snowFloor + 3) {
+        return BLOCKS.pine_wood;
+      }
+      if (wy === snowFloor + 4 || wy === snowFloor + 5) {
+        return BLOCKS.ice;
+      }
+    }
+    return null;
+  }
+
+  if (!snowParcel.footprint) {
+    return null;
+  }
+
+  const relSnowX = snowParcel.innerX - snowParcel.offsetX;
+  const relSnowZ = snowParcel.innerZ - snowParcel.offsetZ;
+  const snowCenterX = (snowParcel.width - 1) * 0.5;
+  const snowCenterZ = (snowParcel.depth - 1) * 0.5;
+  const radius = Math.max(Math.abs(relSnowX - snowCenterX), Math.abs(relSnowZ - snowCenterZ));
+  const snowBaseY = snowFloor + 1;
+
+  if (snowParcel.style === "igloo") {
+    const domeRadius = 3.3;
+    const domeHeight = Math.max(0, Math.floor(domeRadius * domeRadius - ((relSnowX - snowCenterX) ** 2 + (relSnowZ - snowCenterZ) ** 2)));
+    const shellTop = snowBaseY + domeHeight;
+    const shellBottom = snowBaseY;
+    const doorway =
+      relSnowZ === snowParcel.depth - 1 &&
+      (relSnowX === Math.floor(snowCenterX) || relSnowX === Math.ceil(snowCenterX)) &&
+      wy <= snowBaseY + 1;
+    const windowBand = wy === snowBaseY + 2 && (relSnowX === 1 || relSnowX === snowParcel.width - 2);
+    if (wy === snowFloor || wy === snowFloor - 1) {
+      return BLOCKS.snow;
+    }
+    if (wy >= shellBottom && wy <= shellTop) {
+      const shellThreshold = wy === shellTop ? 0 : 0.85;
+      if (radius >= domeRadius - shellThreshold) {
+        if (doorway) {
+          return BLOCKS.air;
+        }
+        if (windowBand) {
+          return BLOCKS.ice;
+        }
+        return BLOCKS.snow;
+      }
+      return BLOCKS.air;
+    }
+    return null;
+  }
+
+  const edge =
+    relSnowX === 0 ||
+    relSnowZ === 0 ||
+    relSnowX === snowParcel.width - 1 ||
+    relSnowZ === snowParcel.depth - 1;
+  const snowWallHeight = snowParcel.style === "hall" ? 5 : 4;
+  const roofY = snowBaseY + snowWallHeight;
+  const door =
+    relSnowZ === snowParcel.depth - 1 &&
+    (relSnowX === Math.floor(snowCenterX) || relSnowX === Math.ceil(snowCenterX));
+
+  if (wy === snowFloor || wy === snowFloor - 1) {
+    return BLOCKS.stone;
+  }
+  if (wy >= snowBaseY && wy < roofY) {
+    if (edge) {
+      if (door && wy <= snowBaseY + 1) {
+        return BLOCKS.air;
+      }
+      if ((wy === snowBaseY + 1 || wy === snowBaseY + 3) && !door && (relSnowX + relSnowZ) % 2 === 0) {
+        return BLOCKS.ice;
+      }
+      return relSnowZ === 0 || relSnowZ === snowParcel.depth - 1 ? BLOCKS.pine_wood : BLOCKS.planks;
+    }
+    return BLOCKS.air;
+  }
+  if (wy === roofY) {
+    const roofInset = Math.min(relSnowX, relSnowZ, snowParcel.width - 1 - relSnowX, snowParcel.depth - 1 - relSnowZ);
+    if (snowParcel.style === "hall") {
+      return roofInset <= 1 ? BLOCKS.snow : BLOCKS.ice;
+    }
+    return roofInset <= 1 ? BLOCKS.snow : BLOCKS.air;
+  }
+  if (snowParcel.style === "hall" && wy === roofY + 1 && edge) {
+    return BLOCKS.pine_wood;
+  }
   return null;
 }
 
@@ -748,6 +959,10 @@ function createTextureSet() {
     BLOCKS.iron_ore,
     BLOCKS.crafting_table,
     BLOCKS.furnace,
+    BLOCKS.snow,
+    BLOCKS.ice,
+    BLOCKS.pine_wood,
+    BLOCKS.pine_leaves,
   ]) {
     textures[blockType] = {
       top: new Uint8Array(16 * 16 * 3),
@@ -1010,6 +1225,77 @@ function createTextureSet() {
         96 + rock,
         104 + rock,
       ]);
+
+      const snowNoise = hash3(x, y, 13) * 12 - 6;
+      const frost = y < 3 ? 8 : 0;
+      paint(textures[BLOCKS.snow].top, x, y, [
+        230 + snowNoise + frost,
+        236 + snowNoise + frost,
+        244 + snowNoise,
+      ]);
+      paint(textures[BLOCKS.snow].side, x, y, [
+        y < 4 ? 226 + snowNoise : 192 + snowNoise,
+        y < 4 ? 232 + snowNoise : 200 + snowNoise,
+        y < 4 ? 240 + snowNoise : 214 + snowNoise,
+      ]);
+      paint(textures[BLOCKS.snow].bottom, x, y, [
+        208 + snowNoise,
+        214 + snowNoise,
+        224 + snowNoise,
+      ]);
+
+      const iceNoise = hash3(x, y, 14) * 10 - 5;
+      const crack = x === y || x + y === 15 ? 22 : 0;
+      paint(textures[BLOCKS.ice].top, x, y, [
+        150 + iceNoise + crack,
+        210 + iceNoise + crack * 0.45,
+        236 + iceNoise + crack * 0.25,
+      ]);
+      paint(textures[BLOCKS.ice].side, x, y, [
+        140 + iceNoise + crack,
+        198 + iceNoise + crack * 0.45,
+        228 + iceNoise + crack * 0.25,
+      ]);
+      paint(textures[BLOCKS.ice].bottom, x, y, [
+        132 + iceNoise,
+        186 + iceNoise,
+        220 + iceNoise,
+      ]);
+
+      const pineBark = hash3(x, y, 15) * 18 - 9;
+      const pineRing = hash3(x, y, 16) * 14 - 7;
+      paint(textures[BLOCKS.pine_wood].top, x, y, [
+        112 + pineRing,
+        86 + pineRing * 0.6,
+        58 + pineRing * 0.4,
+      ]);
+      paint(textures[BLOCKS.pine_wood].side, x, y, [
+        82 + pineBark,
+        64 + pineBark * 0.58,
+        46 + pineBark * 0.38,
+      ]);
+      paint(textures[BLOCKS.pine_wood].bottom, x, y, [
+        110 + pineRing,
+        84 + pineRing * 0.6,
+        56 + pineRing * 0.4,
+      ]);
+
+      const pineLeaf = hash3(x, y, 17) * 18 - 9;
+      paint(textures[BLOCKS.pine_leaves].top, x, y, [
+        74 + pineLeaf * 0.3,
+        102 + pineLeaf * 0.6,
+        84 + pineLeaf * 0.5,
+      ]);
+      paint(textures[BLOCKS.pine_leaves].side, x, y, [
+        66 + pineLeaf * 0.3,
+        94 + pineLeaf * 0.6,
+        76 + pineLeaf * 0.5,
+      ]);
+      paint(textures[BLOCKS.pine_leaves].bottom, x, y, [
+        60 + pineLeaf * 0.3,
+        86 + pineLeaf * 0.6,
+        70 + pineLeaf * 0.5,
+      ]);
     }
   }
   return textures;
@@ -1018,8 +1304,8 @@ function createTextureSet() {
 function createAtlasTexture() {
   const textureSet = createTextureSet();
   const tileSize = 16;
-  const columns = 4;
-  const rows = 4;
+  const columns = 5;
+  const rows = 5;
   const atlas = document.createElement("canvas");
   atlas.width = columns * tileSize;
   atlas.height = rows * tileSize;
@@ -1046,6 +1332,13 @@ function createAtlasTexture() {
     textureSet[BLOCKS.crafting_table].top,
     textureSet[BLOCKS.crafting_table].side,
     textureSet[BLOCKS.furnace].side,
+    textureSet[BLOCKS.snow].top,
+    textureSet[BLOCKS.snow].side,
+    textureSet[BLOCKS.ice].side,
+    textureSet[BLOCKS.ice].top,
+    textureSet[BLOCKS.pine_wood].top,
+    textureSet[BLOCKS.pine_wood].side,
+    textureSet[BLOCKS.pine_leaves].side,
   ];
 
   tileData.forEach((tile, index) => {
@@ -1115,7 +1408,19 @@ function getTileIndex(blockType, faceKey) {
   if (blockType === BLOCKS.crafting_table) {
     return faceKey === "py" ? 15 : 16;
   }
-  return 17;
+  if (blockType === BLOCKS.furnace) {
+    return 17;
+  }
+  if (blockType === BLOCKS.snow) {
+    return faceKey === "py" ? 18 : 19;
+  }
+  if (blockType === BLOCKS.ice) {
+    return faceKey === "py" || faceKey === "ny" ? 21 : 20;
+  }
+  if (blockType === BLOCKS.pine_wood) {
+    return faceKey === "py" || faceKey === "ny" ? 22 : 23;
+  }
+  return 24;
 }
 
 function atlasUv(columns, rows, tileIndex, u, v) {
@@ -1179,7 +1484,7 @@ function getInteractionCooldown(blockType, breaking) {
   if (blockType === BLOCKS.stone || blockType === BLOCKS.coal_ore || blockType === BLOCKS.iron_ore || blockType === BLOCKS.furnace) {
     return 0.48 / tool.speed;
   }
-  if (blockType === BLOCKS.wood || blockType === BLOCKS.planks || blockType === BLOCKS.crafting_table) {
+  if (blockType === BLOCKS.wood || blockType === BLOCKS.pine_wood || blockType === BLOCKS.planks || blockType === BLOCKS.crafting_table) {
     return 0.26;
   }
   return 0.14;
@@ -1192,13 +1497,13 @@ function getBreakHardness(blockType) {
   if (blockType === BLOCKS.iron_ore || blockType === BLOCKS.furnace) {
     return 7.2;
   }
-  if (blockType === BLOCKS.wood || blockType === BLOCKS.planks || blockType === BLOCKS.crafting_table) {
+  if (blockType === BLOCKS.wood || blockType === BLOCKS.pine_wood || blockType === BLOCKS.planks || blockType === BLOCKS.crafting_table) {
     return 3.8;
   }
   if (blockType === BLOCKS.bricks) {
     return 5.8;
   }
-  if (blockType === BLOCKS.leaves || blockType === BLOCKS.glass) {
+  if (blockType === BLOCKS.leaves || blockType === BLOCKS.pine_leaves || blockType === BLOCKS.glass || blockType === BLOCKS.ice) {
     return 1.8;
   }
   return 2.2;
@@ -1209,14 +1514,14 @@ function getBreakDamage(blockType) {
   if (blockType === BLOCKS.stone || blockType === BLOCKS.coal_ore || blockType === BLOCKS.iron_ore || blockType === BLOCKS.furnace) {
     return 1 + tool.speed * 0.68;
   }
-  if (blockType === BLOCKS.wood || blockType === BLOCKS.planks || blockType === BLOCKS.crafting_table) {
+  if (blockType === BLOCKS.wood || blockType === BLOCKS.pine_wood || blockType === BLOCKS.planks || blockType === BLOCKS.crafting_table) {
     return 0.95 + tool.speed * 0.4;
   }
   return 1 + tool.speed * 0.3;
 }
 
 function getDropForBlock(blockType) {
-  if (blockType === BLOCKS.leaves) {
+  if (blockType === BLOCKS.leaves || blockType === BLOCKS.pine_leaves) {
     return Math.random() > 0.72 ? ITEMS.stick : null;
   }
   if (blockType === BLOCKS.coal_ore) {
@@ -1245,10 +1550,14 @@ class World {
     const ridge = Math.abs(perlin2(wx / 52, wz / 52)) * 2.2;
     const naturalHeight = Math.floor(9 + broad + detail + ridge);
     const settlementBlend = getSettlementBlend(wx, wz);
-    if (settlementBlend <= 0) {
-      return naturalHeight;
+    if (settlementBlend > 0) {
+      return Math.round(lerp(naturalHeight, getCityTargetHeight(wx, wz), settlementBlend));
     }
-    return Math.round(lerp(naturalHeight, getCityTargetHeight(wx, wz), settlementBlend));
+    const snowBlend = getSnowBlend(wx, wz);
+    if (snowBlend > 0) {
+      return Math.round(lerp(naturalHeight, getSnowTargetHeight(wx, wz), snowBlend));
+    }
+    return naturalHeight;
   }
 
   ensureChunk(cx, cz) {
@@ -1278,6 +1587,7 @@ class World {
       maxBuildY: maxHeight,
       sandy: new Uint8Array(CHUNK_SIZE * CHUNK_SIZE),
       trees: [],
+      frostTrees: [],
       fauna: [],
     };
 
@@ -1286,6 +1596,9 @@ class World {
     }
     if (chunkIntersectsRect(cx, cz, SUBURB_PLAN)) {
       chunk.maxBuildY = Math.max(chunk.maxBuildY, CITY_PLAN.baseHeight + 11);
+    }
+    if (chunkIntersectsRect(cx, cz, SNOW_REALM)) {
+      chunk.maxBuildY = Math.max(chunk.maxBuildY, SNOW_REALM.baseHeight + 15);
     }
 
     for (let z = 1; z < CHUNK_SIZE - 1; z++) {
@@ -1296,10 +1609,31 @@ class World {
         const wz = cz * CHUNK_SIZE + z;
         const beachNoise = perlin2(wx / 22 + 31, wz / 22 + 11);
         const settlementZone = getSettlementBlend(wx, wz) > 0;
+        const snowZone = getSnowBlend(wx, wz) > 0;
         const isSandy = !settlementZone && (height <= 8 || (height <= 10 && beachNoise > 0.24));
         chunk.sandy[index] = isSandy ? 1 : 0;
 
-        if (!isSandy && !settlementZone && height >= 10 && height <= 18) {
+        if (snowZone && height >= 12 && height <= 22) {
+          const snowParcel = getSnowParcel(wx, wz);
+          const flatEnough =
+            Math.abs(height - heights[index - 1]) <= 1 &&
+            Math.abs(height - heights[index + 1]) <= 1 &&
+            Math.abs(height - heights[index - CHUNK_SIZE]) <= 1 &&
+            Math.abs(height - heights[index + CHUNK_SIZE]) <= 1;
+          const canGrowFrostTree = !snowParcel || snowParcel.kind === "path";
+          if (canGrowFrostTree && flatEnough && hash3(wx, 119, wz) > 0.987) {
+            const trunkHeight = 5 + Math.floor(hash3(wx, 129, wz) * 3);
+            chunk.frostTrees.push({
+              x: wx,
+              z: wz,
+              y: height + 1,
+              trunkHeight,
+            });
+            chunk.maxBuildY = Math.max(chunk.maxBuildY, height + trunkHeight + 3);
+          }
+        }
+
+        if (!isSandy && !settlementZone && !snowZone && height >= 10 && height <= 18) {
           const flatEnough =
             Math.abs(height - heights[index - 1]) <= 1 &&
             Math.abs(height - heights[index + 1]) <= 1 &&
@@ -1326,6 +1660,9 @@ class World {
         return false;
       }
       if (!allowSand && chunk.sandy[index] === 1) {
+        return false;
+      }
+      if (getSnowBlend(cx * CHUNK_SIZE + x, cz * CHUNK_SIZE + z) > 0) {
         return false;
       }
       const flatEnough =
@@ -1390,6 +1727,21 @@ class World {
             z: spawnZ,
           });
         }
+
+        const snowParcel = getSnowParcel(wx, wz);
+        if (
+          snowParcel?.kind === "path" &&
+          snowParcel.modX === 1 &&
+          snowParcel.modZ === 1 &&
+          ((snowParcel.lotX + snowParcel.lotZ) % 2 === 1)
+        ) {
+          chunk.fauna.push({
+            kind: "villager",
+            x: wx + 0.5,
+            y: heights[z * CHUNK_SIZE + x] + 1,
+            z: wz + 0.5,
+          });
+        }
       }
     }
 
@@ -1432,6 +1784,7 @@ class World {
     const lz = ((wz % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
     const height = chunk.heights[lz * CHUNK_SIZE + lx];
     const sandy = chunk.sandy[lz * CHUNK_SIZE + lx] === 1;
+    const snowZone = getSnowBlend(wx, wz) > 0;
     const caveNoise =
       Math.abs(perlin2(wx / 21 + wy * 0.08, wz / 21)) +
       Math.abs(perlin2(wx / 25, wy / 9 + wz * 0.04));
@@ -1460,8 +1813,26 @@ class World {
           return BLOCKS.leaves;
         }
       }
+      for (const tree of chunk.frostTrees) {
+        const dx = wx - tree.x;
+        const dz = wz - tree.z;
+        const layer = wy - (tree.y + tree.trunkHeight - 3);
+        const radius = 2 - Math.floor(layer * 0.5);
+        if (wx === tree.x && wz === tree.z && wy >= tree.y && wy < tree.y + tree.trunkHeight) {
+          return BLOCKS.pine_wood;
+        }
+        if (
+          wy >= tree.y + tree.trunkHeight - 3 &&
+          wy <= tree.y + tree.trunkHeight + 1 &&
+          Math.abs(dx) <= Math.max(1, radius) &&
+          Math.abs(dz) <= Math.max(1, radius) &&
+          Math.abs(dx) + Math.abs(dz) <= Math.max(2, radius + 1)
+        ) {
+          return BLOCKS.pine_leaves;
+        }
+      }
       if (wy <= WATER_LEVEL) {
-        return BLOCKS.water;
+        return snowZone && wy === WATER_LEVEL ? BLOCKS.ice : BLOCKS.water;
       }
       return BLOCKS.air;
     }
@@ -1473,6 +1844,14 @@ class World {
     }
     if (sandy) {
       return BLOCKS.sand;
+    }
+    if (snowZone) {
+      if (wy === height) {
+        return BLOCKS.snow;
+      }
+      if (wy >= height - 2) {
+        return BLOCKS.dirt;
+      }
     }
     if (wy === height) {
       return BLOCKS.grass;
@@ -1766,10 +2145,13 @@ const state = {
     [BLOCKS.dirt]: 18,
     [BLOCKS.stone]: 24,
     [BLOCKS.wood]: 10,
+    [BLOCKS.pine_wood]: 0,
     [BLOCKS.planks]: 0,
     [BLOCKS.sand]: 16,
     [BLOCKS.bricks]: 0,
     [BLOCKS.glass]: 0,
+    [BLOCKS.snow]: 0,
+    [BLOCKS.ice]: 0,
     [BLOCKS.crafting_table]: 0,
     [BLOCKS.furnace]: 0,
     [BLOCKS.coal_ore]: 0,
@@ -2533,12 +2915,20 @@ function getBlockColor(blockType) {
       return [0xd7c47e, 0xcbb56f];
     case BLOCKS.wood:
       return [0x9b6b3d, 0x7a4f2c];
+    case BLOCKS.pine_wood:
+      return [0x6b543b, 0x4b3b2a];
     case BLOCKS.planks:
       return [0xc59a5a, 0x9a7440];
     case BLOCKS.bricks:
       return [0xa75339, 0x7c3524];
     case BLOCKS.glass:
       return [0xcdeefd, 0x91d8ef];
+    case BLOCKS.snow:
+      return [0xf0f4fb, 0xd5dfef];
+    case BLOCKS.ice:
+      return [0xa8ddf5, 0xd3f2fb];
+    case BLOCKS.pine_leaves:
+      return [0x5a7f68, 0x749984];
     default:
       return [0x6cab57, 0x84c56f];
   }
@@ -3368,7 +3758,9 @@ function updateHud() {
   const player = state.player;
   const activeItem = getSelectedItem();
   const cityCenter = getCityCenter();
+  const snowCenter = getSnowCenter();
   const cityDistance = Math.hypot(player.x - cityCenter.x, player.z - cityCenter.z);
+  const snowDistance = Math.hypot(player.x - snowCenter.x, player.z - snowCenter.z);
   const targetText = state.target
     ? `${BLOCK_NAMES[state.target.block.type]} @ ${state.target.block.x}, ${state.target.block.y}, ${state.target.block.z}`
     : "none";
@@ -3386,7 +3778,7 @@ function updateHud() {
   hudSecondary.textContent =
     `XYZ ${player.x.toFixed(1)}, ${player.y.toFixed(1)}, ${player.z.toFixed(1)}\n` +
     `Yaw ${player.yaw.toFixed(2)} Pitch ${player.pitch.toFixed(2)}\n` +
-    `${state.inventoryOpen ? "Inventory open" : state.pointerLocked ? "Pointer lock" : "Click or drag on canvas"} | ${state.keys.has("ShiftLeft") || state.keys.has("ShiftRight") ? "Sprinting" : "Walk"} | City ${cityDistance.toFixed(0)}m | Mobs ${passiveMobs.getEntityCount()} | Day ${(state.dayTime * 24).toFixed(1)}h${state.uiMessageTimer > 0 ? ` | ${state.uiMessage}` : ""}`;
+    `${state.inventoryOpen ? "Inventory open" : state.pointerLocked ? "Pointer lock" : "Click or drag on canvas"} | ${state.keys.has("ShiftLeft") || state.keys.has("ShiftRight") ? "Sprinting" : "Walk"} | City ${cityDistance.toFixed(0)}m | Snow ${snowDistance.toFixed(0)}m | Mobs ${passiveMobs.getEntityCount()} | Day ${(state.dayTime * 24).toFixed(1)}h${state.uiMessageTimer > 0 ? ` | ${state.uiMessage}` : ""}`;
 }
 
 function render() {
@@ -3479,6 +3871,7 @@ function update(dt, shouldRender = true) {
 function renderGameToText() {
   const player = state.player;
   const cityCenter = getCityCenter();
+  const snowCenter = getSnowCenter();
   return JSON.stringify({
     title: "MyCraft",
     mode: state.mode,
@@ -3529,6 +3922,12 @@ function renderGameToText() {
       cityDistance: Number(Math.hypot(player.x - cityCenter.x, player.z - cityCenter.z).toFixed(1)),
       inCity: isInsideRect(player.x, player.z, CITY_PLAN),
       inSuburb: !isInsideRect(player.x, player.z, CITY_PLAN) && isInsideRect(player.x, player.z, SUBURB_PLAN),
+      snowCenter: {
+        x: Number(snowCenter.x.toFixed(1)),
+        z: Number(snowCenter.z.toFixed(1)),
+      },
+      snowDistance: Number(Math.hypot(player.x - snowCenter.x, player.z - snowCenter.z).toFixed(1)),
+      inSnowRealm: isInsideRect(player.x, player.z, SNOW_REALM),
     },
     dayTimeHours: Number((state.dayTime * 24).toFixed(2)),
     chunkStats: {

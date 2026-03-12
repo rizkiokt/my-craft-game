@@ -1,0 +1,123 @@
+{
+  "state": {
+    "title": "MyCraft",
+    "mode": "playing",
+    "inventoryOpen": false,
+    "coords_note": "Origin near spawn. x east-west, y up, z north-south. Player position is feet center.",
+    "player": {
+      "x": 96.5,
+      "y": 25.02,
+      "z": 74.5,
+      "vx": 0,
+      "vy": 0,
+      "vz": 0,
+      "yaw": 0,
+      "pitch": 0.72,
+      "onGround": true
+    },
+    "selectedBlock": "Pine Wood",
+    "selectedItem": "Pine Wood",
+    "hotbar": [
+      "Stick",
+      "Pine Wood",
+      "Snow",
+      "Ice",
+      "Wood",
+      "Planks",
+      "Crafting Table",
+      "Furnace"
+    ],
+    "inventory": {
+      "Grass": 20,
+      "Dirt": 18,
+      "Stone": 24,
+      "Sand": 16,
+      "Wood": 10,
+      "Snow": 8,
+      "Ice": 4,
+      "Pine Wood": 6,
+      "Stick": 1
+    },
+    "craftable": [
+      "Planks x4",
+      "Planks x4"
+    ],
+    "tableCraftable": [
+      "Furnace x1",
+      "Bricks x4"
+    ],
+    "furnaceCraftable": [],
+    "breakProgress": 0,
+    "audio": {
+      "supported": true,
+      "active": true
+    },
+    "target": null,
+    "nearbyMobs": [
+      {
+        "kind": "villager",
+        "x": 105.9,
+        "y": 15,
+        "z": 73.8,
+        "distance": 9.4
+      },
+      {
+        "kind": "villager",
+        "x": 89.6,
+        "y": 17,
+        "z": 90,
+        "distance": 17
+      },
+      {
+        "kind": "villager",
+        "x": 89.2,
+        "y": 14,
+        "z": 57.9,
+        "distance": 18.1
+      },
+      {
+        "kind": "villager",
+        "x": 73.7,
+        "y": 16,
+        "z": 73.1,
+        "distance": 22.8
+      },
+      {
+        "kind": "villager",
+        "x": 121.9,
+        "y": 15,
+        "z": 89.3,
+        "distance": 29.4
+      },
+      {
+        "kind": "villager",
+        "x": 122,
+        "y": 15,
+        "z": 57.5,
+        "distance": 30.6
+      }
+    ],
+    "landmarks": {
+      "cityCenter": {
+        "x": 18,
+        "z": -14
+      },
+      "cityDistance": 118.3,
+      "inCity": false,
+      "inSuburb": false,
+      "snowCenter": {
+        "x": 112,
+        "z": 66
+      },
+      "snowDistance": 17.7,
+      "inSnowRealm": true
+    },
+    "dayTimeHours": 7.8,
+    "chunkStats": {
+      "active": 25,
+      "cached": 45,
+      "generatedSinceLoad": 45
+    }
+  },
+  "errors": []
+}

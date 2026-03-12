@@ -1,0 +1,136 @@
+{
+  "state": {
+    "title": "MyCraft",
+    "mode": "playing",
+    "inventoryOpen": false,
+    "coords_note": "Origin near spawn. x east-west, y up, z north-south. Player position is feet center.",
+    "player": {
+      "x": 96.5,
+      "y": 22,
+      "z": 73.5,
+      "vx": 0,
+      "vy": 0,
+      "vz": 0,
+      "yaw": 3.14,
+      "pitch": -0.12,
+      "onGround": true
+    },
+    "selectedBlock": "Pine Wood",
+    "selectedItem": "Pine Wood",
+    "hotbar": [
+      "Iron Ingot",
+      "Pine Wood",
+      "Snow",
+      "Ice",
+      "Wood",
+      "Planks",
+      "Crafting Table",
+      "Furnace"
+    ],
+    "inventory": {
+      "Grass": 20,
+      "Dirt": 18,
+      "Stone": 24,
+      "Sand": 16,
+      "Wood": 10,
+      "Snow": 8,
+      "Ice": 4,
+      "Pine Wood": 6,
+      "Iron Ingot": 1
+    },
+    "craftable": [
+      "Planks x4",
+      "Planks x4"
+    ],
+    "tableCraftable": [
+      "Furnace x1",
+      "Bricks x4"
+    ],
+    "furnaceCraftable": [],
+    "breakProgress": 0,
+    "audio": {
+      "supported": true,
+      "active": true
+    },
+    "target": {
+      "block": {
+        "x": 96,
+        "y": 23,
+        "z": 74,
+        "type": 18
+      },
+      "place": {
+        "x": 96,
+        "y": 23,
+        "z": 73
+      },
+      "distance": 0.5
+    },
+    "nearbyMobs": [
+      {
+        "kind": "villager",
+        "x": 105.7,
+        "y": 15,
+        "z": 74.9,
+        "distance": 9.3
+      },
+      {
+        "kind": "villager",
+        "x": 88.2,
+        "y": 17,
+        "z": 89.8,
+        "distance": 18.3
+      },
+      {
+        "kind": "villager",
+        "x": 88.9,
+        "y": 14,
+        "z": 56.2,
+        "distance": 18.9
+      },
+      {
+        "kind": "villager",
+        "x": 72.8,
+        "y": 16,
+        "z": 72.3,
+        "distance": 23.8
+      },
+      {
+        "kind": "villager",
+        "x": 121.6,
+        "y": 15,
+        "z": 88.1,
+        "distance": 29
+      },
+      {
+        "kind": "villager",
+        "x": 122.8,
+        "y": 15,
+        "z": 57,
+        "distance": 31.1
+      }
+    ],
+    "landmarks": {
+      "cityCenter": {
+        "x": 18,
+        "z": -14
+      },
+      "cityDistance": 117.6,
+      "inCity": false,
+      "inSuburb": false,
+      "snowCenter": {
+        "x": 112,
+        "z": 66
+      },
+      "snowDistance": 17.2,
+      "inSnowRealm": true
+    },
+    "dayTimeHours": 7.08,
+    "chunkStats": {
+      "active": 25,
+      "cached": 45,
+      "generatedSinceLoad": 45
+    }
+  },
+  "errors": []
+}

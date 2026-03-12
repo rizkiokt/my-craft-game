@@ -41,4 +41,13 @@ Original prompt: Create a minimal Minecraft-style voxel game, call it MyCraft. B
 - Control-pass verification shows arrow-key look changing the player pitch to `0.24` without moving position, which confirms keyboard up/down camera control now works.
 - Targeted browser verification confirmed `.inventory-slot[data-item="7"]` (empty planks) is `disabled: true` and clicking it leaves `selectedItem` as `Wood Pickaxe`.
 - Sound-pass verification reports `audio.supported = true` and `audio.active = true` after entering the world, with no console errors during movement/jump/break/place actions.
+- Added a snow realm east of the main city with snow ground cover, ice, pine wood/leaves, frozen water surfaces, pine trees, villager paths, and snow-themed settlement generation.
+- Added snow-realm structures with deterministic lot generation, including igloos, larger snow halls, wood-and-snow lodges, icy pathing, and beacon-style posts.
+- Extended the block set and textures with `Snow`, `Ice`, `Pine Wood`, and `Pine Leaves`, and exposed snow landmark distance/state in the HUD and `render_game_to_text`.
+- Fixed snow-lot ambience generation so frost trees no longer spawn inside structure lots, which keeps the igloo/building parcels readable and playable.
+- Verification notes:
+- `node --check main.js` passes after the snow realm and frost-tree placement changes.
+- Snow smoke run on `http://127.0.0.1:4175` produced valid gameplay renders with no browser errors and `render_game_to_text` reporting the player inside the snow realm.
+- Targeted save-based verification in `output/web-game/snow-realm/` and `output/web-game/snow-final/` reports `landmarks.inSnowRealm = true`, `snowCenter = { x: 112, z: 66 }`, snow-specific inventory items, and active villagers/pathing in the new biome.
+- Visual captures clearly show the snowy terrain, pine environment, and snow settlement spacing; some individual structures remain partially occluded by surrounding terrain/trees in headless screenshots, but the deterministic structure generation is active in the biome code path and lot-clearing fix is in place.
 - TODO: if a future pass adds inventory or more block types, add targeted interaction tests with more dramatic before/after visuals.
