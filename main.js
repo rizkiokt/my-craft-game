@@ -97,6 +97,27 @@ const PLACEABLE_BLOCKS = [
 const HOTBAR_SIZE = 8;
 const WATER_LEVEL = 7;
 const SAVE_KEY = "mycraft-save-v2";
+const CITY_PLAN = {
+  minX: -8,
+  maxX: 44,
+  minZ: -40,
+  maxZ: 12,
+  baseHeight: 11,
+  roadSpacing: 12,
+  roadWidth: 3,
+};
+const SUBURB_PLAN = {
+  minX: -20,
+  maxX: 56,
+  minZ: -52,
+  maxZ: 24,
+};
+const DEFAULT_SPAWN = {
+  x: 4.5,
+  z: -1.5,
+  yaw: -1.15,
+  pitch: -0.28,
+};
 
 const HAND_RECIPES = [
   {
@@ -362,6 +383,352 @@ function wrapAngle(angle) {
 
 function lerpAngle(from, to, t) {
   return from + wrapAngle(to - from) * t;
+}
+
+function isInsideRect(x, z, rect) {
+  return x >= rect.minX && x <= rect.maxX && z >= rect.minZ && z <= rect.maxZ;
+}
+
+function chunkIntersectsRect(cx, cz, rect) {
+  const minX = cx * CHUNK_SIZE;
+  const maxX = minX + CHUNK_SIZE - 1;
+  const minZ = cz * CHUNK_SIZE;
+  const maxZ = minZ + CHUNK_SIZE - 1;
+  return !(maxX < rect.minX || minX > rect.maxX || maxZ < rect.minZ || minZ > rect.maxZ);
+}
+
+function getCityCenter() {
+  return {
+    x: (CITY_PLAN.minX + CITY_PLAN.maxX) * 0.5,
+    z: (CITY_PLAN.minZ + CITY_PLAN.maxZ) * 0.5,
+  };
+}
+
+function getCityTargetHeight(wx, wz) {
+  return CITY_PLAN.baseHeight + Math.round(perlin2(wx / 28 + 17, wz / 28 + 23) * 0.7);
+}
+
+function getSettlementBlend(wx, wz) {
+  if (isInsideRect(wx, wz, CITY_PLAN)) {
+    return 0.96;
+  }
+  if (isInsideRect(wx, wz, SUBURB_PLAN)) {
+    return 0.58;
+  }
+  return 0;
+}
+
+function getCityParcel(wx, wz) {
+  if (!isInsideRect(wx, wz, CITY_PLAN)) {
+    return null;
+  }
+
+  const relX = wx - CITY_PLAN.minX;
+  const relZ = wz - CITY_PLAN.minZ;
+  const spacing = CITY_PLAN.roadSpacing;
+  const roadWidth = CITY_PLAN.roadWidth;
+  const modX = ((relX % spacing) + spacing) % spacing;
+  const modZ = ((relZ % spacing) + spacing) % spacing;
+  const roadX = modX < roadWidth;
+  const roadZ = modZ < roadWidth;
+  const blockX = Math.floor(relX / spacing);
+  const blockZ = Math.floor(relZ / spacing);
+
+  if (roadX || roadZ) {
+    return {
+      kind: "road",
+      blockX,
+      blockZ,
+      relX,
+      relZ,
+      modX,
+      modZ,
+      isIntersection: roadX && roadZ,
+    };
+  }
+
+  const innerX = modX - roadWidth;
+  const innerZ = modZ - roadWidth;
+  const lotSeed = hash3(blockX, 143, blockZ);
+  const style = lotSeed > 0.84
+    ? "tower"
+    : lotSeed > 0.62
+      ? "stepped_tower"
+      : lotSeed > 0.42
+        ? "townhouse"
+        : lotSeed > 0.22
+          ? "shop"
+          : "house";
+  const width = style === "tower" || style === "stepped_tower"
+    ? 6 + Math.floor(hash3(blockX, 144, blockZ) * 2)
+    : style === "shop"
+      ? 7
+      : 5 + Math.floor(hash3(blockX, 145, blockZ) * 2);
+  const depth = style === "house"
+    ? 5 + Math.floor(hash3(blockX, 146, blockZ) * 2)
+    : style === "shop"
+      ? 6
+      : 6 + Math.floor(hash3(blockX, 147, blockZ) * 2);
+  const offsetX = 1 + Math.floor(hash3(blockX, 148, blockZ) * Math.max(1, 9 - width - 1));
+  const offsetZ = 1 + Math.floor(hash3(blockX, 149, blockZ) * Math.max(1, 9 - depth - 1));
+  const stories = style === "tower" || style === "stepped_tower"
+    ? 3 + Math.floor(hash3(blockX, 150, blockZ) * 4)
+    : style === "townhouse" || style === "shop"
+      ? 2 + Math.floor(hash3(blockX, 151, blockZ) * 2)
+      : 1 + Math.floor(hash3(blockX, 152, blockZ) * 2);
+  const doorSideIndex = Math.floor(hash3(blockX, 153, blockZ) * 4);
+  const doorSide = ["north", "east", "south", "west"][doorSideIndex];
+  const footprint =
+    innerX >= offsetX &&
+    innerX < offsetX + width &&
+    innerZ >= offsetZ &&
+    innerZ < offsetZ + depth;
+  const roofStyle = hash3(blockX, 154, blockZ) > 0.5 ? "flat" : "crown";
+  const trimColor = hash3(blockX, 155, blockZ);
+
+  return {
+    kind: "lot",
+    blockX,
+    blockZ,
+    innerX,
+    innerZ,
+    footprint,
+    style,
+    width,
+    depth,
+    offsetX,
+    offsetZ,
+    stories,
+    lotSeed,
+    doorSide,
+    roofStyle,
+    trimColor,
+  };
+}
+
+function getSuburbParcel(wx, wz) {
+  if (isInsideRect(wx, wz, CITY_PLAN) || !isInsideRect(wx, wz, SUBURB_PLAN)) {
+    return null;
+  }
+  const spacing = 14;
+  const relX = wx - SUBURB_PLAN.minX;
+  const relZ = wz - SUBURB_PLAN.minZ;
+  const cellX = Math.floor(relX / spacing);
+  const cellZ = Math.floor(relZ / spacing);
+  const localX = ((relX % spacing) + spacing) % spacing;
+  const localZ = ((relZ % spacing) + spacing) % spacing;
+  const cellSeed = hash3(cellX, 181, cellZ);
+  if (cellSeed < 0.56) {
+    return null;
+  }
+  const width = 5 + Math.floor(hash3(cellX, 182, cellZ) * 2);
+  const depth = 5 + Math.floor(hash3(cellX, 183, cellZ) * 2);
+  const offsetX = 3 + Math.floor(hash3(cellX, 184, cellZ) * 2);
+  const offsetZ = 3 + Math.floor(hash3(cellX, 185, cellZ) * 2);
+  const footprint =
+    localX >= offsetX &&
+    localX < offsetX + width &&
+    localZ >= offsetZ &&
+    localZ < offsetZ + depth;
+  return {
+    kind: "suburb",
+    localX,
+    localZ,
+    footprint,
+    width,
+    depth,
+    offsetX,
+    offsetZ,
+    stories: 1 + Math.floor(hash3(cellX, 186, cellZ) * 2),
+    doorSide: hash3(cellX, 187, cellZ) > 0.5 ? "south" : "west",
+  };
+}
+
+function getStructureBlock(wx, wy, wz, height) {
+  const cityParcel = getCityParcel(wx, wz);
+  const cityFloor = getCityTargetHeight(wx, wz);
+  if (cityParcel) {
+    if (cityParcel.kind === "road") {
+      if (wy === cityFloor || wy === cityFloor - 1) {
+        return cityParcel.isIntersection || cityParcel.modX === CITY_PLAN.roadWidth - 1 || cityParcel.modZ === CITY_PLAN.roadWidth - 1
+          ? BLOCKS.bricks
+          : BLOCKS.stone;
+      }
+      const lampSpot =
+        cityParcel.modX === 1 &&
+        cityParcel.modZ === 1 &&
+        ((cityParcel.blockX + cityParcel.blockZ) % 2 === 0);
+      if (lampSpot) {
+        if (wy > cityFloor && wy <= cityFloor + 3) {
+          return BLOCKS.wood;
+        }
+        if (wy === cityFloor + 4 || wy === cityFloor + 5) {
+          return BLOCKS.glass;
+        }
+      }
+      return null;
+    }
+
+    const parcel = cityParcel;
+    const relX = parcel.innerX - parcel.offsetX;
+    const relZ = parcel.innerZ - parcel.offsetZ;
+    const withinFootprint = parcel.footprint;
+    const foundationY = cityFloor;
+    const baseY = foundationY + 1;
+    const wallHeight = parcel.style === "tower" || parcel.style === "stepped_tower" ? parcel.stories * 3 + 1 : parcel.stories * 3;
+    const roofY = baseY + wallHeight;
+    const isEdge =
+      relX === 0 ||
+      relZ === 0 ||
+      relX === parcel.width - 1 ||
+      relZ === parcel.depth - 1;
+    const windowBand = parcel.style === "tower" || parcel.style === "stepped_tower"
+      ? wy > baseY && wy < roofY && ((wy - baseY) % 2 === 1)
+      : wy === baseY + 1 || (parcel.style !== "house" && wy === baseY + 4);
+    const centerX = Math.floor(parcel.width / 2);
+    const centerZ = Math.floor(parcel.depth / 2);
+    const onDoor =
+      (parcel.doorSide === "north" && relZ === 0 && relX === centerX) ||
+      (parcel.doorSide === "south" && relZ === parcel.depth - 1 && relX === centerX) ||
+      (parcel.doorSide === "west" && relX === 0 && relZ === centerZ) ||
+      (parcel.doorSide === "east" && relX === parcel.width - 1 && relZ === centerZ);
+    const onWindow = isEdge && windowBand && !onDoor && ((relX + relZ + wy) % 2 === 0);
+    const wallBlock =
+      parcel.style === "tower" || parcel.style === "stepped_tower"
+        ? BLOCKS.bricks
+        : parcel.style === "townhouse" || parcel.style === "shop"
+          ? BLOCKS.planks
+          : BLOCKS.wood;
+    const trimBlock = parcel.trimColor > 0.55 ? BLOCKS.stone : BLOCKS.wood;
+    const roofBlock = parcel.style === "house" || parcel.style === "shop" ? BLOCKS.planks : BLOCKS.bricks;
+    const floorIndex = Math.floor((wy - baseY) / 3);
+    const recessedTop =
+      parcel.style === "stepped_tower" &&
+      floorIndex >= Math.max(1, parcel.stories - 2) &&
+      relX >= 1 &&
+      relX <= parcel.width - 2 &&
+      relZ >= 1 &&
+      relZ <= parcel.depth - 2;
+    const balconyRing =
+      parcel.style === "tower" &&
+      floorIndex > 0 &&
+      floorIndex < parcel.stories - 1 &&
+      (floorIndex % 2 === 0) &&
+      (relX === 0 || relX === parcel.width - 1 || relZ === 0 || relZ === parcel.depth - 1);
+    const shopAwning =
+      parcel.style === "shop" &&
+      wy === baseY + 2 &&
+      ((parcel.doorSide === "south" && relZ === parcel.depth - 1 && relX > 0 && relX < parcel.width - 1) ||
+        (parcel.doorSide === "north" && relZ === 0 && relX > 0 && relX < parcel.width - 1));
+    const shopFrontGlass =
+      parcel.style === "shop" &&
+      wy >= baseY &&
+      wy <= baseY + 1 &&
+      ((parcel.doorSide === "south" && relZ === parcel.depth - 1 && relX > 0 && relX < parcel.width - 1) ||
+        (parcel.doorSide === "north" && relZ === 0 && relX > 0 && relX < parcel.width - 1));
+
+    if (!withinFootprint) {
+      if (wy === foundationY && ((parcel.innerX + parcel.innerZ) % 7 === 0)) {
+        return BLOCKS.planks;
+      }
+      return null;
+    }
+    if (wy === foundationY || wy === foundationY - 1) {
+      return parcel.style === "tower" || parcel.style === "stepped_tower" ? BLOCKS.stone : BLOCKS.bricks;
+    }
+    if (wy >= baseY && wy < roofY) {
+      if (recessedTop && !isEdge) {
+        return BLOCKS.air;
+      }
+      if (isEdge) {
+        if (onDoor && wy <= baseY + 1) {
+          return BLOCKS.air;
+        }
+        if (shopFrontGlass) {
+          return BLOCKS.glass;
+        }
+        if (onWindow) {
+          return BLOCKS.glass;
+        }
+        if (shopAwning) {
+          return BLOCKS.planks;
+        }
+        if (balconyRing && wy === baseY + floorIndex * 3 + 1) {
+          return trimBlock;
+        }
+        if ((parcel.style === "townhouse" || parcel.style === "shop") && wy === baseY + 2 && ((relX + relZ) % 3 === 0)) {
+          return trimBlock;
+        }
+        return wallBlock;
+      }
+      if (parcel.style === "shop" && wy === baseY + 2 && relZ === parcel.depth - 2 && relX > 1 && relX < parcel.width - 2) {
+        return BLOCKS.air;
+      }
+      return BLOCKS.air;
+    }
+    if (wy === roofY) {
+      if (parcel.style === "house") {
+        const roofInset = Math.min(relX, relZ, parcel.width - 1 - relX, parcel.depth - 1 - relZ);
+        return roofInset <= 1 ? BLOCKS.planks : BLOCKS.air;
+      }
+      if (parcel.style === "shop") {
+        return trimBlock;
+      }
+      return roofBlock;
+    }
+    if ((parcel.style === "tower" || parcel.style === "stepped_tower") && wy === roofY + 1 && isEdge) {
+      return trimBlock;
+    }
+    if ((parcel.style === "tower" || parcel.style === "stepped_tower") && parcel.roofStyle === "crown" && wy === roofY + 2) {
+      const roofInset = Math.min(relX, relZ, parcel.width - 1 - relX, parcel.depth - 1 - relZ);
+      return roofInset === 1 ? BLOCKS.glass : BLOCKS.air;
+    }
+    return null;
+  }
+
+  const suburbParcel = getSuburbParcel(wx, wz);
+  if (!suburbParcel) {
+    return null;
+  }
+
+  const suburbFloor = getCityTargetHeight(wx, wz);
+  const relX = suburbParcel.localX - suburbParcel.offsetX;
+  const relZ = suburbParcel.localZ - suburbParcel.offsetZ;
+  const isEdge =
+    relX === 0 ||
+    relZ === 0 ||
+    relX === suburbParcel.width - 1 ||
+    relZ === suburbParcel.depth - 1;
+  const centerX = Math.floor(suburbParcel.width / 2);
+  const centerZ = Math.floor(suburbParcel.depth / 2);
+  const onDoor =
+    (suburbParcel.doorSide === "south" && relZ === suburbParcel.depth - 1 && relX === centerX) ||
+    (suburbParcel.doorSide === "west" && relX === 0 && relZ === centerZ);
+
+  if (!suburbParcel.footprint) {
+    return null;
+  }
+  if (wy === suburbFloor || wy === suburbFloor - 1) {
+    return BLOCKS.stone;
+  }
+  const baseY = suburbFloor + 1;
+  const wallHeight = suburbParcel.stories * 3;
+  if (wy >= baseY && wy < baseY + wallHeight) {
+    if (isEdge) {
+      if (onDoor && wy <= baseY + 1) {
+        return BLOCKS.air;
+      }
+      if ((wy === baseY + 1 || wy === baseY + 4) && ((relX + relZ) % 2 === 0) && !onDoor) {
+        return BLOCKS.glass;
+      }
+      return BLOCKS.planks;
+    }
+    return BLOCKS.air;
+  }
+  if (wy === baseY + wallHeight) {
+    return BLOCKS.wood;
+  }
+  return null;
 }
 
 function createTextureSet() {
@@ -876,7 +1243,12 @@ class World {
     const broad = perlin2(wx / 34, wz / 34) * 5.5;
     const detail = perlin2(wx / 16, wz / 16) * 2.1;
     const ridge = Math.abs(perlin2(wx / 52, wz / 52)) * 2.2;
-    return Math.floor(9 + broad + detail + ridge);
+    const naturalHeight = Math.floor(9 + broad + detail + ridge);
+    const settlementBlend = getSettlementBlend(wx, wz);
+    if (settlementBlend <= 0) {
+      return naturalHeight;
+    }
+    return Math.round(lerp(naturalHeight, getCityTargetHeight(wx, wz), settlementBlend));
   }
 
   ensureChunk(cx, cz) {
@@ -909,6 +1281,13 @@ class World {
       fauna: [],
     };
 
+    if (chunkIntersectsRect(cx, cz, CITY_PLAN)) {
+      chunk.maxBuildY = Math.max(chunk.maxBuildY, CITY_PLAN.baseHeight + 24);
+    }
+    if (chunkIntersectsRect(cx, cz, SUBURB_PLAN)) {
+      chunk.maxBuildY = Math.max(chunk.maxBuildY, CITY_PLAN.baseHeight + 11);
+    }
+
     for (let z = 1; z < CHUNK_SIZE - 1; z++) {
       for (let x = 1; x < CHUNK_SIZE - 1; x++) {
         const index = z * CHUNK_SIZE + x;
@@ -916,10 +1295,11 @@ class World {
         const wx = cx * CHUNK_SIZE + x;
         const wz = cz * CHUNK_SIZE + z;
         const beachNoise = perlin2(wx / 22 + 31, wz / 22 + 11);
-        const isSandy = height <= 8 || (height <= 10 && beachNoise > 0.24);
+        const settlementZone = getSettlementBlend(wx, wz) > 0;
+        const isSandy = !settlementZone && (height <= 8 || (height <= 10 && beachNoise > 0.24));
         chunk.sandy[index] = isSandy ? 1 : 0;
 
-        if (!isSandy && height >= 10 && height <= 18) {
+        if (!isSandy && !settlementZone && height >= 10 && height <= 18) {
           const flatEnough =
             Math.abs(height - heights[index - 1]) <= 1 &&
             Math.abs(height - heights[index + 1]) <= 1 &&
@@ -965,21 +1345,53 @@ class World {
       }
       const x = 2 + Math.floor(hash3(cx, seed + 1, cz) * (CHUNK_SIZE - 4));
       const z = 2 + Math.floor(hash3(cx, seed + 2, cz) * (CHUNK_SIZE - 4));
+      const spawnX = cx * CHUNK_SIZE + x + 0.5;
+      const spawnZ = cz * CHUNK_SIZE + z + 0.5;
+      if (Math.hypot(spawnX - DEFAULT_SPAWN.x, spawnZ - DEFAULT_SPAWN.z) < 3.5) {
+        return;
+      }
       if (!canSpawnFaunaAt(x, z, options)) {
         return;
       }
       const height = heights[z * CHUNK_SIZE + x];
       chunk.fauna.push({
         kind,
-        x: cx * CHUNK_SIZE + x + 0.5,
+        x: spawnX,
         y: height + 1,
-        z: cz * CHUNK_SIZE + z + 0.5,
+        z: spawnZ,
       });
     };
 
     tryAddFauna("sheep", 61, 0.44, { allowSand: false, minHeight: 9, maxHeight: 18 });
     tryAddFauna("sheep", 71, 0.68, { allowSand: false, minHeight: 9, maxHeight: 18 });
     tryAddFauna("villager", 81, 0.84, { allowSand: false, minHeight: 10, maxHeight: 16 });
+
+    for (let z = 1; z < CHUNK_SIZE - 1; z++) {
+      for (let x = 1; x < CHUNK_SIZE - 1; x++) {
+        const wx = cx * CHUNK_SIZE + x;
+        const wz = cz * CHUNK_SIZE + z;
+        const parcel = getCityParcel(wx, wz);
+        if (
+          parcel?.kind === "road" &&
+          parcel.modX === 1 &&
+          parcel.modZ === 1 &&
+          ((parcel.blockX + parcel.blockZ) % 2 === 0)
+        ) {
+          const height = heights[z * CHUNK_SIZE + x];
+          const spawnX = wx + 0.5;
+          const spawnZ = wz + 0.5;
+          if (Math.hypot(spawnX - DEFAULT_SPAWN.x, spawnZ - DEFAULT_SPAWN.z) < 4) {
+            continue;
+          }
+          chunk.fauna.push({
+            kind: "villager",
+            x: spawnX,
+            y: height + 1,
+            z: spawnZ,
+          });
+        }
+      }
+    }
 
     this.chunks.set(key, chunk);
     this.totalGenerated++;
@@ -1024,6 +1436,10 @@ class World {
       Math.abs(perlin2(wx / 21 + wy * 0.08, wz / 21)) +
       Math.abs(perlin2(wx / 25, wy / 9 + wz * 0.04));
     const caveCarve = wy < height - 1 && wy > 2 && caveNoise > 1.06;
+    const structureBlock = getStructureBlock(wx, wy, wz, height);
+    if (structureBlock != null) {
+      return structureBlock;
+    }
     if (wy > height) {
       for (const tree of chunk.trees) {
         const dx = wx - tree.x;
@@ -1288,7 +1704,7 @@ class ChunkMeshManager {
 }
 
 const world = new World();
-const spawnHeight = world.getHeightAt(0, 0) + 1;
+const spawnHeight = world.getHeightAt(Math.floor(DEFAULT_SPAWN.x), Math.floor(DEFAULT_SPAWN.z)) + 1.05;
 
 function getSurfaceData(x, z) {
   const wx = Math.floor(x);
@@ -1336,6 +1752,7 @@ const state = {
   viewBob: 0,
   stepPhase: 0,
   landingBounce: 0,
+  nextFootstepAt: 0,
   breakState: {
     key: null,
     blockType: BLOCKS.air,
@@ -1364,17 +1781,223 @@ const state = {
     [ITEMS.stone_pickaxe]: 0,
   },
   player: {
-    x: 0.5,
+    x: DEFAULT_SPAWN.x,
     y: spawnHeight + 2,
-    z: 0.5,
+    z: DEFAULT_SPAWN.z,
     vx: 0,
     vy: 0,
     vz: 0,
-    yaw: -0.55,
-    pitch: -0.38,
+    yaw: DEFAULT_SPAWN.yaw,
+    pitch: DEFAULT_SPAWN.pitch,
     onGround: false,
   },
 };
+
+class SoundEngine {
+  constructor() {
+    this.AudioContextCtor = window.AudioContext || window.webkitAudioContext || null;
+    this.context = null;
+    this.master = null;
+    this.noiseBuffer = null;
+    this.enabled = false;
+  }
+
+  ensureContext() {
+    if (!this.AudioContextCtor || this.context) {
+      return this.context;
+    }
+    try {
+      this.context = new this.AudioContextCtor();
+      this.master = this.context.createGain();
+      this.master.gain.value = 0.14;
+      this.master.connect(this.context.destination);
+      this.noiseBuffer = this.createNoiseBuffer();
+      this.enabled = true;
+    } catch {
+      this.context = null;
+      this.master = null;
+      this.enabled = false;
+    }
+    return this.context;
+  }
+
+  createNoiseBuffer() {
+    if (!this.context) {
+      return null;
+    }
+    const length = Math.floor(this.context.sampleRate * 0.22);
+    const buffer = this.context.createBuffer(1, length, this.context.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < length; i++) {
+      data[i] = (Math.random() * 2 - 1) * (1 - i / length);
+    }
+    return buffer;
+  }
+
+  resume() {
+    const context = this.ensureContext();
+    if (!context) {
+      return;
+    }
+    if (context.state === "suspended") {
+      context.resume().catch(() => {});
+    }
+  }
+
+  pulse({ frequency = 220, type = "sine", gain = 0.05, attack = 0.005, decay = 0.12, detune = 0, time = 0 } = {}) {
+    const context = this.ensureContext();
+    if (!context || !this.master) {
+      return;
+    }
+    const start = context.currentTime + time;
+    const osc = context.createOscillator();
+    const amp = context.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(frequency, start);
+    osc.detune.setValueAtTime(detune, start);
+    amp.gain.setValueAtTime(0.0001, start);
+    amp.gain.exponentialRampToValueAtTime(gain, start + attack);
+    amp.gain.exponentialRampToValueAtTime(0.0001, start + decay);
+    osc.connect(amp);
+    amp.connect(this.master);
+    osc.start(start);
+    osc.stop(start + decay + 0.02);
+  }
+
+  noise({ gain = 0.035, decay = 0.1, highpass = 340, lowpass = 1800, time = 0 } = {}) {
+    const context = this.ensureContext();
+    if (!context || !this.master || !this.noiseBuffer) {
+      return;
+    }
+    const start = context.currentTime + time;
+    const source = context.createBufferSource();
+    source.buffer = this.noiseBuffer;
+
+    const hp = context.createBiquadFilter();
+    hp.type = "highpass";
+    hp.frequency.setValueAtTime(highpass, start);
+
+    const lp = context.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.setValueAtTime(lowpass, start);
+
+    const amp = context.createGain();
+    amp.gain.setValueAtTime(gain, start);
+    amp.gain.exponentialRampToValueAtTime(0.0001, start + decay);
+
+    source.connect(hp);
+    hp.connect(lp);
+    lp.connect(amp);
+    amp.connect(this.master);
+    source.start(start);
+    source.stop(start + decay + 0.03);
+  }
+
+  ui(opening) {
+    this.resume();
+    this.pulse({
+      frequency: opening ? 620 : 460,
+      type: "triangle",
+      gain: 0.028,
+      decay: 0.09,
+    });
+  }
+
+  select() {
+    this.resume();
+    this.pulse({
+      frequency: 390,
+      type: "square",
+      gain: 0.018,
+      decay: 0.05,
+    });
+  }
+
+  footstep(blockType, sprinting) {
+    this.resume();
+    const isHard = blockType === BLOCKS.stone || blockType === BLOCKS.bricks || blockType === BLOCKS.furnace;
+    this.noise({
+      gain: sprinting ? 0.03 : 0.022,
+      decay: isHard ? 0.05 : 0.08,
+      highpass: isHard ? 520 : 260,
+      lowpass: isHard ? 1700 : 1100,
+    });
+    this.pulse({
+      frequency: isHard ? 120 : 88,
+      type: "triangle",
+      gain: sprinting ? 0.02 : 0.014,
+      decay: 0.08,
+    });
+  }
+
+  jump() {
+    this.resume();
+    this.pulse({ frequency: 240, type: "square", gain: 0.02, decay: 0.08 });
+    this.pulse({ frequency: 360, type: "triangle", gain: 0.016, decay: 0.12, time: 0.015 });
+  }
+
+  land(speed) {
+    this.resume();
+    const intensity = clamp((Math.abs(speed) - 4) / 10, 0.25, 1);
+    this.noise({
+      gain: 0.018 + intensity * 0.03,
+      decay: 0.06 + intensity * 0.08,
+      highpass: 140,
+      lowpass: 900,
+    });
+    this.pulse({
+      frequency: 70 - intensity * 14,
+      type: "triangle",
+      gain: 0.012 + intensity * 0.016,
+      decay: 0.12 + intensity * 0.06,
+    });
+  }
+
+  hit(blockType, finished = false) {
+    this.resume();
+    const glassy = blockType === BLOCKS.glass;
+    const woody = blockType === BLOCKS.wood || blockType === BLOCKS.planks || blockType === BLOCKS.crafting_table;
+    const stony = blockType === BLOCKS.stone || blockType === BLOCKS.bricks || blockType === BLOCKS.coal_ore || blockType === BLOCKS.iron_ore || blockType === BLOCKS.furnace;
+    this.noise({
+      gain: finished ? 0.04 : 0.024,
+      decay: finished ? 0.12 : 0.06,
+      highpass: glassy ? 900 : woody ? 260 : 420,
+      lowpass: glassy ? 3200 : stony ? 1800 : 1300,
+    });
+    this.pulse({
+      frequency: glassy ? 780 : woody ? 180 : 140,
+      type: glassy ? "triangle" : "square",
+      gain: finished ? 0.02 : 0.012,
+      decay: finished ? 0.1 : 0.05,
+    });
+  }
+
+  place(blockType) {
+    this.resume();
+    const bright = blockType === BLOCKS.glass;
+    this.pulse({
+      frequency: bright ? 520 : 160,
+      type: bright ? "triangle" : "square",
+      gain: 0.014,
+      decay: 0.05,
+    });
+    this.noise({
+      gain: bright ? 0.012 : 0.018,
+      decay: 0.05,
+      highpass: bright ? 760 : 220,
+      lowpass: bright ? 2400 : 1200,
+    });
+  }
+
+  craft() {
+    this.resume();
+    this.pulse({ frequency: 392, type: "triangle", gain: 0.018, decay: 0.08 });
+    this.pulse({ frequency: 494, type: "triangle", gain: 0.016, decay: 0.1, time: 0.04 });
+    this.pulse({ frequency: 587, type: "triangle", gain: 0.014, decay: 0.12, time: 0.08 });
+  }
+}
+
+const soundEngine = new SoundEngine();
 
 function serializeWorldEdits() {
   const chunks = {};
@@ -2100,6 +2723,7 @@ function createInventorySlot(itemId, count, selected) {
   }
   if (count <= 0) {
     slot.classList.add("is-empty");
+    slot.disabled = true;
   }
   slot.innerHTML =
     `<div class="slot-icon"></div>` +
@@ -2130,6 +2754,7 @@ function craftRecipe(recipeId, collection) {
   setActiveItem(recipe.output);
   state.uiMessage = `Crafted ${recipe.count} ${BLOCK_NAMES[recipe.output]}`;
   state.uiMessageTimer = 1.4;
+  soundEngine.craft();
   state.saveDirty = true;
   updateInventoryPanel();
   updateHotbar();
@@ -2146,6 +2771,7 @@ function smeltRecipe(recipeId) {
   setActiveItem(recipe.output);
   state.uiMessage = `Smelted ${recipe.count} ${BLOCK_NAMES[recipe.output]}`;
   state.uiMessageTimer = 1.4;
+  soundEngine.craft();
   state.saveDirty = true;
   updateInventoryPanel();
   updateHotbar();
@@ -2251,12 +2877,16 @@ function updateInventoryPanel() {
     BLOCKS.iron_ore,
   ])];
   allItems.forEach((itemId) => {
+    const count = state.inventory[itemId] ?? 0;
     const slot = createInventorySlot(
       itemId,
-      state.inventory[itemId] ?? 0,
+      count,
       itemId === getSelectedItem(),
     );
     slot.addEventListener("click", () => {
+      if (count <= 0) {
+        return;
+      }
       state.hotbarSlots[state.activeSlot] = itemId;
       setActiveItem(itemId);
       updateInventoryPanel();
@@ -2278,6 +2908,9 @@ function updateInventoryPanel() {
 
 function toggleInventory(forceOpen) {
   const nextValue = typeof forceOpen === "boolean" ? forceOpen : !state.inventoryOpen;
+  if (nextValue !== state.inventoryOpen) {
+    soundEngine.ui(nextValue);
+  }
   state.inventoryOpen = nextValue;
   inventoryPanel.classList.toggle("is-hidden", !nextValue);
   if (nextValue) {
@@ -2289,6 +2922,11 @@ function toggleInventory(forceOpen) {
 }
 
 function setActiveItem(itemId) {
+  if ((state.inventory[itemId] ?? 0) <= 0) {
+    state.uiMessage = `No ${BLOCK_NAMES[itemId]} in bag`;
+    state.uiMessageTimer = 1;
+    return;
+  }
   const existingIndex = state.hotbarSlots.indexOf(itemId);
   if (existingIndex !== -1) {
     state.activeSlot = existingIndex;
@@ -2297,6 +2935,7 @@ function setActiveItem(itemId) {
   }
   state.selectedBlock = isPlaceableItem(itemId) ? itemId : state.selectedBlock;
   state.saveDirty = true;
+  soundEngine.select();
 }
 
 function setMode(mode) {
@@ -2312,6 +2951,7 @@ function startGame() {
   setMode("playing");
   toggleInventory(false);
   canvas.focus();
+  soundEngine.resume();
   requestPointerLock();
 }
 
@@ -2397,6 +3037,33 @@ function hasCollision(x, y, z) {
     }
   }
   return false;
+}
+
+function movePlayerToSpawn() {
+  state.player.x = DEFAULT_SPAWN.x;
+  state.player.y = world.getHeightAt(Math.floor(DEFAULT_SPAWN.x), Math.floor(DEFAULT_SPAWN.z)) + 1.05;
+  state.player.z = DEFAULT_SPAWN.z;
+  state.player.vx = 0;
+  state.player.vy = 0;
+  state.player.vz = 0;
+  state.player.yaw = DEFAULT_SPAWN.yaw;
+  state.player.pitch = DEFAULT_SPAWN.pitch;
+  state.player.onGround = false;
+  state.nextFootstepAt = state.elapsed + 0.24;
+}
+
+function ensureValidPlayerPosition() {
+  if (hasCollision(state.player.x, state.player.y, state.player.z)) {
+    movePlayerToSpawn();
+  }
+}
+
+function getFootstepBlockType() {
+  return world.getBlock(
+    Math.floor(state.player.x),
+    Math.floor(state.player.y - 0.08),
+    Math.floor(state.player.z),
+  );
 }
 
 function tryStepUp(nextX, currentY, nextZ) {
@@ -2555,6 +3222,7 @@ function interact(breaking) {
       3,
       0.85,
     );
+    soundEngine.hit(state.target.block.type, false);
     if (state.breakState.progress < state.breakState.hardness) {
       updateBreakVisuals();
       return;
@@ -2576,6 +3244,7 @@ function interact(breaking) {
         10,
         2.2,
       );
+      soundEngine.hit(brokenType, true);
       state.saveDirty = true;
     }
     resetBreakState();
@@ -2600,6 +3269,7 @@ function interact(breaking) {
           6,
           1.6,
         );
+        soundEngine.place(selectedItem);
         state.saveDirty = true;
       }
     }
@@ -2618,8 +3288,8 @@ function handleInput(dt) {
     return;
   }
   const player = state.player;
-  const forwardIntent = (state.keys.has("KeyW") || state.keys.has("ArrowUp") ? 1 : 0)
-    + (state.keys.has("KeyS") || state.keys.has("ArrowDown") ? -1 : 0);
+  const forwardIntent = (state.keys.has("KeyW") ? 1 : 0)
+    + (state.keys.has("KeyS") ? -1 : 0);
   const strafeIntent = (state.keys.has("KeyD") ? 1 : 0)
     + (state.keys.has("KeyA") ? -1 : 0);
 
@@ -2628,6 +3298,12 @@ function handleInput(dt) {
   }
   if (state.keys.has("ArrowRight")) {
     player.yaw -= dt * 1.9;
+  }
+  if (state.keys.has("ArrowUp")) {
+    player.pitch = clamp(player.pitch + dt * 1.55, -1.45, 1.45);
+  }
+  if (state.keys.has("ArrowDown")) {
+    player.pitch = clamp(player.pitch - dt * 1.55, -1.45, 1.45);
   }
 
   const moveX = -Math.sin(player.yaw);
@@ -2651,8 +3327,10 @@ function handleInput(dt) {
   if (state.keys.has("Space") && player.onGround) {
     player.vy = JUMP_SPEED;
     player.onGround = false;
+    soundEngine.jump();
   }
 
+  const previousActiveSlot = state.activeSlot;
   for (let i = 0; i < HOTBAR_SIZE; i++) {
     if (state.keys.has(`Digit${i + 1}`)) {
       state.activeSlot = i;
@@ -2661,6 +3339,9 @@ function handleInput(dt) {
         state.selectedBlock = itemId;
       }
     }
+  }
+  if (state.activeSlot !== previousActiveSlot) {
+    soundEngine.select();
   }
 
   if (state.keys.has("KeyF")) {
@@ -2686,6 +3367,8 @@ function handleInput(dt) {
 function updateHud() {
   const player = state.player;
   const activeItem = getSelectedItem();
+  const cityCenter = getCityCenter();
+  const cityDistance = Math.hypot(player.x - cityCenter.x, player.z - cityCenter.z);
   const targetText = state.target
     ? `${BLOCK_NAMES[state.target.block.type]} @ ${state.target.block.x}, ${state.target.block.y}, ${state.target.block.z}`
     : "none";
@@ -2703,7 +3386,7 @@ function updateHud() {
   hudSecondary.textContent =
     `XYZ ${player.x.toFixed(1)}, ${player.y.toFixed(1)}, ${player.z.toFixed(1)}\n` +
     `Yaw ${player.yaw.toFixed(2)} Pitch ${player.pitch.toFixed(2)}\n` +
-    `${state.inventoryOpen ? "Inventory open" : state.pointerLocked ? "Pointer lock" : "Click or drag on canvas"} | ${state.keys.has("ShiftLeft") || state.keys.has("ShiftRight") ? "Sprinting" : "Walk"} | Mobs ${passiveMobs.getEntityCount()} | Day ${(state.dayTime * 24).toFixed(1)}h${state.uiMessageTimer > 0 ? ` | ${state.uiMessage}` : ""}`;
+    `${state.inventoryOpen ? "Inventory open" : state.pointerLocked ? "Pointer lock" : "Click or drag on canvas"} | ${state.keys.has("ShiftLeft") || state.keys.has("ShiftRight") ? "Sprinting" : "Walk"} | City ${cityDistance.toFixed(0)}m | Mobs ${passiveMobs.getEntityCount()} | Day ${(state.dayTime * 24).toFixed(1)}h${state.uiMessageTimer > 0 ? ` | ${state.uiMessage}` : ""}`;
 }
 
 function render() {
@@ -2745,15 +3428,21 @@ function update(dt, shouldRender = true) {
   if (!wasOnGround && state.player.onGround && previousVy < -6) {
     state.viewBob = 0.18;
     spawnParticles(state.player.x, state.player.y + 0.02, state.player.z, BLOCKS.dirt, 8, 1.1);
+    soundEngine.land(previousVy);
+  }
+
+  const horizontalSpeed = Math.hypot(state.player.vx, state.player.vz);
+  const sprinting = state.keys.has("ShiftLeft") || state.keys.has("ShiftRight");
+  if (state.player.onGround && horizontalSpeed > 0.3 && state.elapsed >= state.nextFootstepAt) {
+    soundEngine.footstep(getFootstepBlockType(), sprinting);
+    state.nextFootstepAt = state.elapsed + (sprinting ? 0.23 : 0.34);
+  }
+  if (!state.player.onGround || horizontalSpeed <= 0.15) {
+    state.nextFootstepAt = Math.min(state.nextFootstepAt, state.elapsed + 0.08);
   }
 
   if (state.player.y < -20) {
-    state.player.x = 0.5;
-    state.player.y = world.getHeightAt(0, 0) + 3;
-    state.player.z = 0.5;
-    state.player.vx = 0;
-    state.player.vy = 0;
-    state.player.vz = 0;
+    movePlayerToSpawn();
   }
 
   updateParticles(dt);
@@ -2789,6 +3478,7 @@ function update(dt, shouldRender = true) {
 
 function renderGameToText() {
   const player = state.player;
+  const cityCenter = getCityCenter();
   return JSON.stringify({
     title: "MyCraft",
     mode: state.mode,
@@ -2819,6 +3509,10 @@ function renderGameToText() {
     breakProgress: state.breakState.key && state.breakState.hardness > 0
       ? Number((state.breakState.progress / state.breakState.hardness).toFixed(2))
       : 0,
+    audio: {
+      supported: Boolean(soundEngine.AudioContextCtor),
+      active: Boolean(soundEngine.context),
+    },
     target: state.target
       ? {
           block: state.target.block,
@@ -2827,6 +3521,15 @@ function renderGameToText() {
         }
       : null,
     nearbyMobs: passiveMobs.getNearbyEntities(),
+    landmarks: {
+      cityCenter: {
+        x: Number(cityCenter.x.toFixed(1)),
+        z: Number(cityCenter.z.toFixed(1)),
+      },
+      cityDistance: Number(Math.hypot(player.x - cityCenter.x, player.z - cityCenter.z).toFixed(1)),
+      inCity: isInsideRect(player.x, player.z, CITY_PLAN),
+      inSuburb: !isInsideRect(player.x, player.z, CITY_PLAN) && isInsideRect(player.x, player.z, SUBURB_PLAN),
+    },
     dayTimeHours: Number((state.dayTime * 24).toFixed(2)),
     chunkStats: {
       active: world.loadedKeys.size,
@@ -2895,6 +3598,9 @@ canvas.addEventListener("pointerdown", () => {
   if (state.running && !state.inventoryOpen && !state.pointerLocked) {
     requestPointerLock();
   }
+  if (state.running) {
+    soundEngine.resume();
+  }
 });
 
 window.addEventListener("mouseup", (event) => {
@@ -2933,7 +3639,11 @@ window.addEventListener("wheel", (event) => {
     return;
   }
   event.preventDefault();
-  state.activeSlot = (state.activeSlot + (event.deltaY > 0 ? 1 : -1) + HOTBAR_SIZE) % HOTBAR_SIZE;
+  const nextSlot = (state.activeSlot + (event.deltaY > 0 ? 1 : -1) + HOTBAR_SIZE) % HOTBAR_SIZE;
+  if (nextSlot !== state.activeSlot) {
+    soundEngine.select();
+  }
+  state.activeSlot = nextSlot;
   const itemId = getSelectedItem();
   if (isPlaceableItem(itemId)) {
     state.selectedBlock = itemId;
@@ -2941,6 +3651,9 @@ window.addEventListener("wheel", (event) => {
 }, { passive: false });
 
 window.addEventListener("keydown", (event) => {
+  if (state.running) {
+    soundEngine.resume();
+  }
   if (event.code === "KeyE") {
     event.preventDefault();
     if (state.running) {
@@ -2977,6 +3690,7 @@ resizeRenderer();
 buildHotbar();
 updateInventoryPanel();
 loadGame();
+ensureValidPlayerPosition();
 world.updateLoadedChunks(state.player.x, state.player.z);
 chunkMeshes.syncLoadedChunks();
 passiveMobs.syncLoadedChunks();

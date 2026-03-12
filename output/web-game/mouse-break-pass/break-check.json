@@ -35,22 +35,39 @@
       },
       "distance": 4.42
     },
+    "breakProgress": 0.84
+  },
+  "later": {
+    "target": {
+      "block": {
+        "x": 2,
+        "y": 7,
+        "z": -3,
+        "type": 4
+      },
+      "place": {
+        "x": 2,
+        "y": 8,
+        "z": -3
+      },
+      "distance": 4.77
+    },
     "breakProgress": 0
   },
   "after": {
     "target": {
       "block": {
         "x": 2,
-        "y": 8,
-        "z": -2,
+        "y": 7,
+        "z": -3,
         "type": 4
       },
       "place": {
-        "x": 1,
+        "x": 2,
         "y": 8,
-        "z": -2
+        "z": -3
       },
-      "distance": 4.42
+      "distance": 4.77
     },
     "breakProgress": 0
   }

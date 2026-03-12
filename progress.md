@@ -23,4 +23,22 @@ Original prompt: Create a minimal Minecraft-style voxel game, call it MyCraft. B
 - Fun-pass screenshot shows inventory counts in the hotbar and HUD with the animated-world build; movement/landing/cloud effects are implemented but only partially represented by a single captured frame.
 - Crafting-pass screenshot confirms the icon hotbar and expanded placeable set; `render_game_to_text` also reports craftable recipes and inventory counts for the new crafting system.
 - Progression-pass screenshot confirms water generation, the new hotbar/tool state, and progression-aware inventory text; crafting overlay behavior was verified by code path and state wiring, while automated capture still focused on gameplay view.
+- Fixed mouse-look reliability by requesting pointer lock on pointer down and preserving a drag-look fallback path when pointer lock is denied.
+- Added staged block breaking with per-block hardness, tool-scaled damage, break-progress visuals, and hit particles so mining no longer feels instant.
+- Added lightweight passive fauna with simple wandering/animation, including sheep and villagers generated per chunk.
+- Added a deterministic city district near spawn with gridded roads, lamp posts, towers, row houses, and detached suburban houses so the world includes built structures instead of only natural terrain.
+- Adjusted the default spawn/fallback spawn to land on the new street network and added city landmark reporting to the HUD/text state.
+- Rebound keyboard camera controls so arrow keys now handle look direction while WASD remains dedicated to movement.
+- Fixed an inventory bug where empty backpack items could still be clicked into the hotbar; empty slots are now disabled and leave the selected item unchanged.
+- Expanded city building variety with stepped towers, shopfront-style buildings, trim variations, crowned roofs, and more facade detail.
+- Added a procedural Web Audio pass for footsteps, jump/land, mining hits, block placement, crafting, inventory open/close, and hotbar selection so the sandbox feels less silent.
+- Verification notes:
+- `node --check main.js` passes after the input/mining/fauna changes.
+- Playwright smoke run on `http://127.0.0.1:4175` produced a valid gameplay screenshot with sheep/villagers visible and `render_game_to_text` reporting nearby passive mobs.
+- Targeted browser verification recorded mouse drag changing camera yaw from `-0.55` to `-0.86` and pitch from `-0.38` to `-0.49`, confirming the fallback mouse-look path works in practice.
+- Targeted browser verification also recorded `breakProgress: 0.84` mid-mining before the targeted sand block changed, which confirms blocks now take multiple hits instead of breaking instantly.
+- City-pass verification screenshot shows the new road grid and stacked house/building forms in-world, and `render_game_to_text` reports `landmarks.cityCenter = { x: 18, z: -14 }` with the player already inside the city district.
+- Control-pass verification shows arrow-key look changing the player pitch to `0.24` without moving position, which confirms keyboard up/down camera control now works.
+- Targeted browser verification confirmed `.inventory-slot[data-item="7"]` (empty planks) is `disabled: true` and clicking it leaves `selectedItem` as `Wood Pickaxe`.
+- Sound-pass verification reports `audio.supported = true` and `audio.active = true` after entering the world, with no console errors during movement/jump/break/place actions.
 - TODO: if a future pass adds inventory or more block types, add targeted interaction tests with more dramatic before/after visuals.
