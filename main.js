@@ -4121,6 +4121,12 @@ window.addEventListener("keydown", (event) => {
     }
     return;
   }
+  if (event.code === "KeyR") {
+    if (state.running) {
+      respawnPlayer();
+    }
+    return;
+  }
   if (event.code === "Escape") {
     if (state.inventoryOpen) {
       toggleInventory(false);
