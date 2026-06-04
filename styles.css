@@ -435,6 +435,51 @@ button:hover {
   filter: brightness(1.05);
 }
 
+.death-screen {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(160, 20, 20, 0.42);
+  backdrop-filter: blur(10px);
+  animation: death-fade-in 0.5s ease;
+}
+
+.death-screen.is-hidden {
+  display: none;
+}
+
+.death-card {
+  width: min(420px, 100%);
+  padding: 40px 40px 36px;
+  text-align: center;
+  border-radius: 28px;
+  border: 1px solid rgba(255, 90, 90, 0.28);
+  background:
+    linear-gradient(180deg, rgba(255, 60, 60, 0.06), transparent 30%),
+    rgba(7, 12, 18, 0.94);
+  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.5);
+}
+
+.death-card h2 {
+  margin: 6px 0 14px;
+  font-size: clamp(2rem, 5vw, 2.8rem);
+  color: #ff6b6b;
+}
+
+.death-subtitle {
+  margin: 0 0 28px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+@keyframes death-fade-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
 @media (max-width: 720px) {
   .hud {
     padding: 12px;

@@ -31,6 +31,9 @@ const recipeList = document.getElementById("recipe-list");
 const inventoryClose = document.getElementById("inventory-close");
 const hudPrimary = document.getElementById("hud-primary");
 const hudSecondary = document.getElementById("hud-secondary");
+const deathScreen = document.getElementById("death-screen");
+const deathLocationText = document.getElementById("death-location");
+const respawnBtn = document.getElementById("respawn-btn");
 
 const BLOCKS = {
   air: 0,
@@ -2101,6 +2104,9 @@ function getSurfaceData(x, z) {
 const state = {
   mode: "menu",
   running: false,
+  isDead: false,
+  lastSafePosX: DEFAULT_SPAWN.x,
+  lastSafePosZ: DEFAULT_SPAWN.z,
   pointerLocked: false,
   suppressAnimationTick: false,
   inventoryOpen: false,
@@ -3334,6 +3340,8 @@ function setMode(mode) {
   menu.classList.toggle("is-hidden", state.running);
   if (!state.running) {
     toggleInventory(false);
+    state.isDead = false;
+    deathScreen.classList.add("is-hidden");
   }
 }
 
@@ -3440,6 +3448,51 @@ function movePlayerToSpawn() {
   state.player.pitch = DEFAULT_SPAWN.pitch;
   state.player.onGround = false;
   state.nextFootstepAt = state.elapsed + 0.24;
+}
+
+function findClosestSafeRespawn() {
+  const ox = state.lastSafePosX;
+  const oz = state.lastSafePosZ;
+  const offsets = [[0,0],[1,0],[-1,0],[0,1],[0,-1],[2,0],[-2,0],[0,2],[0,-2],[1,1],[-1,1],[1,-1],[-1,-1]];
+  for (const [dx, dz] of offsets) {
+    const bx = Math.floor(ox) + dx;
+    const bz = Math.floor(oz) + dz;
+    const sy = world.getHeightAt(bx, bz);
+    const py = sy + 1.05;
+    if (!hasCollision(bx + 0.5, py, bz + 0.5)) {
+      return { x: bx + 0.5, y: py, z: bz + 0.5 };
+    }
+  }
+  return {
+    x: DEFAULT_SPAWN.x,
+    y: world.getHeightAt(Math.floor(DEFAULT_SPAWN.x), Math.floor(DEFAULT_SPAWN.z)) + 1.05,
+    z: DEFAULT_SPAWN.z,
+  };
+}
+
+function handlePlayerDeath() {
+  state.isDead = true;
+  exitPointerLock();
+  const pos = findClosestSafeRespawn();
+  deathLocationText.textContent = `Nearest safe ground at (${Math.round(pos.x)}, ${Math.round(pos.z)})`;
+  deathScreen.classList.remove("is-hidden");
+}
+
+function respawnPlayer() {
+  const pos = findClosestSafeRespawn();
+  state.player.x = pos.x;
+  state.player.y = pos.y;
+  state.player.z = pos.z;
+  state.player.vx = 0;
+  state.player.vy = 0;
+  state.player.vz = 0;
+  state.player.yaw = DEFAULT_SPAWN.yaw;
+  state.player.pitch = DEFAULT_SPAWN.pitch;
+  state.player.onGround = false;
+  state.nextFootstepAt = state.elapsed + 0.24;
+  state.isDead = false;
+  deathScreen.classList.add("is-hidden");
+  requestPointerLock();
 }
 
 function ensureValidPlayerPosition() {
@@ -3806,35 +3859,42 @@ function update(dt, shouldRender = true) {
   world.updateLoadedChunks(state.player.x, state.player.z);
   chunkMeshes.syncLoadedChunks();
   passiveMobs.syncLoadedChunks();
-  handleInput(dt);
+  if (!state.isDead) {
+    handleInput(dt);
 
-  const wasOnGround = state.player.onGround;
-  const previousVy = state.player.vy;
-  state.player.vy -= GRAVITY * dt;
+    const wasOnGround = state.player.onGround;
+    const previousVy = state.player.vy;
+    state.player.vy -= GRAVITY * dt;
 
-  movePlayerAxis("x", state.player.vx * dt);
-  movePlayerAxis("z", state.player.vz * dt);
-  state.player.onGround = false;
-  movePlayerAxis("y", state.player.vy * dt);
+    movePlayerAxis("x", state.player.vx * dt);
+    movePlayerAxis("z", state.player.vz * dt);
+    state.player.onGround = false;
+    movePlayerAxis("y", state.player.vy * dt);
 
-  if (!wasOnGround && state.player.onGround && previousVy < -6) {
-    state.viewBob = 0.18;
-    spawnParticles(state.player.x, state.player.y + 0.02, state.player.z, BLOCKS.dirt, 8, 1.1);
-    soundEngine.land(previousVy);
-  }
+    if (!wasOnGround && state.player.onGround && previousVy < -6) {
+      state.viewBob = 0.18;
+      spawnParticles(state.player.x, state.player.y + 0.02, state.player.z, BLOCKS.dirt, 8, 1.1);
+      soundEngine.land(previousVy);
+    }
 
-  const horizontalSpeed = Math.hypot(state.player.vx, state.player.vz);
-  const sprinting = state.keys.has("ShiftLeft") || state.keys.has("ShiftRight");
-  if (state.player.onGround && horizontalSpeed > 0.3 && state.elapsed >= state.nextFootstepAt) {
-    soundEngine.footstep(getFootstepBlockType(), sprinting);
-    state.nextFootstepAt = state.elapsed + (sprinting ? 0.23 : 0.34);
-  }
-  if (!state.player.onGround || horizontalSpeed <= 0.15) {
-    state.nextFootstepAt = Math.min(state.nextFootstepAt, state.elapsed + 0.08);
-  }
+    const horizontalSpeed = Math.hypot(state.player.vx, state.player.vz);
+    const sprinting = state.keys.has("ShiftLeft") || state.keys.has("ShiftRight");
+    if (state.player.onGround && horizontalSpeed > 0.3 && state.elapsed >= state.nextFootstepAt) {
+      soundEngine.footstep(getFootstepBlockType(), sprinting);
+      state.nextFootstepAt = state.elapsed + (sprinting ? 0.23 : 0.34);
+    }
+    if (!state.player.onGround || horizontalSpeed <= 0.15) {
+      state.nextFootstepAt = Math.min(state.nextFootstepAt, state.elapsed + 0.08);
+    }
 
-  if (state.player.y < -20) {
-    movePlayerToSpawn();
+    if (state.player.onGround) {
+      state.lastSafePosX = state.player.x;
+      state.lastSafePosZ = state.player.z;
+    }
+
+    if (state.player.y < -20) {
+      handlePlayerDeath();
+    }
   }
 
   updateParticles(dt);
@@ -3960,6 +4020,7 @@ window.advanceTime = (ms) => {
 };
 
 startButton.addEventListener("click", startGame);
+respawnBtn.addEventListener("click", respawnPlayer);
 inventoryClose.addEventListener("click", () => toggleInventory(false));
 
 canvas.addEventListener("click", () => {
