@@ -4,6 +4,7 @@ import { chunkMeshes } from "./chunkMesh.js";
 import { damagePlayer, getArmorPoints } from "./combat.js";
 import { BLOCK_NAMES, CITY_PLAN, FIXED_STEP, MAX_HEALTH, SNOW_REALM, SUBURB_PLAN } from "./constants.js";
 import { hotbar } from "./dom.js";
+import { getGrowth, getMaxHealth } from "./growth.js";
 import { getSelectedItem } from "./items.js";
 import { update } from "./loop.js";
 import { isInsideRect } from "./math.js";
@@ -58,7 +59,8 @@ export function renderGameToText() {
     xp: state.xp,
     experienceLevel: getLevel(),
     health: state.health,
-    maxHealth: MAX_HEALTH,
+    maxHealth: getMaxHealth(),
+    growth: Number(getGrowth().toFixed(3)),
     air: Number(state.air.toFixed(1)),
     armorPoints: getArmorPoints(),
     armor: Object.fromEntries(

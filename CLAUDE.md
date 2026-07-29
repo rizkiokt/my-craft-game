@@ -395,6 +395,22 @@ first `pointerdown` anywhere — that is what lets the title screen have music a
 
 `settings.ambience` drives the bed and the music together, separately from `settings.volume`.
 
+### Growing with level
+
+`src/growth.js` derives **everything about the body** from one factor: 1 at level 0, rising
+linearly to 2 at `GROWTH_MAX_LEVEL` (100) and stopping. Hearts, height, radius, eye height, step
+height, reach and walk speed all come from there rather than reading the constants directly, so
+nothing can be left behind at the old size. It recomputes the level from `state.xp` instead of
+importing `enchanting.js`, which keeps it low enough in the stack for anything to use.
+
+Walk speed scales by **√growth**, not growth: doubling it makes the world feel small, and
+leaving it alone makes a giant feel like they are wading.
+
+**The loop pushes the player up out of collision every frame.** Gaining a level in a two-block
+tunnel would otherwise wedge you inside the world with every direction blocked.
+
+The heart row wraps: twenty hearts is wider than the hotbar.
+
 ### Health, damage and armour
 
 `src/combat.js` owns hearts, air, armour and every damage source. `updateVitals(dt)` runs

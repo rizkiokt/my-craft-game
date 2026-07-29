@@ -164,6 +164,20 @@ Your current seed is shown on the title screen and is saved with the world.
 
 ---
 
+## Growing Up
+
+You start small and grow as you level up. By **level 100** you are twice the size you began:
+twice as tall, twice as wide, and **twenty hearts instead of ten**. Everything in between is
+gradual, so at level 50 you are half way there.
+
+Being big has its perks — longer arms reach further, longer legs step over bigger ledges, and
+longer strides carry you a little faster. It has its awkward side too: a tunnel you dug as a
+child may need widening.
+
+Your size shows on the F3 screen if you want to check it.
+
+---
+
 ## Water and Swimming
 
 Water is see-through, so you can look down into a lake and see the bottom, and its surface sits

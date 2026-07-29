@@ -21,7 +21,7 @@ import { passiveMobs } from "./mobs.js";
 import { npcs } from "./npcs.js";
 import { updatePortalTravel } from "./portals.js";
 import { spawnParticles, updateParticles } from "./particles.js";
-import { applyPlayerToCamera, getFootstepBlockType, getSubmersion, handlePlayerDeath, movePlayerAxis, updateSafeAnchor } from "./player.js";
+import { applyPlayerToCamera, getFootstepBlockType, getSubmersion, handlePlayerDeath, hasCollision, movePlayerAxis, updateSafeAnchor } from "./player.js";
 import { saveGame } from "./save.js";
 import { camera, renderer, scene, updateLighting } from "./scene.js";
 import { soundEngine } from "./sound.js";
@@ -147,6 +147,15 @@ export function update(dt, shouldRender = true) {
     if (state.swimming !== wasSwimming) {
       soundEngine.splash();
       spawnParticles(state.player.x, state.player.y + 0.4, state.player.z, BLOCKS.water, 10, 2.2);
+    }
+
+    // Growing a level while in a low tunnel would otherwise wedge you inside
+    // the world with every direction blocked.
+    let stuck = 0;
+    while (hasCollision(state.player.x, state.player.y, state.player.z) && stuck < 4) {
+      state.player.y += 0.5;
+      state.player.vy = Math.max(0, state.player.vy);
+      stuck += 1;
     }
 
     movePlayerAxis("x", state.player.vx * dt);

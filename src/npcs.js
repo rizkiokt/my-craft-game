@@ -14,6 +14,7 @@ import {
   NPC_TELEPORT_DISTANCE,
   PI,
 } from "./constants.js";
+import { getMaxHealth } from "./growth.js";
 import { addItem, getItemCount, isCreative } from "./items.js";
 import { clamp, hash3, lerp, lerpAngle, wrapAngle } from "./math.js";
 import { animateCharacter, createCharacterModel } from "./playerModel.js";
@@ -761,7 +762,7 @@ export class NpcManager {
     const help = npc.help;
     if (help.kind === "food") {
       // combat.js sits above this module, so the heal is applied directly.
-      state.health = Math.min(MAX_HEALTH, state.health + FOOD_HEAL);
+      state.health = Math.min(getMaxHealth(), state.health + FOOD_HEAL);
       state.saveDirty = true;
       npc.foodCooldown = FOOD_COOLDOWN;
       toast(`${npc.name} shared some food with you`);

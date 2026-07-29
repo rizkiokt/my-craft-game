@@ -4,6 +4,7 @@ import * as THREE from "../node_modules/three/build/three.module.js";
 import { chunkMeshes } from "./chunkMesh.js";
 import { BLOCKS, BLOCK_NAMES, INTERACTION_RANGE, MAX_BUILD_HEIGHT, MIN_WORLD_Y, PLAYER_HEIGHT, PLAYER_RADIUS } from "./constants.js";
 import { getLevel, getXpForBlock, grantXp } from "./enchanting.js";
+import { getBodyHeight, getBodyRadius, getReach } from "./growth.js";
 import { addItem, canMineBlock, consumeItem, getBreakDamage, getBreakHardness, getDropCount, getDropForBlock, getInteractionCooldown, getItemCount, getRequiredToolName, getSelectedItem, isCollectibleBlock, isCreative, isPlaceableItem } from "./items.js";
 import { chestKeyAt, emptyChestInto } from "./crafting.js";
 import { clamp, floorVector } from "./math.js";
@@ -97,9 +98,10 @@ export function updateBreakVisuals() {
 /** True when the player's own box overlaps a block cell. */
 function playerOverlapsCell(x, y, z) {
   const player = state.player;
-  return x + 1 > player.x - PLAYER_RADIUS && x < player.x + PLAYER_RADIUS
-    && y + 1 > player.y && y < player.y + PLAYER_HEIGHT
-    && z + 1 > player.z - PLAYER_RADIUS && z < player.z + PLAYER_RADIUS;
+  const radius = getBodyRadius();
+  return x + 1 > player.x - radius && x < player.x + radius
+    && y + 1 > player.y && y < player.y + getBodyHeight()
+    && z + 1 > player.z - radius && z < player.z + radius;
 }
 
 /**
@@ -124,12 +126,12 @@ export function updateTarget() {
   applyPlayerToCamera();
   // Always aim from the eye so first and third person share the same reach.
   raycaster.set(eyePosition, lookDirection);
-  raycaster.far = INTERACTION_RANGE;
+  raycaster.far = getReach();
   const intersections = raycaster.intersectObjects(chunkMeshes.getMeshes(), false);
   const hit = intersections[0];
 
   // Anything standing in front of a block wins the crosshair.
-  const reach = Math.min(hit?.distance ?? Infinity, INTERACTION_RANGE);
+  const reach = Math.min(hit?.distance ?? Infinity, getReach());
   const creature = passiveMobs.raycast(raycaster, reach);
   const friend = npcs.raycast(raycaster, reach);
   // Whichever of the two is nearer takes the crosshair.

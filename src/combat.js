@@ -16,6 +16,7 @@ import {
   SAFE_FALL_DISTANCE,
 } from "./constants.js";
 import { getEnchantLevel } from "./enchanting.js";
+import { getMaxHealth } from "./growth.js";
 import { addItem, consumeItem, getItemCount, isCreative } from "./items.js";
 import { clamp } from "./math.js";
 import { soundEngine } from "./sound.js";
@@ -105,7 +106,7 @@ export function damagePlayer(amount, { ignoreArmor = false, cause = "" } = {}) {
   }
   const taken = ignoreArmor ? amount : amount * (1 - getDamageReduction());
   const rounded = Math.max(0.5, Math.round(taken * 2) / 2);
-  state.health = clamp(state.health - rounded, 0, MAX_HEALTH);
+  state.health = clamp(state.health - rounded, 0, getMaxHealth());
   state.lastDamageTime = state.elapsed;
   state.damageFlash = 1;
   state.lastDamageCause = cause;
@@ -114,11 +115,11 @@ export function damagePlayer(amount, { ignoreArmor = false, cause = "" } = {}) {
 }
 
 export function healPlayer(amount) {
-  state.health = clamp(state.health + amount, 0, MAX_HEALTH);
+  state.health = clamp(state.health + amount, 0, getMaxHealth());
 }
 
 export function resetVitals() {
-  state.health = MAX_HEALTH;
+  state.health = getMaxHealth();
   state.air = MAX_AIR;
   state.fallStartY = null;
   state.damageFlash = 0;
@@ -220,7 +221,7 @@ export function updateVitals(dt) {
   }
 
   // Regeneration once nothing has hurt you recently.
-  if (state.health > 0 && state.health < MAX_HEALTH
+  if (state.health > 0 && state.health < getMaxHealth()
     && state.elapsed - state.lastDamageTime > REGEN_DELAY) {
     state.regenTimer += dt;
     if (state.regenTimer >= REGEN_INTERVAL) {

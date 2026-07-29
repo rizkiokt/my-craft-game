@@ -217,6 +217,11 @@ export const MIN_LIGHT_FACTOR = 0.16;
 export const CHEST_SIZE = 27;
 
 export const MAX_HEALTH = 20;
+/**
+ * The level at which the player has finished growing: twice the hearts and
+ * twice the height of a level-0 body, interpolated the whole way there.
+ */
+export const GROWTH_MAX_LEVEL = 100;
 export const MAX_AIR = 10;
 /** Falls shorter than this never hurt, as in Minecraft. */
 export const SAFE_FALL_DISTANCE = 3;

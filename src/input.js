@@ -4,6 +4,7 @@ import { dispatchPress, handleEscape, scrollHotbar } from "./actions.js";
 import { canonicalToken, isActionDown, mouseToken } from "./bindings.js";
 import { FLY_BOOST_MULTIPLIER, FLY_SPEED, FLY_VERTICAL_SPEED, JUMP_SPEED, MOVE_SPEED, SNEAK_MULTIPLIER, SPRINT_MULTIPLIER, SWIM_MOVE_SCALE } from "./constants.js";
 import { canvas } from "./dom.js";
+import { getMoveSpeed } from "./growth.js";
 import { interact } from "./interaction.js";
 import { clamp } from "./math.js";
 import { moveLook } from "./player.js";
@@ -70,15 +71,15 @@ export function handleInput(dt) {
     state.stepPhase += dt * (state.sprinting ? 16 : state.sneaking ? 7 : 11);
   }
 
-  let speed = MOVE_SPEED;
+  let speed = getMoveSpeed();
   if (state.swimming && !state.flying) {
-    speed = MOVE_SPEED * SWIM_MOVE_SCALE;
+    speed = getMoveSpeed() * SWIM_MOVE_SCALE;
   } else if (state.flying) {
     speed = FLY_SPEED * (sprintHeld || state.sprintLatched ? FLY_BOOST_MULTIPLIER : 1);
   } else if (state.sneaking) {
-    speed = MOVE_SPEED * SNEAK_MULTIPLIER;
+    speed = getMoveSpeed() * SNEAK_MULTIPLIER;
   } else if (state.sprinting) {
-    speed = MOVE_SPEED * SPRINT_MULTIPLIER;
+    speed = getMoveSpeed() * SPRINT_MULTIPLIER;
   }
   player.vx = wishX * speed;
   player.vz = wishZ * speed;

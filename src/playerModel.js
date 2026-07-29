@@ -7,6 +7,7 @@
 import * as THREE from "../node_modules/three/build/three.module.js";
 import { ARMOR_ITEMS, ARMOR_SLOTS, BLOCKS, MOVE_SPEED, PI } from "./constants.js";
 import { getIconTexture } from "./icons.js";
+import { getGrowth } from "./growth.js";
 import { clamp } from "./math.js";
 import { camera, scene } from "./scene.js";
 import { state } from "./state.js";
@@ -416,6 +417,8 @@ function syncArmor(parts) {
 
 export function updatePlayerModel() {
   const parts = playerModel.userData.parts;
+  // The avatar is built at level-0 size, so growth is a straight scale.
+  playerModel.scale.setScalar(getGrowth());
   const player = state.player;
   const heldItem = state.hotbarSlots[state.activeSlot] ?? null;
 

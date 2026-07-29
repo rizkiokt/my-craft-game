@@ -1318,6 +1318,10 @@ input[type="range"]:focus-visible {
 
 .vital-row {
   display: flex;
+  /* Twenty hearts at full growth is wider than the hotbar, so they wrap. */
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 232px;
   gap: 1px;
   min-height: 11px;
 }

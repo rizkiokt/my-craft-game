@@ -8,6 +8,7 @@ import { itemIcons } from "../icons.js";
 import { getItemCount, getSelectedItem, isCreative } from "../items.js";
 import { clamp, isInsideRect } from "../math.js";
 import { passiveMobs } from "../mobs.js";
+import { getGrowth, getMaxHealth } from "../growth.js";
 import { state } from "../state.js";
 import { world } from "../world.js";
 export function buildHotbar() {
@@ -131,7 +132,7 @@ function updateVitalsHud() {
   if (!survival) {
     return;
   }
-  renderPips(healthRow, "pip-heart", state.health / 2, MAX_HEALTH / 2);
+  renderPips(healthRow, "pip-heart", state.health / 2, getMaxHealth() / 2);
   damageFlashEl.style.opacity = String(Math.min(1, state.damageFlash));
 
   const armorPoints = getArmorPoints();
@@ -196,7 +197,8 @@ export function updateHud() {
     `Day time: ${(state.dayTime * 24).toFixed(1)}h`;
 
   debugRight.textContent =
-    `Health: ${state.health.toFixed(1)}/${MAX_HEALTH} · Armour: ${getArmorPoints()} (${Math.round(getDamageReduction() * 100)}% less damage)\n` +
+    `Size: ${getGrowth().toFixed(2)}x\n` +
+    `Health: ${state.health.toFixed(1)}/${getMaxHealth()} · Armour: ${getArmorPoints()} (${Math.round(getDamageReduction() * 100)}% less damage)\n` +
     `Held: ${activeItem == null ? "Empty" : BLOCK_NAMES[activeItem]}${activeItem != null && describeEnchantments(activeItem) ? ` (${describeEnchantments(activeItem)})` : ""}\n` +
     `XP: ${state.xp} (level ${getLevel()})\n` +
     `Target: ${state.target

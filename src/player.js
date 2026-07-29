@@ -4,6 +4,7 @@ import * as THREE from "../node_modules/three/build/three.module.js";
 import { chunkMeshes } from "./chunkMesh.js";
 import { BASE_LOOK_SENSITIVITY, BLOCKS, CAMERA_HEIGHT, DEFAULT_SPAWN, MAX_BUILD_HEIGHT, MAX_STEP_HEIGHT, MAX_WORLD_Y, MIN_WORLD_Y, MOVE_SPEED, PI, PLAYER_HEIGHT, PLAYER_RADIUS, SNEAK_CAMERA_DROP, THIRD_PERSON_DISTANCE } from "./constants.js";
 import { deathLocationText, deathScreen } from "./dom.js";
+import { getBodyHeight, getBodyRadius, getCameraHeight, getStepHeight } from "./growth.js";
 import { clamp, lerp } from "./math.js";
 import { updatePlayerModel } from "./playerModel.js";
 import { exitPointerLock, requestPointerLock } from "./pointerLock.js";
@@ -22,12 +23,13 @@ export function moveLook(deltaX, deltaY) {
 }
 
 export function hasCollision(x, y, z) {
-  const minX = Math.floor(x - PLAYER_RADIUS);
-  const maxX = Math.floor(x + PLAYER_RADIUS);
+  const radius = getBodyRadius();
+  const minX = Math.floor(x - radius);
+  const maxX = Math.floor(x + radius);
   const minY = Math.floor(y);
-  const maxY = Math.floor(y + PLAYER_HEIGHT - 0.001);
-  const minZ = Math.floor(z - PLAYER_RADIUS);
-  const maxZ = Math.floor(z + PLAYER_RADIUS);
+  const maxY = Math.floor(y + getBodyHeight() - 0.001);
+  const minZ = Math.floor(z - radius);
+  const maxZ = Math.floor(z + radius);
 
   for (let by = minY; by <= maxY; by++) {
     for (let bz = minZ; bz <= maxZ; bz++) {
@@ -52,7 +54,7 @@ export function getSubmersion() {
   const bz = Math.floor(player.z);
   const feet = world.getBlock(bx, Math.floor(player.y + 0.1), bz) === BLOCKS.water;
   const chest = world.getBlock(bx, Math.floor(player.y + 0.9), bz) === BLOCKS.water;
-  const head = world.getBlock(bx, Math.floor(player.y + CAMERA_HEIGHT), bz) === BLOCKS.water;
+  const head = world.getBlock(bx, Math.floor(player.y + getCameraHeight()), bz) === BLOCKS.water;
   return { feet, chest, head, swimming: feet || chest };
 }
 
@@ -275,7 +277,7 @@ export function getFootstepBlockType() {
 }
 
 export function tryStepUp(nextX, currentY, nextZ) {
-  const steppedY = currentY + MAX_STEP_HEIGHT;
+  const steppedY = currentY + getStepHeight();
   if (!hasCollision(nextX, steppedY, nextZ) && hasCollision(nextX, steppedY - 0.1, nextZ)) {
     return steppedY;
   }
@@ -357,7 +359,7 @@ export const cameraOffsetRay = new THREE.Raycaster();
 
 /** Feet-to-eye height, shrunk while sneaking. */
 export function getEyeHeight() {
-  return CAMERA_HEIGHT - (state.sneaking && !state.flying ? SNEAK_CAMERA_DROP : 0);
+  return getCameraHeight() - (state.sneaking && !state.flying ? SNEAK_CAMERA_DROP : 0);
 }
 
 export function getEyePosition(target) {
