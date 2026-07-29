@@ -1,0 +1,228 @@
+// Block targeting, breaking and placing.
+
+import * as THREE from "../node_modules/three/build/three.module.js";
+import { chunkMeshes } from "./chunkMesh.js";
+import { BLOCKS, BLOCK_NAMES, INTERACTION_RANGE, MAX_BUILD_HEIGHT, MIN_WORLD_Y } from "./constants.js";
+import { addItem, canMineBlock, consumeItem, getBreakDamage, getBreakHardness, getDropForBlock, getInteractionCooldown, getItemCount, getSelectedItem, isCollectibleBlock, isCreative, isPlaceableItem } from "./items.js";
+import { clamp, floorVector } from "./math.js";
+import { spawnParticles } from "./particles.js";
+import { applyPlayerToCamera, eyePosition, hasCollision, lookDirection } from "./player.js";
+import { scene } from "./scene.js";
+import { soundEngine } from "./sound.js";
+import { state } from "./state.js";
+import { showToast, updateHotbar } from "./ui/hud.js";
+import { updateInventoryPanel } from "./ui/inventory.js";
+import { world } from "./world.js";
+export const highlightGeometry = new THREE.EdgesGeometry(new THREE.BoxGeometry(1.02, 1.02, 1.02));
+export const highlightMaterial = new THREE.LineBasicMaterial({
+  color: 0xffe899,
+  transparent: true,
+  opacity: 0.95,
+});
+export const targetHighlight = new THREE.LineSegments(highlightGeometry, highlightMaterial);
+targetHighlight.visible = false;
+scene.add(targetHighlight);
+
+export const breakOverlayMaterial = new THREE.MeshBasicMaterial({
+  color: 0xffd57e,
+  transparent: true,
+  opacity: 0,
+  depthWrite: false,
+});
+export const breakOverlay = new THREE.Mesh(new THREE.BoxGeometry(1.01, 1.01, 1.01), breakOverlayMaterial);
+breakOverlay.visible = false;
+breakOverlay.renderOrder = 3;
+scene.add(breakOverlay);
+
+export const highlightBaseColor = new THREE.Color(0xffe899);
+export const highlightDamageColor = new THREE.Color(0xff7f52);
+export const workingHighlightColor = new THREE.Color();
+
+export const raycaster = new THREE.Raycaster();
+raycaster.far = INTERACTION_RANGE;
+
+export function getTargetKey(target) {
+  return target ? `${target.block.x},${target.block.y},${target.block.z}` : null;
+}
+
+export function resetBreakState() {
+  state.breakState.key = null;
+  state.breakState.blockType = BLOCKS.air;
+  state.breakState.progress = 0;
+  state.breakState.hardness = 1;
+  state.breakState.lastHitTime = -999;
+  state.breakState.pulse = 0;
+  updateBreakVisuals();
+}
+
+export function updateBreakVisuals() {
+  const activeKey = getTargetKey(state.target);
+  const showDamage =
+    state.target &&
+    state.breakState.key === activeKey &&
+    state.breakState.progress > 0;
+
+  if (!showDamage) {
+    highlightMaterial.color.copy(highlightBaseColor);
+    highlightMaterial.opacity = 0.95;
+    breakOverlay.visible = false;
+    return;
+  }
+
+  const fraction = clamp(state.breakState.progress / state.breakState.hardness, 0, 1);
+  workingHighlightColor.copy(highlightBaseColor).lerp(highlightDamageColor, fraction);
+  highlightMaterial.color.copy(workingHighlightColor);
+  highlightMaterial.opacity = 0.78 + fraction * 0.2;
+  breakOverlay.visible = true;
+  breakOverlay.position.copy(targetHighlight.position);
+  breakOverlay.scale.setScalar(0.96 + fraction * 0.08 + state.breakState.pulse * 0.035);
+  breakOverlayMaterial.color.copy(workingHighlightColor);
+  breakOverlayMaterial.opacity = 0.04 + fraction * 0.16 + state.breakState.pulse * 0.06;
+}
+
+export function canPlaceBlock(x, y, z) {
+  if (y < MIN_WORLD_Y || y > MAX_BUILD_HEIGHT) {
+    return false;
+  }
+  return !hasCollision(x + 0.5, y, z + 0.5);
+}
+
+export function updateTarget() {
+  applyPlayerToCamera();
+  // Always aim from the eye so first and third person share the same reach.
+  raycaster.set(eyePosition, lookDirection);
+  raycaster.far = INTERACTION_RANGE;
+  const intersections = raycaster.intersectObjects(chunkMeshes.getMeshes(), false);
+  const hit = intersections[0];
+
+  if (!hit || !hit.face) {
+    state.target = null;
+    targetHighlight.visible = false;
+    breakOverlay.visible = false;
+    updateBreakVisuals();
+    return;
+  }
+
+  const normal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld).round();
+  const blockCoords = floorVector(hit.point.clone().addScaledVector(normal, -0.01));
+  const placeCoords = floorVector(hit.point.clone().addScaledVector(normal, 0.01));
+  const blockType = world.getBlock(blockCoords.x, blockCoords.y, blockCoords.z);
+
+  if (blockType === BLOCKS.air) {
+    state.target = null;
+    targetHighlight.visible = false;
+    breakOverlay.visible = false;
+    updateBreakVisuals();
+    return;
+  }
+
+  state.target = {
+    block: { ...blockCoords, type: blockType },
+    place: placeCoords,
+    normal: { x: normal.x, y: normal.y, z: normal.z },
+    distance: hit.distance,
+  };
+
+  targetHighlight.visible = true;
+  targetHighlight.position.set(
+    blockCoords.x + 0.5,
+    blockCoords.y + 0.5,
+    blockCoords.z + 0.5,
+  );
+  updateBreakVisuals();
+}
+
+export function interact(breaking) {
+  updateTarget();
+  if (!state.target) {
+    if (breaking) {
+      resetBreakState();
+    }
+    return;
+  }
+  const cooldown = getInteractionCooldown(state.target.block.type, breaking);
+  if (state.elapsed - state.lastInteractionTime < cooldown) {
+    return;
+  }
+  state.lastInteractionTime = state.elapsed;
+
+  if (breaking) {
+    if (!canMineBlock(state.target.block.type)) {
+      showToast(`Need a better tool for ${BLOCK_NAMES[state.target.block.type]}`);
+      resetBreakState();
+      return;
+    }
+    const targetKey = getTargetKey(state.target);
+    if (state.breakState.key !== targetKey || state.breakState.blockType !== state.target.block.type) {
+      state.breakState.key = targetKey;
+      state.breakState.blockType = state.target.block.type;
+      state.breakState.progress = 0;
+      state.breakState.hardness = getBreakHardness(state.target.block.type);
+    }
+    state.breakState.progress += getBreakDamage(state.target.block.type);
+    state.breakState.lastHitTime = state.elapsed;
+    state.breakState.pulse = 1;
+    spawnParticles(
+      state.target.block.x + 0.5,
+      state.target.block.y + 0.5,
+      state.target.block.z + 0.5,
+      state.target.block.type,
+      3,
+      0.85,
+    );
+    soundEngine.hit(state.target.block.type, false);
+    if (state.breakState.progress < state.breakState.hardness) {
+      updateBreakVisuals();
+      return;
+    }
+    const brokenType = state.target.block.type;
+    if (world.setBlock(state.target.block.x, state.target.block.y, state.target.block.z, BLOCKS.air)) {
+      chunkMeshes.markDirtyAtWorld(state.target.block.x, state.target.block.z);
+      const dropId = getDropForBlock(brokenType);
+      if (dropId != null && isCollectibleBlock(brokenType) && !isCreative()) {
+        addItem(dropId, 1);
+        showToast(`Collected ${BLOCK_NAMES[dropId]}`);
+      }
+      spawnParticles(
+        state.target.block.x + 0.5,
+        state.target.block.y + 0.5,
+        state.target.block.z + 0.5,
+        brokenType,
+        10,
+        2.2,
+      );
+      soundEngine.hit(brokenType, true);
+      state.saveDirty = true;
+    }
+    resetBreakState();
+  } else {
+    resetBreakState();
+    const selectedItem = getSelectedItem();
+    if (!isPlaceableItem(selectedItem)) {
+      return;
+    }
+    if (canPlaceBlock(state.target.place.x, state.target.place.y, state.target.place.z)) {
+      if (getItemCount(selectedItem) <= 0) {
+        showToast(`Out of ${BLOCK_NAMES[selectedItem]}`);
+      } else if (world.setBlock(state.target.place.x, state.target.place.y, state.target.place.z, selectedItem)) {
+        consumeItem(selectedItem, 1);
+        chunkMeshes.markDirtyAtWorld(state.target.place.x, state.target.place.z);
+        spawnParticles(
+          state.target.place.x + 0.5,
+          state.target.place.y + 0.5,
+          state.target.place.z + 0.5,
+          selectedItem,
+          6,
+          1.6,
+        );
+        soundEngine.place(selectedItem);
+        state.saveDirty = true;
+      }
+    }
+  }
+
+  chunkMeshes.syncLoadedChunks();
+  updateTarget();
+  updateInventoryPanel();
+  updateHotbar();
+}

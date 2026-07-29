@@ -1,0 +1,152 @@
+// Fixed-step update, render and the animation loop.
+
+import { captureScreenshot } from "./actions.js";
+import { chunkMeshes } from "./chunkMesh.js";
+import { BLOCKS, BREAK_RESET_TIME, GRAVITY } from "./constants.js";
+import { updateDrops } from "./drops.js";
+import { handleInput } from "./input.js";
+import { getTargetKey, resetBreakState, updateBreakVisuals, updateTarget } from "./interaction.js";
+import { clamp } from "./math.js";
+import { passiveMobs } from "./mobs.js";
+import { spawnParticles, updateParticles } from "./particles.js";
+import { applyPlayerToCamera, getFootstepBlockType, handlePlayerDeath, movePlayerAxis, updateSafeAnchor } from "./player.js";
+import { saveGame } from "./save.js";
+import { camera, renderer, scene, updateLighting } from "./scene.js";
+import { soundEngine } from "./sound.js";
+import { state } from "./state.js";
+import { updateHotbar, updateHud, updateModeBanner } from "./ui/hud.js";
+import { isWorldView, updatePanorama } from "./ui/screens.js";
+import { world } from "./world.js";
+export function trackFrameRate(dt) {
+  if (dt <= 0) {
+    return;
+  }
+  state.frameTimes.push(dt);
+  if (state.frameTimes.length > 30) {
+    state.frameTimes.shift();
+  }
+  const total = state.frameTimes.reduce((sum, value) => sum + value, 0);
+  state.fps = Math.round(state.frameTimes.length / Math.max(total, 0.0001));
+}
+
+export function render(dt = 0) {
+  if (isWorldView()) {
+    applyPlayerToCamera();
+  } else {
+    updatePanorama(dt);
+  }
+  updateLighting();
+  renderer.render(scene, camera);
+  // Must read the canvas in the same task as the draw: the buffer is not preserved.
+  if (state.screenshotRequested) {
+    captureScreenshot();
+  }
+  updateHotbar();
+  updateHud();
+}
+
+export function update(dt, shouldRender = true) {
+  trackFrameRate(dt);
+  if (!state.running) {
+    state.uiMessageTimer = Math.max(0, state.uiMessageTimer - dt);
+    state.heldItemTimer = Math.max(0, state.heldItemTimer - dt);
+    if (shouldRender) {
+      render(dt);
+    }
+    return;
+  }
+
+  state.elapsed += dt;
+  state.dayTime = (state.dayTime + dt * 0.01) % 1;
+  state.uiMessageTimer = Math.max(0, state.uiMessageTimer - dt);
+  state.heldItemTimer = Math.max(0, state.heldItemTimer - dt);
+  state.viewBob = Math.max(0, state.viewBob - dt * 1.8);
+  state.saveCooldown = Math.max(0, state.saveCooldown - dt);
+  state.breakState.pulse = Math.max(0, state.breakState.pulse - dt * 4.2);
+  world.updateLoadedChunks(state.player.x, state.player.z);
+  chunkMeshes.syncLoadedChunks();
+  passiveMobs.syncLoadedChunks();
+  if (!state.isDead) {
+    handleInput(dt);
+
+    const wasOnGround = state.player.onGround;
+    const previousVy = state.player.vy;
+    if (!state.flying) {
+      state.player.vy -= GRAVITY * dt;
+    }
+
+    movePlayerAxis("x", state.player.vx * dt);
+    movePlayerAxis("z", state.player.vz * dt);
+    state.player.onGround = false;
+    movePlayerAxis("y", state.player.vy * dt);
+
+    // Touching down ends creative flight, the same as Minecraft.
+    if (state.flying && state.player.onGround && state.player.vy <= 0) {
+      state.flying = false;
+      updateModeBanner();
+    }
+
+    if (!wasOnGround && state.player.onGround && previousVy < -6) {
+      state.viewBob = 0.18;
+      spawnParticles(state.player.x, state.player.y + 0.02, state.player.z, BLOCKS.dirt, 8, 1.1);
+      soundEngine.land(previousVy);
+    }
+
+    const horizontalSpeed = Math.hypot(state.player.vx, state.player.vz);
+    if (state.player.onGround && !state.flying && horizontalSpeed > 0.3 && state.elapsed >= state.nextFootstepAt) {
+      soundEngine.footstep(getFootstepBlockType(), state.sprinting);
+      state.nextFootstepAt = state.elapsed + (state.sprinting ? 0.23 : state.sneaking ? 0.5 : 0.34);
+    }
+    if (!state.player.onGround || horizontalSpeed <= 0.15) {
+      state.nextFootstepAt = Math.min(state.nextFootstepAt, state.elapsed + 0.08);
+    }
+
+    updateSafeAnchor(dt);
+
+    if (state.player.y < -20) {
+      handlePlayerDeath();
+    }
+  }
+
+  updateParticles(dt);
+  updateDrops(dt);
+  passiveMobs.update(dt);
+  updateTarget();
+
+  if (state.breakState.progress > 0) {
+    const activeTargetKey = getTargetKey(state.target);
+    const shouldDecay =
+      state.breakState.key !== activeTargetKey ||
+      state.elapsed - state.breakState.lastHitTime > BREAK_RESET_TIME;
+    if (shouldDecay) {
+      state.breakState.progress = Math.max(
+        0,
+        state.breakState.progress - dt * state.breakState.hardness * 1.2,
+      );
+      if (state.breakState.progress <= 0.01) {
+        resetBreakState();
+      } else {
+        updateBreakVisuals();
+      }
+    }
+  }
+
+  if (state.saveCooldown <= 0 && (state.saveDirty || Math.floor(state.elapsed) % 8 === 0)) {
+    saveGame();
+  }
+
+  if (shouldRender) {
+    render(dt);
+  }
+}
+
+export function animationLoop(previous) {
+  return (timestamp) => {
+    const dt = clamp((timestamp - previous) / 1000, 0, 0.033);
+    previous = timestamp;
+    if (!state.suppressAnimationTick) {
+      update(dt, true);
+    }
+    requestAnimationFrame(animationLoop(previous));
+  };
+}

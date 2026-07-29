@@ -1,6 +1,28 @@
 # FUNCTIONS.md
 
-Reference for every function and system in `main.js`. Check here before adding anything new to avoid duplication.
+Reference for every function and system in the game. Check here before adding anything new to avoid duplication.
+
+The code lives in `src/` as layered ES modules (see CLAUDE.md for the layering rules and the two dependency-inversion points). Each section below names the module that owns it.
+
+| Section | Module |
+|---|---|
+| Constants & Enums | `src/constants.js` |
+| Controls & settings | `src/bindings.js`, `src/settings.js` |
+| Recipe tables | `src/recipes.js` |
+| Math / Utility | `src/math.js` |
+| World / Terrain | `src/world.js`, `src/worldgen.js` |
+| Rendering | `src/scene.js`, `src/textures.js`, `src/icons.js`, `src/chunkMesh.js`, `src/mobs.js`, `src/particles.js`, `src/playerModel.js` |
+| Player / Physics | `src/player.js` |
+| Interaction | `src/interaction.js` |
+| Tool / Item | `src/items.js` |
+| Crafting / Inventory | `src/ui/inventory.js` |
+| Dropped items | `src/drops.js` |
+| Save / Load | `src/save.js` |
+| UI / HUD | `src/ui/hud.js`, `src/ui/screens.js`, `src/ui/controlsScreen.js`, `src/ui/options.js`, `src/ui/menus.js` |
+| Input / Camera | `src/input.js`, `src/actions.js`, `src/pointerLock.js`, `src/fullscreen.js` |
+| Audio | `src/sound.js` |
+| Game loop | `src/loop.js`, `src/debugApi.js` |
+| Boot / wiring | `main.js` |
 
 ---
 

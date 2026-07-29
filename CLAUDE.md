@@ -22,7 +22,30 @@ node --check main.js
 
 ## Architecture
 
-The entire game lives in three files: `main.js` (~5700 lines), `index.html`, and `styles.css`. There is no bundler, framework, or component system.
+Native ES modules, no bundler and no framework. `index.html` loads `main.js`, which is only a composition root: it imports from `src/`, wires listeners, and starts the loop. Three.js is imported straight from `node_modules/`, so **every import path is relative and must keep its `.js` extension**.
+
+### Module layout
+
+Modules are layered; a module may only import from a layer below it. `src/ui/*` reaches up one level with `../`.
+
+| Layer | Modules | Role |
+|---|---|---|
+| 0 | `constants.js`, `dom.js`, `math.js` | Tables, element handles, noise/util maths. No imports. |
+| 1 | `settings.js`, `bindings.js`, `state.js`, `recipes.js` | Options, control scheme, mutable state, recipe tables |
+| 2 | `worldgen.js`, `textures.js`, `world.js`, `items.js` | Terrain, atlas, voxel storage, item rules |
+| 3 | `scene.js`, `icons.js`, `chunkMesh.js`, `sound.js`, `mobs.js`, `particles.js`, `playerModel.js` | Three.js resources and singletons |
+| 4 | `player.js`, `interaction.js`, `drops.js`, `pointerLock.js`, `fullscreen.js`, `save.js` | Gameplay systems |
+| 5 | `ui/hud.js`, `ui/inventory.js`, `ui/screens.js`, `ui/controlsScreen.js`, `ui/options.js`, `ui/menus.js` | Screens and overlays |
+| 6 | `actions.js`, `input.js`, `loop.js`, `debugApi.js` | Input routing and the frame loop |
+
+**The import graph is acyclic — keep it that way.** Two places would otherwise close a loop and both use dependency inversion instead:
+
+- `pointerLock.js` cannot import `ui/screens.js`, so it exposes `onUnexpectedUnlock(handler)` and `main.js` registers `openPauseMenu`.
+- `actions.js` cannot import `loop.js`, so `takeScreenshot()` sets `state.screenshotRequested` and `render()` performs the capture (the drawing buffer is not preserved, so it must happen in the same task as the draw).
+
+DOM listeners are never attached at module scope. Each wiring module exports an `install*Handlers()` function that `main.js` calls once: `installMenuHandlers`, `installOptionsHandlers`, `installInputHandlers`, `installDebugApi`.
+
+Because `state.player.y` needs the world to know where the ground is, `state.js` declares `y: 0` and `main.js` sets the real spawn height during boot.
 
 ### Key singletons (module-level globals)
 
