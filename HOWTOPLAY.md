@@ -2,25 +2,85 @@
 
 ## Getting Started
 
-Open the game in a browser and click **Enter World**. Click on the canvas to lock your mouse for free-look. Press **Escape** to unlock the mouse at any time.
+Open the game in a browser. On the title screen pick **Survival** or **Creative**, then click **Play World**. The mouse locks automatically — press **Escape** any time to unlock it and open the pause menu.
+
+Every binding below is the Minecraft Java Edition default and every one of them can be
+rebound from **Controls...** on the title screen or in the pause menu.
 
 ---
 
 ## Controls
 
+### Movement
+
 | Action | Key / Input |
 |---|---|
-| Move | `W A S D` |
-| Look | Mouse (locked) or click-and-drag on canvas |
+| Walk | `W` `A` `S` `D` |
+| Jump / fly up | `Space` |
+| Sneak / fly down | `Left Shift` |
+| Sprint | Hold `Left Ctrl`, or double-tap `W` |
+| Fly (creative only) | Double-tap `Space` |
+| Look | Mouse (locked) or click-and-drag on the canvas |
 | Look with keyboard | Arrow keys |
-| Jump | `Space` |
-| Sprint | Hold `Shift` |
-| Break block | Hold `Left Click` |
-| Place block | `Right Click` or `B` |
-| Select hotbar slot | `1` – `8` or scroll wheel |
-| Open / close inventory | `E` |
-| Respawn | `R` |
-| Fullscreen | `F` |
+
+### Gameplay
+
+| Action | Key / Input |
+|---|---|
+| Attack / break block | Hold `Left Click` |
+| Use item / place block | `Right Click` |
+| Pick block | `Middle Click` |
+| Drop held item | `Q` (`Ctrl` + `Q` drops the whole stack) |
+| Inventory / crafting | `E` |
+| Select hotbar slot | `1` – `9` or mouse wheel |
+
+### Display
+
+| Action | Key / Input |
+|---|---|
+| Toggle HUD | `F1` |
+| Screenshot | `F2` |
+| Debug info | `F3` |
+| Switch game mode | `F4` |
+| Toggle perspective | `F5` |
+| Fullscreen | `F11` |
+| Pause / back | `Escape` |
+
+Sneaking slows you down, lowers the camera, and stops you walking off a ledge.
+Sprinting widens the field of view and cancels when you release forward or start sneaking.
+
+---
+
+## Game Modes
+
+### Survival
+
+Mine what you need, craft your tools, and watch your stack counts. Blocks take time to
+break and the right pickaxe is required for stone and ores.
+
+### Creative
+
+- Every block and item is unlocked with an unlimited supply.
+- Blocks break in a single hit and nothing is consumed when you build.
+- Double-tap `Space` to fly, then `Space` to rise and `Left Shift` to descend.
+- Hold `Left Ctrl` while flying to move roughly twice as fast.
+- Touching the ground ends flight, just like Minecraft.
+
+Switch modes at any time with `F4` or from the pause menu.
+
+---
+
+## Options
+
+Open **Options...** from the title screen or the pause menu:
+
+- **Mouse Sensitivity** — 20% to 250%
+- **Field of View** — 55 to 110
+- **Master Volume**
+- **Render Distance** — 1 to 5 chunks
+- **Invert Mouse**, **View Bobbing**, **Autosave**, **Fullscreen**
+
+Settings and key bindings persist in `localStorage` alongside your world save.
 
 ---
 
@@ -38,11 +98,14 @@ The day/night cycle runs continuously. Days are bright; nights are dark with a d
 
 ## Breaking & Placing Blocks
 
-Point your crosshair at a block and **hold Left Click** to break it. Harder blocks take longer. When the block breaks, it drops into your inventory automatically.
+Point your crosshair at a block within about 5 blocks of reach and **hold Left Click** to
+break it. Harder blocks take longer. When the block breaks it drops straight into your
+inventory.
 
-To place a block, select it in the hotbar, point at a surface, and **Right Click** (or press `B`).
+To place a block, select it in the hotbar, point at a surface, and **Right Click**.
+**Middle Click** copies the block you are looking at into your hand.
 
-**You need the right tool to mine some blocks:**
+**You need the right tool to mine some blocks (survival only):**
 
 | Block | Minimum Tool |
 |---|---|
@@ -54,13 +117,16 @@ To place a block, select it in the hotbar, point at a surface, and **Right Click
 
 ## Inventory & Hotbar
 
-Your **hotbar** (bottom of screen) holds 8 items. Press `1`–`8` or scroll to switch between them.
+Your **hotbar** holds 9 items. Press `1`–`9` or scroll to switch between them. The item's
+name appears above the hotbar as you switch.
 
-Press **E** to open the **inventory panel**, which shows:
-- Your backpack (all collected items with counts)
-- Available crafting recipes
+Press **E** to open the inventory:
 
-Click any item in the backpack to equip it to your active hotbar slot.
+- **Survival** — your backpack with counts, plus every recipe you can currently reach.
+- **Creative** — the full palette of blocks and items, all unlimited.
+
+Click any item to move it into your active hotbar slot. Press `Q` to throw the held item
+on the ground; walk over a dropped item to pick it back up.
 
 ---
 
@@ -113,18 +179,26 @@ Place a **Furnace** block and look at it, then open inventory (`E`) to smelt:
 
 ---
 
-## Dying & Respawning
+## Dying, Respawning & Getting Unstuck
 
-If you fall off the world you will see a **Game Over** screen. Click **Respawn** to return to the nearest safe ground near where you last stood.
+Falling out of the world shows the **You Died!** screen. **Respawn** puts you back on the
+closest patch of open ground near where you last stood safely.
 
-You can also press **R** at any time to manually respawn at the nearest safe surface.
+Respawn never drops you back into a hole: it only considers columns that have headroom,
+are open to the sky, and are not the floor of a shaft, searching outward up to 16 blocks
+before falling back to world spawn.
+
+If you dig yourself into a pit you cannot climb out of, press `Escape` and use
+**Stuck? Teleport to Safe Ground**.
 
 ---
 
 ## Tips
 
-- The HUD (bottom-left) shows your selected item, current target, break progress, and bag counts at a glance.
-- Sprint (`Shift`) covers ground faster but does not affect mining speed.
+- Press `F3` for coordinates, facing, biome, chunk counts, and frame rate.
+- Sneak along cliff edges — you physically cannot walk off while sneaking.
+- Double-tapping `W` starts a sprint that holds until you release the key.
 - Blocks snap to a grid — aim at the face you want to build on.
-- Your progress saves automatically every few seconds. It persists between browser sessions.
-- Water and leaves cannot be collected. Leaves have a chance to drop a stick.
+- Your progress saves automatically every few seconds and persists between browser sessions.
+- **New World** on the title screen wipes the save (click twice to confirm).
+- Water cannot be collected. Leaves have a chance to drop a stick.

@@ -22,7 +22,7 @@ node --check main.js
 
 ## Architecture
 
-The entire game lives in three files: `main.js` (~4000 lines), `index.html`, and `styles.css`. There is no bundler, framework, or component system.
+The entire game lives in three files: `main.js` (~5700 lines), `index.html`, and `styles.css`. There is no bundler, framework, or component system.
 
 ### Key singletons (module-level globals)
 
@@ -32,17 +32,52 @@ The entire game lives in three files: `main.js` (~4000 lines), `index.html`, and
 | `chunkMeshes` | `ChunkMeshManager` | Builds and syncs Three.js meshes from dirty chunks |
 | `passiveMobs` | `PassiveMobManager` | Spawns/updates sheep and villagers per chunk |
 | `soundEngine` | `SoundEngine` | Procedural Web Audio for all game sounds |
-| `state` | plain object | All mutable game state (player, mode, inventory, etc.) |
+| `state` | plain object | All mutable game state (player, screen, mode, inventory, etc.) |
+| `bindings` | plain object | action → input token map, persisted to `localStorage` |
+| `settings` | plain object | Sensitivity, FOV, volume, render distance, toggles |
+| `playerModel` | `THREE.Group` | Blocky avatar, only visible in the F5 third-person views |
 
 ### Game loop
 
-`update(dt)` runs at a fixed 60 Hz step (`FIXED_STEP = 1/60`). It gates everything behind `state.running` and `state.isDead`. Physics, input, and world updates happen inside the `!state.isDead` block; particles, mobs, and rendering always run while the game is active.
+`update(dt)` runs at a fixed 60 Hz step (`FIXED_STEP = 1/60`). It gates everything behind `state.running` and `state.isDead`. Physics, input, and world updates happen inside the `!state.isDead` block; particles, dropped items, mobs, and rendering always run while the game is active. When no world is running, `update` still calls `render(dt)` so the title screen's orbiting panorama keeps moving.
+
+### Input
+
+Input is binding-driven, not key-literal. A **token** is either a `KeyboardEvent.code`
+(`"KeyW"`) or a `MouseEvent.button` prefixed with `Mouse` (`"Mouse0"` left, `"Mouse1"`
+middle, `"Mouse2"` right). `DEFAULT_BINDINGS` mirrors Minecraft Java Edition.
+
+- **Held state** — `state.keys` is a `Set` of currently-down tokens (keyboard *and* mouse). Poll it with `isActionDown(action)` inside `handleInput(dt)`.
+- **Press state** — `keydown`/`mousedown` resolve the token through `actionsForToken()` and dispatch to `handleActionPress(action, event)`. Never poll for one-shot actions.
+- `canonicalToken()` maps Right Shift/Ctrl/Alt onto their left twin unless that twin is separately bound.
+- Adding a new action: add it to `DEFAULT_BINDINGS`, `BINDING_LABELS`, and a `BINDING_GROUPS` entry, then handle it in `handleActionPress` (one-shot) or `handleInput` (held).
+
+### Screens
+
+`showScreen(name)` owns the whole UI stack: `"playing"`, `"title"`, `"pause"`, `"controls"`, `"options"`, `"help"`. It drives `state.running`, toggles `#screen-*` elements, and clears held keys on leaving the world. Because Escape while pointer-locked never reaches `keydown`, `updatePointerState()` opens the pause menu whenever the lock is lost unexpectedly — `exitPointerLock()` sets `state.intentionalUnlock` for the deliberate cases.
+
+The death screen is a separate overlay driven by `state.isDead`, not a screen.
+
+### Game modes
+
+`state.gameMode` is `"survival"` or `"creative"` and is saved with the world. Route all
+stack maths through `getItemCount()` / `addItem()` / `consumeItem()` — in creative these
+report `CREATIVE_STACK` and no-op, which is what makes the palette unlimited.
+`canMineBlock`, `getBreakDamage`, and `getInteractionCooldown` short-circuit for creative.
+
+Flight (`state.flying`) is creative-only, toggled by double-tapping the jump binding.
+While flying, gravity is skipped in `update()` and `handleInput` drives `player.vy`
+directly; touching the ground clears the flag.
+
+### Respawning
+
+`findClosestSafeRespawn()` searches outward in rings (up to `RESPAWN_SEARCH_RADIUS`) and accepts a column only if `evaluateRespawnColumn()` passes: real surface (honouring player edits, unlike `getHeightAt`), player-sized headroom, open sky, and not walled in on 6+ of 8 sides. `updateSafeAnchor()` applies the same test before recording `state.lastSafePos*`, so digging down never makes the shaft your respawn anchor.
 
 ### World / terrain
 
 `World.getHeightAt(wx, wz)` is the single source of truth for surface height — it uses layered Perlin noise and is called at both generation time and spawn/respawn time. `World.ensureChunk()` lazily generates chunks on first access. Block reads/writes go through `World.getBlock()` / `World.setBlock()`.
 
-**Coordinate system:** origin near spawn; x = east-west, y = up, z = north-south. Chunks are 16 × 16 columns. Active chunks load within radius 2, unload beyond radius 4.
+**Coordinate system:** origin near spawn; x = east-west, y = up, z = north-south. Chunks are 16 × 16 columns. Load/unload radii live on the `World` instance (`world.loadRadius` / `world.unloadRadius`) and are driven by the Render Distance option via `world.setRenderDistance()`; default is 2.
 
 ### Biomes and structures
 
@@ -63,12 +98,24 @@ Structure block selection for both settlements funnels through `getStructureBloc
 2. Add tile mapping in `getTileIndex()`.
 3. Add color in `getBlockColor()` (for particles).
 4. Optionally add entries in `getBreakHardness()`, `getDropForBlock()`, `getBreakDamage()`.
-5. Expose in inventory via `state.inventory` initializer and `PLACEABLE_BLOCKS`.
+5. Expose in inventory via `state.inventory` initializer, `PLACEABLE_BLOCKS`, and `CREATIVE_ITEMS`.
 
 ### Save / load
 
-`saveGame()` / `loadGame()` use `localStorage` (key `mycraft_save`). The save includes chunk edits, inventory, hotbar, and player position. Auto-save fires on block edits (with cooldown) and periodically every 8 seconds of elapsed time.
+Three independent `localStorage` keys:
+
+| Key | Constant | Contents |
+|---|---|---|
+| `mycraft-save-v2` | `SAVE_KEY` | Chunk edits, inventory, hotbar, player position, game mode |
+| `mycraft-settings-v1` | `SETTINGS_KEY` | Options screen values |
+| `mycraft-controls-v1` | `BINDINGS_KEY` | Key bindings |
+
+Auto-save fires on block edits (with cooldown) and every 8 seconds of elapsed time; `saveGame(true)` forces a write even when the Autosave option is off (used by "Save and Quit" and `beforeunload`).
 
 ### UI
 
-All overlays (menu, hotbar, HUD, inventory panel, death screen) are HTML/CSS positioned absolutely over the canvas. JS drives them by toggling CSS classes (`is-hidden`, `is-active`, `is-selected`) and setting `textContent`. Pointer lock is requested on canvas click/pointerdown and released on death or inventory open.
+All overlays (screens, hotbar, HUD, inventory panel, death screen) are HTML/CSS positioned absolutely over the canvas. JS drives them by toggling CSS classes (`is-hidden`, `is-active`, `is-selected`, `is-creative`) and setting `textContent`.
+
+- The F3 debug overlay is the only place raw diagnostics are printed; the always-on HUD is just crosshair, hotbar, held-item name, and toasts. Use `showToast(message)` for transient messages.
+- Pointer lock is requested from `mousedown` on the canvas; the click that acquires the lock sets `state.suppressInteractUntil` so it does not also swing.
+- The title screen renders the live world as an orbiting panorama (`updatePanorama`) and paints its wordmark with the game's own grass tile via the `--title-texture` CSS variable.

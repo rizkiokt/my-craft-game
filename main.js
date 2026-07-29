@@ -1,17 +1,26 @@
 import * as THREE from "./node_modules/three/build/three.module.js";
 
 const CHUNK_SIZE = 16;
-const LOAD_RADIUS = 2;
-const UNLOAD_RADIUS = 4;
+const DEFAULT_RENDER_DISTANCE = 2;
+const MIN_RENDER_DISTANCE = 1;
+const MAX_RENDER_DISTANCE = 5;
 const CAMERA_HEIGHT = 1.62;
 const PLAYER_HEIGHT = 1.8;
 const PLAYER_RADIUS = 0.34;
 const GRAVITY = 24;
 const MOVE_SPEED = 5.8;
+const SPRINT_MULTIPLIER = 1.35;
+const SNEAK_MULTIPLIER = 0.32;
+const SNEAK_CAMERA_DROP = 0.22;
+const FLY_SPEED = 10.4;
+const FLY_BOOST_MULTIPLIER = 2.1;
+const FLY_VERTICAL_SPEED = 7.2;
 const JUMP_SPEED = 8.8;
-const LOOK_SENSITIVITY = 0.0022;
+const BASE_LOOK_SENSITIVITY = 0.0022;
+const DOUBLE_TAP_WINDOW = 0.32;
 const MAX_STEP_HEIGHT = 0.6;
-const INTERACTION_RANGE = 8;
+const INTERACTION_RANGE = 5.2;
+const THIRD_PERSON_DISTANCE = 4.2;
 const FIXED_STEP = 1 / 60;
 const MAX_BUILD_HEIGHT = 48;
 const MIN_WORLD_Y = -2;
@@ -22,18 +31,39 @@ const BREAK_RESET_TIME = 1.15;
 const PI = Math.PI;
 
 const canvas = document.getElementById("game");
-const menu = document.getElementById("menu");
-const startButton = document.getElementById("start-btn");
+const hudLayer = document.getElementById("hud-layer");
 const hotbar = document.getElementById("hotbar");
+const itemNameLabel = document.getElementById("item-name");
+const toastLabel = document.getElementById("toast");
+const modeBanner = document.getElementById("mode-banner");
+const debugOverlay = document.getElementById("debug-overlay");
+const debugLeft = document.getElementById("debug-left");
+const debugRight = document.getElementById("debug-right");
 const inventoryPanel = document.getElementById("inventory-panel");
+const inventoryBody = document.getElementById("inventory-body");
 const inventoryGrid = document.getElementById("inventory-grid");
+const inventoryEyebrow = document.getElementById("inventory-eyebrow");
+const inventoryGridTitle = document.getElementById("inventory-grid-title");
+const inventoryGridHint = document.getElementById("inventory-grid-hint");
+const inventoryRecipeHint = document.getElementById("inventory-recipe-hint");
 const recipeList = document.getElementById("recipe-list");
 const inventoryClose = document.getElementById("inventory-close");
-const hudPrimary = document.getElementById("hud-primary");
-const hudSecondary = document.getElementById("hud-secondary");
 const deathScreen = document.getElementById("death-screen");
 const deathLocationText = document.getElementById("death-location");
 const respawnBtn = document.getElementById("respawn-btn");
+const deathTitleBtn = document.getElementById("death-title-btn");
+const splashLabel = document.getElementById("splash");
+const controlsList = document.getElementById("controls-list");
+const helpControls = document.getElementById("help-controls");
+const pauseModeBtn = document.getElementById("btn-pause-mode");
+
+const screenElements = {
+  title: document.getElementById("screen-title"),
+  pause: document.getElementById("screen-pause"),
+  controls: document.getElementById("screen-controls"),
+  options: document.getElementById("screen-options"),
+  help: document.getElementById("screen-help"),
+};
 
 const BLOCKS = {
   air: 0,
@@ -106,11 +136,44 @@ const PLACEABLE_BLOCKS = [
   BLOCKS.glass,
   BLOCKS.snow,
   BLOCKS.ice,
+  BLOCKS.leaves,
+  BLOCKS.pine_leaves,
+  BLOCKS.coal_ore,
+  BLOCKS.iron_ore,
 ];
 
-const HOTBAR_SIZE = 8;
+/** Everything the creative palette hands out, in build-menu order. */
+const CREATIVE_ITEMS = [
+  BLOCKS.grass,
+  BLOCKS.dirt,
+  BLOCKS.stone,
+  BLOCKS.sand,
+  BLOCKS.snow,
+  BLOCKS.ice,
+  BLOCKS.wood,
+  BLOCKS.pine_wood,
+  BLOCKS.planks,
+  BLOCKS.leaves,
+  BLOCKS.pine_leaves,
+  BLOCKS.bricks,
+  BLOCKS.glass,
+  BLOCKS.coal_ore,
+  BLOCKS.iron_ore,
+  BLOCKS.crafting_table,
+  BLOCKS.furnace,
+  ITEMS.stick,
+  ITEMS.coal,
+  ITEMS.iron_ingot,
+  ITEMS.wood_pickaxe,
+  ITEMS.stone_pickaxe,
+];
+
+const HOTBAR_SIZE = 9;
+const CREATIVE_STACK = 999;
 const WATER_LEVEL = 7;
 const SAVE_KEY = "mycraft-save-v2";
+const SETTINGS_KEY = "mycraft-settings-v1";
+const BINDINGS_KEY = "mycraft-controls-v1";
 const CITY_PLAN = {
   minX: -8,
   maxX: 44,
@@ -141,6 +204,294 @@ const DEFAULT_SPAWN = {
   yaw: -1.15,
   pitch: -0.28,
 };
+
+/* ------------------------------------------------------------------ *
+ * Controls
+ *
+ * A binding is a single token: either a KeyboardEvent.code ("KeyW") or a
+ * MouseEvent.button prefixed with "Mouse" ("Mouse0" left, "Mouse1" middle,
+ * "Mouse2" right). Defaults mirror Minecraft Java Edition and every one of
+ * them is rebindable from the Controls screen.
+ * ------------------------------------------------------------------ */
+
+const DEFAULT_BINDINGS = {
+  forward: "KeyW",
+  left: "KeyA",
+  back: "KeyS",
+  right: "KeyD",
+  jump: "Space",
+  sneak: "ShiftLeft",
+  sprint: "ControlLeft",
+  attack: "Mouse0",
+  use: "Mouse2",
+  pick: "Mouse1",
+  drop: "KeyQ",
+  inventory: "KeyE",
+  hotbar1: "Digit1",
+  hotbar2: "Digit2",
+  hotbar3: "Digit3",
+  hotbar4: "Digit4",
+  hotbar5: "Digit5",
+  hotbar6: "Digit6",
+  hotbar7: "Digit7",
+  hotbar8: "Digit8",
+  hotbar9: "Digit9",
+  toggleHud: "F1",
+  screenshot: "F2",
+  debug: "F3",
+  gameMode: "F4",
+  perspective: "F5",
+  fullscreen: "F11",
+  pause: "Escape",
+};
+
+const BINDING_LABELS = {
+  forward: "Walk Forwards",
+  left: "Strafe Left",
+  back: "Walk Backwards",
+  right: "Strafe Right",
+  jump: "Jump / Fly Up",
+  sneak: "Sneak / Fly Down",
+  sprint: "Sprint",
+  attack: "Attack / Destroy",
+  use: "Use Item / Place Block",
+  pick: "Pick Block",
+  drop: "Drop Item",
+  inventory: "Inventory / Crafting",
+  hotbar1: "Hotbar Slot 1",
+  hotbar2: "Hotbar Slot 2",
+  hotbar3: "Hotbar Slot 3",
+  hotbar4: "Hotbar Slot 4",
+  hotbar5: "Hotbar Slot 5",
+  hotbar6: "Hotbar Slot 6",
+  hotbar7: "Hotbar Slot 7",
+  hotbar8: "Hotbar Slot 8",
+  hotbar9: "Hotbar Slot 9",
+  toggleHud: "Toggle HUD",
+  screenshot: "Take Screenshot",
+  debug: "Debug Info",
+  gameMode: "Switch Game Mode",
+  perspective: "Toggle Perspective",
+  fullscreen: "Toggle Fullscreen",
+  pause: "Pause / Back",
+};
+
+const BINDING_GROUPS = [
+  {
+    title: "Movement",
+    actions: ["forward", "left", "back", "right", "jump", "sneak", "sprint"],
+  },
+  {
+    title: "Gameplay",
+    actions: ["attack", "use", "pick", "drop", "inventory"],
+  },
+  {
+    title: "Hotbar",
+    actions: [
+      "hotbar1", "hotbar2", "hotbar3", "hotbar4", "hotbar5",
+      "hotbar6", "hotbar7", "hotbar8", "hotbar9",
+    ],
+  },
+  {
+    title: "Display",
+    actions: ["toggleHud", "screenshot", "debug", "gameMode", "perspective", "fullscreen", "pause"],
+  },
+];
+
+/** Actions the player may not rebind (the browser owns them too). */
+const FIXED_BINDINGS = new Set(["pause"]);
+
+/** Right-hand modifiers fall through to their left twin unless bound. */
+const TOKEN_ALIASES = {
+  ShiftRight: "ShiftLeft",
+  ControlRight: "ControlLeft",
+  AltRight: "AltLeft",
+  MetaRight: "MetaLeft",
+};
+
+const KEY_LABELS = {
+  Space: "Space",
+  Escape: "Esc",
+  Enter: "Enter",
+  Tab: "Tab",
+  Backspace: "Backspace",
+  CapsLock: "Caps Lock",
+  ShiftLeft: "Left Shift",
+  ShiftRight: "Right Shift",
+  ControlLeft: "Left Ctrl",
+  ControlRight: "Right Ctrl",
+  AltLeft: "Left Alt",
+  AltRight: "Right Alt",
+  MetaLeft: "Left Meta",
+  MetaRight: "Right Meta",
+  ArrowUp: "Up Arrow",
+  ArrowDown: "Down Arrow",
+  ArrowLeft: "Left Arrow",
+  ArrowRight: "Right Arrow",
+  Minus: "-",
+  Equal: "=",
+  BracketLeft: "[",
+  BracketRight: "]",
+  Semicolon: ";",
+  Quote: "'",
+  Backquote: "`",
+  Backslash: "\\",
+  Comma: ",",
+  Period: ".",
+  Slash: "/",
+};
+
+const MOUSE_LABELS = ["Left Button", "Middle Button", "Right Button"];
+
+const bindings = { ...DEFAULT_BINDINGS };
+
+const DEFAULT_SETTINGS = {
+  sensitivity: 100,
+  fov: 75,
+  volume: 100,
+  renderDistance: DEFAULT_RENDER_DISTANCE,
+  invertMouse: false,
+  viewBobbing: true,
+  autosave: true,
+};
+
+const settings = { ...DEFAULT_SETTINGS };
+
+function loadBindings() {
+  try {
+    const raw = localStorage.getItem(BINDINGS_KEY);
+    if (!raw) {
+      return;
+    }
+    const saved = JSON.parse(raw);
+    for (const action of Object.keys(DEFAULT_BINDINGS)) {
+      if (FIXED_BINDINGS.has(action)) {
+        continue;
+      }
+      if (typeof saved?.[action] === "string" || saved?.[action] === null) {
+        bindings[action] = saved[action];
+      }
+    }
+  } catch {
+    /* corrupt binding data just falls back to defaults */
+  }
+}
+
+function saveBindings() {
+  try {
+    localStorage.setItem(BINDINGS_KEY, JSON.stringify(bindings));
+  } catch {
+    /* storage is optional */
+  }
+}
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) {
+      return;
+    }
+    const saved = JSON.parse(raw);
+    for (const key of Object.keys(DEFAULT_SETTINGS)) {
+      if (typeof saved?.[key] === typeof DEFAULT_SETTINGS[key]) {
+        settings[key] = saved[key];
+      }
+    }
+    settings.renderDistance = clamp(
+      Math.round(settings.renderDistance),
+      MIN_RENDER_DISTANCE,
+      MAX_RENDER_DISTANCE,
+    );
+  } catch {
+    /* corrupt settings just fall back to defaults */
+  }
+}
+
+function saveSettings() {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  } catch {
+    /* storage is optional */
+  }
+}
+
+function mouseToken(button) {
+  return `Mouse${button}`;
+}
+
+/** Human readable name for a binding token, e.g. "Left Shift" or "W". */
+function describeToken(token) {
+  if (!token) {
+    return "None";
+  }
+  if (token.startsWith("Mouse")) {
+    const index = Number(token.slice(5));
+    return MOUSE_LABELS[index] ?? `Button ${index + 1}`;
+  }
+  if (KEY_LABELS[token]) {
+    return KEY_LABELS[token];
+  }
+  if (token.startsWith("Key")) {
+    return token.slice(3);
+  }
+  if (token.startsWith("Digit")) {
+    return token.slice(5);
+  }
+  if (token.startsWith("Numpad")) {
+    return `Keypad ${token.slice(6)}`;
+  }
+  return token;
+}
+
+function isTokenBound(token) {
+  return Object.values(bindings).includes(token);
+}
+
+/** Maps Right Shift onto Left Shift and friends when the twin is free. */
+function canonicalToken(token) {
+  const alias = TOKEN_ALIASES[token];
+  if (alias && !isTokenBound(token)) {
+    return alias;
+  }
+  return token;
+}
+
+function actionsForToken(token) {
+  const matches = [];
+  for (const [action, bound] of Object.entries(bindings)) {
+    if (bound === token) {
+      matches.push(action);
+    }
+  }
+  return matches;
+}
+
+function findBindingConflicts() {
+  const seen = new Map();
+  const conflicts = new Set();
+  for (const [action, token] of Object.entries(bindings)) {
+    if (!token) {
+      continue;
+    }
+    if (seen.has(token)) {
+      conflicts.add(action);
+      conflicts.add(seen.get(token));
+    } else {
+      seen.set(token, action);
+    }
+  }
+  return conflicts;
+}
+
+/** True while the key/button bound to `action` is held down. */
+function isActionDown(action) {
+  const token = bindings[action];
+  return Boolean(token) && state.keys.has(token);
+}
+
+function keyHint(action) {
+  return describeToken(bindings[action]);
+}
 
 const HAND_RECIPES = [
   {
@@ -1468,7 +1819,48 @@ function getToolProfile() {
   return TOOL_STATS[getSelectedItem()] ?? TOOL_STATS.hand;
 }
 
+function isCreative() {
+  return state.gameMode === "creative";
+}
+
+/** Creative hands out unlimited stacks, survival reads the real bag. */
+function getItemCount(itemId) {
+  if (itemId == null) {
+    return 0;
+  }
+  if (isCreative()) {
+    return CREATIVE_STACK;
+  }
+  return state.inventory[itemId] ?? 0;
+}
+
+function addItem(itemId, amount = 1) {
+  if (itemId == null || isCreative()) {
+    return;
+  }
+  state.inventory[itemId] = (state.inventory[itemId] ?? 0) + amount;
+}
+
+/** Spends an item, clearing the hotbar slot once the stack runs dry. */
+function consumeItem(itemId, amount = 1) {
+  if (itemId == null || isCreative()) {
+    return;
+  }
+  const remaining = Math.max(0, (state.inventory[itemId] ?? 0) - amount);
+  state.inventory[itemId] = remaining;
+  if (remaining <= 0) {
+    for (let index = 0; index < state.hotbarSlots.length; index++) {
+      if (state.hotbarSlots[index] === itemId) {
+        state.hotbarSlots[index] = null;
+      }
+    }
+  }
+}
+
 function canMineBlock(blockType) {
+  if (isCreative()) {
+    return true;
+  }
   const tool = getToolProfile();
   if (blockType === BLOCKS.stone || blockType === BLOCKS.coal_ore) {
     return tool.power >= 1;
@@ -1481,7 +1873,10 @@ function canMineBlock(blockType) {
 
 function getInteractionCooldown(blockType, breaking) {
   if (!breaking) {
-    return 0.16;
+    return 0.18;
+  }
+  if (isCreative()) {
+    return 0.1;
   }
   const tool = getToolProfile();
   if (blockType === BLOCKS.stone || blockType === BLOCKS.coal_ore || blockType === BLOCKS.iron_ore || blockType === BLOCKS.furnace) {
@@ -1513,6 +1908,9 @@ function getBreakHardness(blockType) {
 }
 
 function getBreakDamage(blockType) {
+  if (isCreative()) {
+    return 999;
+  }
   const tool = getToolProfile();
   if (blockType === BLOCKS.stone || blockType === BLOCKS.coal_ore || blockType === BLOCKS.iron_ore || blockType === BLOCKS.furnace) {
     return 1 + tool.speed * 0.68;
@@ -1541,6 +1939,13 @@ class World {
     this.chunks = new Map();
     this.loadedKeys = new Set();
     this.totalGenerated = 0;
+    this.loadRadius = DEFAULT_RENDER_DISTANCE;
+    this.unloadRadius = DEFAULT_RENDER_DISTANCE + 2;
+  }
+
+  setRenderDistance(chunks) {
+    this.loadRadius = clamp(Math.round(chunks), MIN_RENDER_DISTANCE, MAX_RENDER_DISTANCE);
+    this.unloadRadius = this.loadRadius + 2;
   }
 
   getChunkKey(cx, cz) {
@@ -1758,8 +2163,8 @@ class World {
     const centerCz = Math.floor(playerZ / CHUNK_SIZE);
     this.loadedKeys.clear();
 
-    for (let dz = -LOAD_RADIUS; dz <= LOAD_RADIUS; dz++) {
-      for (let dx = -LOAD_RADIUS; dx <= LOAD_RADIUS; dx++) {
+    for (let dz = -this.loadRadius; dz <= this.loadRadius; dz++) {
+      for (let dx = -this.loadRadius; dx <= this.loadRadius; dx++) {
         const cx = centerCx + dx;
         const cz = centerCz + dz;
         this.ensureChunk(cx, cz);
@@ -1772,7 +2177,7 @@ class World {
         Math.abs(chunk.cx - centerCx),
         Math.abs(chunk.cz - centerCz),
       );
-      if (distance > UNLOAD_RADIUS && chunk.edits.size === 0) {
+      if (distance > this.unloadRadius && chunk.edits.size === 0) {
         this.chunks.delete(key);
       }
     }
@@ -2103,17 +2508,23 @@ function getSurfaceData(x, z) {
 
 const state = {
   mode: "menu",
+  screen: "title",
+  screenReturn: "title",
+  gameMode: "survival",
   running: false,
   isDead: false,
   lastSafePosX: DEFAULT_SPAWN.x,
   lastSafePosZ: DEFAULT_SPAWN.z,
   pointerLocked: false,
+  intentionalUnlock: false,
+  pointerLockUnavailable: false,
+  suppressInteractUntil: 0,
   suppressAnimationTick: false,
   inventoryOpen: false,
   saveDirty: false,
   saveCooldown: 0,
   keys: new Set(),
-  mouseDown: { left: false, right: false },
+  awaitingBind: null,
   selectedBlock: BLOCKS.grass,
   activeSlot: 0,
   hotbarSlots: [
@@ -2122,6 +2533,7 @@ const state = {
     BLOCKS.dirt,
     BLOCKS.stone,
     BLOCKS.wood,
+    BLOCKS.sand,
     BLOCKS.planks,
     BLOCKS.crafting_table,
     BLOCKS.furnace,
@@ -2134,10 +2546,27 @@ const state = {
   dayTime: 0.34,
   uiMessage: "",
   uiMessageTimer: 0,
+  heldItemTimer: 0,
+  heldItemName: "",
   viewBob: 0,
   stepPhase: 0,
   landingBounce: 0,
   nextFootstepAt: 0,
+  sneaking: false,
+  sprinting: false,
+  sprintLatched: false,
+  lastForwardTapTime: -99,
+  lastJumpTapTime: -99,
+  flying: false,
+  flyVelocityY: 0,
+  perspective: 0,
+  hudVisible: true,
+  debugVisible: false,
+  frameTimes: [],
+  fps: 0,
+  panoramaAngle: 0,
+  safeAnchorCooldown: 0,
+  drops: [],
   breakState: {
     key: null,
     blockType: BLOCKS.air,
@@ -2197,7 +2626,7 @@ class SoundEngine {
     try {
       this.context = new this.AudioContextCtor();
       this.master = this.context.createGain();
-      this.master.gain.value = 0.14;
+      this.master.gain.value = this.getMasterLevel();
       this.master.connect(this.context.destination);
       this.noiseBuffer = this.createNoiseBuffer();
       this.enabled = true;
@@ -2207,6 +2636,16 @@ class SoundEngine {
       this.enabled = false;
     }
     return this.context;
+  }
+
+  getMasterLevel() {
+    return 0.14 * clamp(settings.volume / 100, 0, 1);
+  }
+
+  applyVolume() {
+    if (this.master) {
+      this.master.gain.value = this.getMasterLevel();
+    }
   }
 
   createNoiseBuffer() {
@@ -2410,9 +2849,15 @@ function hydrateWorldEdits(savedChunks) {
   }
 }
 
-function saveGame() {
+function saveGame(force = false) {
+  if (!settings.autosave && !force) {
+    state.saveDirty = false;
+    state.saveCooldown = 1.5;
+    return;
+  }
   try {
     const payload = {
+      gameMode: state.gameMode,
       inventory: state.inventory,
       hotbarSlots: state.hotbarSlots,
       activeSlot: state.activeSlot,
@@ -2437,6 +2882,9 @@ function loadGame() {
       return;
     }
     const payload = JSON.parse(raw);
+    if (payload.gameMode === "creative" || payload.gameMode === "survival") {
+      state.gameMode = payload.gameMode;
+    }
     Object.assign(state.inventory, payload.inventory || {});
     if (Array.isArray(payload.hotbarSlots)) {
       state.hotbarSlots = payload.hotbarSlots.slice(0, HOTBAR_SIZE);
@@ -2486,6 +2934,23 @@ scene.add(sunLight);
 
 const atlasInfo = createAtlasTexture();
 const itemIcons = new Map();
+const iconCanvases = new Map();
+const iconTextures = new Map();
+
+function getIconTexture(itemId) {
+  if (!iconTextures.has(itemId)) {
+    const source = iconCanvases.get(itemId);
+    if (!source) {
+      return null;
+    }
+    const texture = new THREE.CanvasTexture(source);
+    texture.magFilter = THREE.NearestFilter;
+    texture.minFilter = THREE.NearestFilter;
+    texture.colorSpace = THREE.SRGBColorSpace;
+    iconTextures.set(itemId, texture);
+  }
+  return iconTextures.get(itemId);
+}
 
 function getTileCanvas(tileIndex) {
   const tileCanvas = document.createElement("canvas");
@@ -2521,7 +2986,7 @@ function createItemIcon(blockType) {
   ctxIcon.drawImage(top, 13, 7, 20, 14);
   ctxIcon.strokeStyle = "rgba(255,255,255,0.08)";
   ctxIcon.strokeRect(9.5, 5.5, 26, 32);
-  return canvasIcon.toDataURL("image/png");
+  return canvasIcon;
 }
 
 function createFlatIcon(background, accent, glyph) {
@@ -2535,7 +3000,7 @@ function createFlatIcon(background, accent, glyph) {
   iconCtx.strokeRect(8.5, 8.5, 31, 31);
   iconCtx.fillStyle = accent;
   glyph(iconCtx);
-  return icon.toDataURL("image/png");
+  return icon;
 }
 
 function createStickGlyph(ctxGlyph) {
@@ -2560,19 +3025,24 @@ function createPickaxeGlyph(ctxGlyph, tint) {
   ctxGlyph.fillRect(18, 18, 8, 5);
 }
 
+function registerIcon(itemId, iconCanvas) {
+  iconCanvases.set(itemId, iconCanvas);
+  itemIcons.set(itemId, iconCanvas.toDataURL("image/png"));
+}
+
 for (const blockType of Object.values(BLOCKS)) {
   if (blockType !== BLOCKS.air) {
-    itemIcons.set(blockType, createItemIcon(blockType));
+    registerIcon(blockType, createItemIcon(blockType));
   }
 }
-itemIcons.set(ITEMS.stick, createFlatIcon("#2b3343", "#d1ab6a", createStickGlyph));
-itemIcons.set(ITEMS.coal, createFlatIcon("#2b3343", "#101217", createCoalGlyph));
-itemIcons.set(ITEMS.iron_ingot, createFlatIcon("#2b3343", "#d7dce4", (ctxGlyph) => {
+registerIcon(ITEMS.stick, createFlatIcon("#2b3343", "#d1ab6a", createStickGlyph));
+registerIcon(ITEMS.coal, createFlatIcon("#2b3343", "#101217", createCoalGlyph));
+registerIcon(ITEMS.iron_ingot, createFlatIcon("#2b3343", "#d7dce4", (ctxGlyph) => {
   ctxGlyph.fillRect(14, 20, 20, 10);
   ctxGlyph.fillRect(16, 16, 16, 4);
 }));
-itemIcons.set(ITEMS.wood_pickaxe, createFlatIcon("#2b3343", "#9a7440", (ctxGlyph) => createPickaxeGlyph(ctxGlyph, "#caa061")));
-itemIcons.set(ITEMS.stone_pickaxe, createFlatIcon("#2b3343", "#8a949d", (ctxGlyph) => createPickaxeGlyph(ctxGlyph, "#c0c7cf")));
+registerIcon(ITEMS.wood_pickaxe, createFlatIcon("#2b3343", "#9a7440", (ctxGlyph) => createPickaxeGlyph(ctxGlyph, "#caa061")));
+registerIcon(ITEMS.stone_pickaxe, createFlatIcon("#2b3343", "#8a949d", (ctxGlyph) => createPickaxeGlyph(ctxGlyph, "#c0c7cf")));
 
 const worldMaterial = new THREE.MeshLambertMaterial({
   map: atlasInfo.texture,
@@ -2849,6 +3319,159 @@ class PassiveMobManager {
 
 const passiveMobs = new PassiveMobManager(world, scene);
 
+/* ------------------------------------------------------------------ *
+ * Player avatar (only visible in the F5 third-person views)
+ * ------------------------------------------------------------------ */
+
+const playerMaterials = {
+  skin: new THREE.MeshLambertMaterial({ color: 0xd8a077 }),
+  shirt: new THREE.MeshLambertMaterial({ color: 0x3f8f8a }),
+  pants: new THREE.MeshLambertMaterial({ color: 0x3c4a78 }),
+  hair: new THREE.MeshLambertMaterial({ color: 0x3a2a1d }),
+};
+
+const playerGeometry = {
+  head: new THREE.BoxGeometry(0.46, 0.46, 0.46),
+  hair: new THREE.BoxGeometry(0.48, 0.14, 0.48),
+  body: new THREE.BoxGeometry(0.5, 0.7, 0.26),
+  arm: new THREE.BoxGeometry(0.2, 0.7, 0.2),
+  leg: new THREE.BoxGeometry(0.22, 0.7, 0.22),
+};
+
+function createLimb(geometry, material, pivotX, pivotY) {
+  const pivot = new THREE.Group();
+  pivot.position.set(pivotX, pivotY, 0);
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.y = -0.35;
+  pivot.add(mesh);
+  return pivot;
+}
+
+function createPlayerModel() {
+  const root = new THREE.Group();
+
+  const body = new THREE.Mesh(playerGeometry.body, playerMaterials.shirt);
+  body.position.set(0, 1.05, 0);
+  root.add(body);
+
+  const headPivot = new THREE.Group();
+  headPivot.position.set(0, 1.4, 0);
+  const head = new THREE.Mesh(playerGeometry.head, playerMaterials.skin);
+  head.position.y = 0.23;
+  const hair = new THREE.Mesh(playerGeometry.hair, playerMaterials.hair);
+  hair.position.y = 0.42;
+  headPivot.add(head);
+  headPivot.add(hair);
+  root.add(headPivot);
+
+  const leftArm = createLimb(playerGeometry.arm, playerMaterials.skin, -0.35, 1.4);
+  const rightArm = createLimb(playerGeometry.arm, playerMaterials.skin, 0.35, 1.4);
+  const leftLeg = createLimb(playerGeometry.leg, playerMaterials.pants, -0.13, 0.7);
+  const rightLeg = createLimb(playerGeometry.leg, playerMaterials.pants, 0.13, 0.7);
+  root.add(leftArm, rightArm, leftLeg, rightLeg);
+
+  root.userData.parts = { headPivot, leftArm, rightArm, leftLeg, rightLeg };
+  root.visible = false;
+  return root;
+}
+
+const playerModel = createPlayerModel();
+scene.add(playerModel);
+
+/* ------------------------------------------------------------------ *
+ * Dropped items — what the drop key throws out and what walking over
+ * an item picks back up.
+ * ------------------------------------------------------------------ */
+
+const DROP_PICKUP_DELAY = 0.55;
+const DROP_PICKUP_RANGE = 1.35;
+const DROP_LIFETIME = 300;
+
+function spawnDrop(itemId, x, y, z, vx, vy, vz) {
+  const texture = getIconTexture(itemId);
+  if (!texture) {
+    return;
+  }
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true,
+    depthWrite: false,
+  }));
+  sprite.scale.set(0.42, 0.42, 0.42);
+  sprite.position.set(x, y, z);
+  scene.add(sprite);
+  state.drops.push({ itemId, sprite, vx, vy, vz, age: 0, bob: Math.random() * PI * 2 });
+}
+
+function removeDrop(index) {
+  const drop = state.drops[index];
+  scene.remove(drop.sprite);
+  drop.sprite.material.dispose();
+  state.drops.splice(index, 1);
+}
+
+function updateDrops(dt) {
+  const player = state.player;
+  for (let index = state.drops.length - 1; index >= 0; index--) {
+    const drop = state.drops[index];
+    drop.age += dt;
+    drop.bob += dt * 2.4;
+
+    drop.vy -= GRAVITY * 0.55 * dt;
+    const nextY = drop.sprite.position.y + drop.vy * dt;
+    if (world.isSolid(
+      Math.floor(drop.sprite.position.x),
+      Math.floor(nextY - 0.12),
+      Math.floor(drop.sprite.position.z),
+    )) {
+      drop.vy = 0;
+      drop.vx *= 0.5;
+      drop.vz *= 0.5;
+    } else {
+      drop.sprite.position.y = nextY;
+    }
+
+    const nextX = drop.sprite.position.x + drop.vx * dt;
+    const nextZ = drop.sprite.position.z + drop.vz * dt;
+    if (!world.isSolid(Math.floor(nextX), Math.floor(drop.sprite.position.y), Math.floor(nextZ))) {
+      drop.sprite.position.x = nextX;
+      drop.sprite.position.z = nextZ;
+    } else {
+      drop.vx = 0;
+      drop.vz = 0;
+    }
+    drop.vx *= 1 - dt * 2.2;
+    drop.vz *= 1 - dt * 2.2;
+
+    const hover = Math.sin(drop.bob) * 0.045;
+    drop.sprite.scale.setScalar(0.42 + hover * 0.2);
+
+    const distance = Math.hypot(
+      drop.sprite.position.x - player.x,
+      drop.sprite.position.y - (player.y + 0.9),
+      drop.sprite.position.z - player.z,
+    );
+    if (drop.age > DROP_PICKUP_DELAY && distance < DROP_PICKUP_RANGE && !state.isDead) {
+      addItem(drop.itemId, 1);
+      showToast(`Picked up ${BLOCK_NAMES[drop.itemId]}`);
+      soundEngine.select();
+      state.saveDirty = true;
+      removeDrop(index);
+      updateInventoryPanel();
+      continue;
+    }
+    if (drop.age > DROP_LIFETIME || drop.sprite.position.y < MIN_WORLD_Y - 8) {
+      removeDrop(index);
+    }
+  }
+}
+
+function clearDrops() {
+  while (state.drops.length > 0) {
+    removeDrop(state.drops.length - 1);
+  }
+}
+
 const cloudGroup = new THREE.Group();
 scene.add(cloudGroup);
 
@@ -3080,9 +3703,9 @@ function buildHotbar() {
     slot.className = "hotbar-slot";
     slot.dataset.slot = String(index);
     slot.innerHTML =
+      `<span class="slot-key">${index + 1}</span>` +
       `<div class="slot-icon"></div>` +
-      `<strong>Empty</strong>` +
-      `<span>${index + 1}</span>`;
+      `<span class="slot-count"></span>`;
     hotbar.appendChild(slot);
   }
 }
@@ -3091,20 +3714,23 @@ function updateHotbar() {
   for (const slot of hotbar.children) {
     const slotIndex = Number(slot.dataset.slot);
     const itemId = state.hotbarSlots[slotIndex];
+    const count = getItemCount(itemId);
     const icon = slot.querySelector(".slot-icon");
-    const count = itemId == null ? 0 : (state.inventory[itemId] ?? 0);
+    const countLabel = slot.querySelector(".slot-count");
     slot.classList.toggle("is-active", slotIndex === state.activeSlot);
     slot.classList.toggle("is-empty", itemId == null || count <= 0);
-    if (icon) {
-      icon.style.backgroundImage = itemId == null ? "none" : `url("${itemIcons.get(itemId)}")`;
-    }
-    const nameLabel = slot.querySelector("strong");
-    const countLabel = slot.querySelector("span");
-    if (nameLabel) {
-      nameLabel.textContent = itemId == null ? "Empty" : BLOCK_NAMES[itemId];
+
+    const iconValue = itemId == null ? "none" : `url("${itemIcons.get(itemId)}")`;
+    if (icon && icon.dataset.value !== iconValue) {
+      icon.dataset.value = iconValue;
+      icon.style.backgroundImage = iconValue;
     }
     if (countLabel) {
-      countLabel.textContent = `${slotIndex + 1} · ${count}`;
+      // Minecraft hides the stack size for single items and unlimited stacks.
+      const text = itemId == null || count <= 1 || isCreative() ? "" : String(count);
+      if (countLabel.textContent !== text) {
+        countLabel.textContent = text;
+      }
     }
   }
 }
@@ -3114,6 +3740,7 @@ function createInventorySlot(itemId, count, selected) {
   slot.type = "button";
   slot.className = "inventory-slot";
   slot.dataset.item = String(itemId);
+  slot.title = `${BLOCK_NAMES[itemId]}${isCreative() ? "" : ` — ${count} in bag`}`;
   if (selected) {
     slot.classList.add("is-selected");
   }
@@ -3123,8 +3750,7 @@ function createInventorySlot(itemId, count, selected) {
   }
   slot.innerHTML =
     `<div class="slot-icon"></div>` +
-    `<strong>${BLOCK_NAMES[itemId]}</strong>` +
-    `<span>${count} in bag</span>`;
+    `<span class="slot-count">${isCreative() ? "" : count}</span>`;
   slot.querySelector(".slot-icon").style.backgroundImage = `url("${itemIcons.get(itemId)}")`;
   return slot;
 }
@@ -3243,7 +3869,7 @@ function buildRecipeSection(title, subtitle, recipes, type) {
     craftWrap.className = "recipe-craft";
     craftWrap.innerHTML =
       `<div class="recipe-output"><div class="slot-icon"></div><span>x${recipe.count}</span></div>` +
-      `<button class="recipe-button" type="button"${enabled ? "" : " disabled"}>${type === "smelt" ? "Smelt" : "Craft"}</button>`;
+      `<button class="mc-btn mc-btn-sm recipe-button" type="button"${enabled ? "" : " disabled"}>${type === "smelt" ? "Smelt" : "Craft"}</button>`;
     craftWrap.querySelector(".slot-icon").style.backgroundImage = `url("${itemIcons.get(recipe.output)}")`;
     craftWrap.querySelector(".recipe-button").addEventListener("click", () => {
       if (type === "smelt") {
@@ -3261,24 +3887,30 @@ function buildRecipeSection(title, subtitle, recipes, type) {
 }
 
 function updateInventoryPanel() {
+  const creative = isCreative();
+  inventoryBody.classList.toggle("is-creative", creative);
+  inventoryEyebrow.textContent = creative ? "Creative Inventory" : "Survival Inventory";
+  inventoryGridTitle.textContent = creative ? "All Blocks & Items" : "Backpack";
+  inventoryGridHint.textContent = creative
+    ? "Unlimited supply — click to hold"
+    : "Click an item to hold it";
+  inventoryRecipeHint.textContent = `Press ${keyHint("inventory")} to close`;
+
   inventoryGrid.replaceChildren();
-  const allItems = [...new Set([
-    ...PLACEABLE_BLOCKS,
-    ITEMS.stick,
-    ITEMS.coal,
-    ITEMS.iron_ingot,
-    ITEMS.wood_pickaxe,
-    ITEMS.stone_pickaxe,
-    BLOCKS.coal_ore,
-    BLOCKS.iron_ore,
-  ])];
+  const allItems = creative
+    ? CREATIVE_ITEMS
+    : [...new Set([
+        ...PLACEABLE_BLOCKS,
+        ITEMS.stick,
+        ITEMS.coal,
+        ITEMS.iron_ingot,
+        ITEMS.wood_pickaxe,
+        ITEMS.stone_pickaxe,
+      ])];
+
   allItems.forEach((itemId) => {
-    const count = state.inventory[itemId] ?? 0;
-    const slot = createInventorySlot(
-      itemId,
-      count,
-      itemId === getSelectedItem(),
-    );
+    const count = getItemCount(itemId);
+    const slot = createInventorySlot(itemId, count, itemId === getSelectedItem());
     slot.addEventListener("click", () => {
       if (count <= 0) {
         return;
@@ -3292,6 +3924,13 @@ function updateInventoryPanel() {
   });
 
   recipeList.replaceChildren();
+  if (creative) {
+    const note = document.createElement("p");
+    note.className = "screen-subtitle";
+    note.textContent = "Crafting is not needed in creative — every item is already unlocked.";
+    recipeList.appendChild(note);
+    return;
+  }
   recipeList.appendChild(buildRecipeSection("Hand Crafting", "Always available", HAND_RECIPES, "craft"));
   const stations = getAccessibleStations();
   if (stations.table) {
@@ -3304,9 +3943,10 @@ function updateInventoryPanel() {
 
 function toggleInventory(forceOpen) {
   const nextValue = typeof forceOpen === "boolean" ? forceOpen : !state.inventoryOpen;
-  if (nextValue !== state.inventoryOpen) {
-    soundEngine.ui(nextValue);
+  if (nextValue === state.inventoryOpen) {
+    return;
   }
+  soundEngine.ui(nextValue);
   state.inventoryOpen = nextValue;
   inventoryPanel.classList.toggle("is-hidden", !nextValue);
   if (nextValue) {
@@ -3318,9 +3958,8 @@ function toggleInventory(forceOpen) {
 }
 
 function setActiveItem(itemId) {
-  if ((state.inventory[itemId] ?? 0) <= 0) {
-    state.uiMessage = `No ${BLOCK_NAMES[itemId]} in bag`;
-    state.uiMessageTimer = 1;
+  if (getItemCount(itemId) <= 0) {
+    showToast(`No ${BLOCK_NAMES[itemId]} in bag`);
     return;
   }
   const existingIndex = state.hotbarSlots.indexOf(itemId);
@@ -3331,59 +3970,157 @@ function setActiveItem(itemId) {
   }
   state.selectedBlock = isPlaceableItem(itemId) ? itemId : state.selectedBlock;
   state.saveDirty = true;
+  announceHeldItem();
   soundEngine.select();
 }
 
-function setMode(mode) {
-  state.mode = mode;
-  state.running = mode === "playing";
-  menu.classList.toggle("is-hidden", state.running);
+/* ------------------------------------------------------------------ *
+ * Screens — title, pause, controls, options and help all live in the
+ * same stack. "playing" simply means no screen is up.
+ * ------------------------------------------------------------------ */
+
+function showScreen(name) {
+  state.screen = name;
+  state.running = name === "playing";
+  state.mode = name === "playing" ? "playing" : name === "title" ? "menu" : name;
+
+  for (const [key, element] of Object.entries(screenElements)) {
+    element.classList.toggle("is-hidden", key !== name);
+  }
+  document.body.classList.toggle("is-playing", state.running);
+
   if (!state.running) {
     toggleInventory(false);
+    state.keys.clear();
+    state.sprintLatched = false;
+    exitPointerLock();
+  }
+  if (name === "title") {
     state.isDead = false;
     deathScreen.classList.add("is-hidden");
   }
+  if (name === "controls") {
+    buildControlsScreen();
+  }
+  if (name === "options") {
+    syncOptionsScreen();
+  }
+  if (name === "help") {
+    buildHelpControls();
+  }
+  if (name === "pause") {
+    syncPauseScreen();
+  }
+  updateModeBanner();
+}
+
+function openSubScreen(name) {
+  state.screenReturn = state.screen === "controls" || state.screen === "options" || state.screen === "help"
+    ? state.screenReturn
+    : state.screen;
+  showScreen(name);
+}
+
+function closeSubScreen() {
+  showScreen(state.screenReturn === "playing" ? "pause" : state.screenReturn || "title");
+}
+
+function setMode(mode) {
+  showScreen(mode === "playing" ? "playing" : "title");
 }
 
 function startGame() {
-  setMode("playing");
-  toggleInventory(false);
+  showScreen("playing");
   canvas.focus();
+  soundEngine.resume();
+  soundEngine.applyVolume();
+  requestPointerLock();
+  announceHeldItem();
+}
+
+function resumeGame() {
+  showScreen("playing");
   soundEngine.resume();
   requestPointerLock();
 }
 
-function requestPointerLock() {
-  if (state.inventoryOpen || !state.running || state.pointerLocked) {
+function openPauseMenu() {
+  if (state.screen !== "playing") {
     return;
   }
-  if (canvas.requestPointerLock) {
+  showScreen("pause");
+}
+
+function setGameMode(mode, { announce = true } = {}) {
+  state.gameMode = mode === "creative" ? "creative" : "survival";
+  if (!isCreative()) {
+    state.flying = false;
+    state.flyVelocityY = 0;
+  }
+  updateModeBanner();
+  syncPauseScreen();
+  syncModePicker();
+  updateHotbar();
+  if (state.inventoryOpen) {
+    updateInventoryPanel();
+  }
+  if (announce) {
+    showToast(`Game mode: ${isCreative() ? "Creative" : "Survival"}`);
+  }
+  state.saveDirty = true;
+}
+
+function requestPointerLock() {
+  if (state.inventoryOpen || !state.running || state.pointerLocked || state.isDead) {
+    return;
+  }
+  if (!canvas.requestPointerLock) {
+    state.pointerLockUnavailable = true;
+    return;
+  }
+  try {
     const lockRequest = canvas.requestPointerLock();
-    lockRequest?.catch(() => {
-      state.uiMessage = "Mouse look fallback: hold and drag on the canvas";
-      state.uiMessageTimer = 1.4;
+    lockRequest?.catch?.(() => {
+      state.pointerLockUnavailable = true;
     });
+  } catch {
+    state.pointerLockUnavailable = true;
   }
 }
 
 function exitPointerLock() {
   if (document.pointerLockElement) {
+    state.intentionalUnlock = true;
     document.exitPointerLock();
   }
 }
 
 function updatePointerState() {
-  state.pointerLocked = document.pointerLockElement === canvas;
-  if (state.pointerLocked) {
+  const locked = document.pointerLockElement === canvas;
+  state.pointerLocked = locked;
+  document.body.classList.toggle("is-locked", locked);
+  if (locked) {
     state.dragLook = false;
     state.dragAnchor = null;
+    state.pointerLockUnavailable = false;
+    return;
+  }
+  if (state.intentionalUnlock) {
+    state.intentionalUnlock = false;
+    return;
+  }
+  // Esc while locked never reaches keydown, so the unlock itself pauses.
+  if (state.screen === "playing" && !state.inventoryOpen && !state.isDead) {
+    openPauseMenu();
   }
 }
 
 function moveLook(deltaX, deltaY) {
-  state.player.yaw -= deltaX * LOOK_SENSITIVITY;
-  state.player.pitch -= deltaY * LOOK_SENSITIVITY;
-  state.player.pitch = clamp(state.player.pitch, -1.45, 1.45);
+  const sensitivity = BASE_LOOK_SENSITIVITY * clamp(settings.sensitivity / 100, 0.05, 4);
+  const pitchSign = settings.invertMouse ? 1 : -1;
+  state.player.yaw -= deltaX * sensitivity;
+  state.player.pitch += pitchSign * deltaY * sensitivity;
+  state.player.pitch = clamp(state.player.pitch, -1.55, 1.55);
 }
 
 const daySky = new THREE.Color(0x9fd0ff);
@@ -3450,28 +4187,132 @@ function movePlayerToSpawn() {
   state.nextFootstepAt = state.elapsed + 0.24;
 }
 
-function findClosestSafeRespawn() {
-  const ox = state.lastSafePosX;
-  const oz = state.lastSafePosZ;
-  const offsets = [[0,0],[1,0],[-1,0],[0,1],[0,-1],[2,0],[-2,0],[0,2],[0,-2],[1,1],[-1,1],[1,-1],[-1,-1]];
-  for (const [dx, dz] of offsets) {
-    const bx = Math.floor(ox) + dx;
-    const bz = Math.floor(oz) + dz;
-    const sy = world.getHeightAt(bx, bz);
-    const py = sy + 1.05;
-    if (!hasCollision(bx + 0.5, py, bz + 0.5)) {
-      return { x: bx + 0.5, y: py, z: bz + 0.5 };
+const RESPAWN_SEARCH_RADIUS = 16;
+const RESPAWN_HEADROOM = 20;
+const PIT_WALL_HEIGHT = 2;
+
+/**
+ * Topmost non-air block in a column, honouring player edits (unlike
+ * getHeightAt, which only knows about generated terrain).
+ */
+function getStandableSurfaceY(bx, bz) {
+  const start = Math.min(MAX_WORLD_Y, world.getHeightAt(bx, bz) + RESPAWN_HEADROOM);
+  for (let y = start; y >= MIN_WORLD_Y; y--) {
+    const blockType = world.getBlock(bx, y, bz);
+    if (blockType !== BLOCKS.air && blockType !== BLOCKS.water) {
+      return y;
     }
+  }
+  return null;
+}
+
+/**
+ * A column is only a respawn candidate when the player fits, nothing roofs
+ * it over, and it is not the floor of a dug-out shaft.
+ */
+function evaluateRespawnColumn(bx, bz) {
+  const surfaceY = getStandableSurfaceY(bx, bz);
+  if (surfaceY === null || surfaceY + 1 > MAX_BUILD_HEIGHT) {
+    return null;
+  }
+  const feetY = surfaceY + 1;
+
+  // Open to the sky: a roof means a cave or a covered-over hole.
+  for (let y = feetY; y <= Math.min(MAX_WORLD_Y, feetY + RESPAWN_HEADROOM); y++) {
+    if (world.isSolid(bx, y, bz)) {
+      return null;
+    }
+  }
+  if (hasCollision(bx + 0.5, feetY + 0.05, bz + 0.5)) {
+    return null;
+  }
+
+  // Walled in on nearly every side means we are at the bottom of a pit.
+  let walls = 0;
+  for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+    const neighbour = getStandableSurfaceY(bx + dx, bz + dz);
+    if (neighbour !== null && neighbour - surfaceY >= PIT_WALL_HEIGHT) {
+      walls++;
+    }
+  }
+  if (walls >= 6) {
+    return null;
+  }
+
+  return { x: bx + 0.5, y: feetY + 0.05, z: bz + 0.5 };
+}
+
+/** Squares at Chebyshev distance `radius` from the origin, nearest first. */
+function ringOffsets(radius) {
+  if (radius === 0) {
+    return [[0, 0]];
+  }
+  const offsets = [];
+  for (let dx = -radius; dx <= radius; dx++) {
+    for (let dz = -radius; dz <= radius; dz++) {
+      if (Math.max(Math.abs(dx), Math.abs(dz)) === radius) {
+        offsets.push([dx, dz]);
+      }
+    }
+  }
+  offsets.sort((a, b) => Math.hypot(a[0], a[1]) - Math.hypot(b[0], b[1]));
+  return offsets;
+}
+
+function findClosestSafeRespawn() {
+  const originX = Math.floor(state.lastSafePosX);
+  const originZ = Math.floor(state.lastSafePosZ);
+
+  for (let radius = 0; radius <= RESPAWN_SEARCH_RADIUS; radius++) {
+    for (const [dx, dz] of ringOffsets(radius)) {
+      const spot = evaluateRespawnColumn(originX + dx, originZ + dz);
+      if (spot) {
+        return spot;
+      }
+    }
+  }
+
+  // Nothing nearby worked out, so fall back to world spawn.
+  const spawnX = Math.floor(DEFAULT_SPAWN.x);
+  const spawnZ = Math.floor(DEFAULT_SPAWN.z);
+  const spawnSpot = evaluateRespawnColumn(spawnX, spawnZ);
+  if (spawnSpot) {
+    return spawnSpot;
   }
   return {
     x: DEFAULT_SPAWN.x,
-    y: world.getHeightAt(Math.floor(DEFAULT_SPAWN.x), Math.floor(DEFAULT_SPAWN.z)) + 1.05,
+    y: world.getHeightAt(spawnX, spawnZ) + 1.05,
     z: DEFAULT_SPAWN.z,
   };
 }
 
+/**
+ * Records where a respawn should drop the player. Only open ground counts,
+ * so dying after digging down never sends you back into the same shaft.
+ */
+function updateSafeAnchor(dt) {
+  state.safeAnchorCooldown -= dt;
+  if (state.safeAnchorCooldown > 0 || !state.player.onGround || state.flying) {
+    return;
+  }
+  state.safeAnchorCooldown = 0.5;
+  const bx = Math.floor(state.player.x);
+  const bz = Math.floor(state.player.z);
+  if (evaluateRespawnColumn(bx, bz)) {
+    state.lastSafePosX = state.player.x;
+    state.lastSafePosZ = state.player.z;
+  }
+}
+
 function handlePlayerDeath() {
+  if (state.isDead) {
+    return;
+  }
   state.isDead = true;
+  state.flying = false;
+  state.flyVelocityY = 0;
+  state.sprintLatched = false;
+  state.keys.clear();
   exitPointerLock();
   const pos = findClosestSafeRespawn();
   deathLocationText.textContent = `Nearest safe ground at (${Math.round(pos.x)}, ${Math.round(pos.z)})`;
@@ -3491,7 +4332,21 @@ function respawnPlayer() {
   state.player.onGround = false;
   state.nextFootstepAt = state.elapsed + 0.24;
   state.isDead = false;
+  state.flying = false;
+  state.flyVelocityY = 0;
+  state.safeAnchorCooldown = 0;
+
+  // Last resort: never leave the player embedded in geometry.
+  let attempts = 0;
+  while (hasCollision(state.player.x, state.player.y, state.player.z) && attempts < 32) {
+    state.player.y += 1;
+    attempts += 1;
+  }
+
   deathScreen.classList.add("is-hidden");
+  if (state.screen !== "playing") {
+    showScreen("playing");
+  }
   requestPointerLock();
 }
 
@@ -3517,6 +4372,23 @@ function tryStepUp(nextX, currentY, nextZ) {
   return null;
 }
 
+/** True when any part of the player's footprint has a block under it. */
+function hasGroundUnder(x, y, z) {
+  const footY = Math.floor(y - 0.06);
+  const corners = [
+    [-PLAYER_RADIUS, -PLAYER_RADIUS],
+    [PLAYER_RADIUS, -PLAYER_RADIUS],
+    [-PLAYER_RADIUS, PLAYER_RADIUS],
+    [PLAYER_RADIUS, PLAYER_RADIUS],
+  ];
+  for (const [dx, dz] of corners) {
+    if (world.isSolid(Math.floor(x + dx), footY, Math.floor(z + dz))) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function movePlayerAxis(axis, amount) {
   if (amount === 0) {
     return;
@@ -3525,6 +4397,18 @@ function movePlayerAxis(axis, amount) {
   const player = state.player;
   const next = { x: player.x, y: player.y, z: player.z };
   next[axis] += amount;
+
+  // Sneaking refuses to walk off a ledge, exactly like Minecraft.
+  if (
+    axis !== "y" &&
+    state.sneaking &&
+    !state.flying &&
+    player.onGround &&
+    hasGroundUnder(player.x, player.y, player.z) &&
+    !hasGroundUnder(next.x, next.y, next.z)
+  ) {
+    return;
+  }
 
   if (!hasCollision(next.x, next.y, next.z)) {
     player[axis] = next[axis];
@@ -3557,23 +4441,99 @@ function movePlayerAxis(axis, amount) {
   }
 }
 
-function applyPlayerToCamera() {
-  const horizontalSpeed = Math.hypot(state.player.vx, state.player.vz);
-  const sprinting = state.keys.has("ShiftLeft") || state.keys.has("ShiftRight");
-  const bobStrength = state.player.onGround ? clamp(horizontalSpeed / (MOVE_SPEED * 1.65), 0, 1) : 0;
-  const bobX = Math.sin(state.stepPhase) * 0.05 * bobStrength;
-  const bobY = Math.abs(Math.cos(state.stepPhase * 0.5)) * 0.08 * bobStrength;
-  const sideTilt = clamp(state.player.vx * 0.012, -0.04, 0.04);
-  camera.position.set(
-    state.player.x + bobX,
-    state.player.y + CAMERA_HEIGHT + state.viewBob - bobY,
+const eyePosition = new THREE.Vector3();
+const lookDirection = new THREE.Vector3();
+const cameraOffsetRay = new THREE.Raycaster();
+
+/** Feet-to-eye height, shrunk while sneaking. */
+function getEyeHeight() {
+  return CAMERA_HEIGHT - (state.sneaking && !state.flying ? SNEAK_CAMERA_DROP : 0);
+}
+
+function getEyePosition(target) {
+  return target.set(
+    state.player.x,
+    state.player.y + getEyeHeight() + state.viewBob,
     state.player.z,
   );
-  camera.rotation.y = state.player.yaw;
-  camera.rotation.x = state.player.pitch;
+}
+
+function getLookDirection(target, yaw = state.player.yaw, pitch = state.player.pitch) {
+  return target.set(
+    -Math.sin(yaw) * Math.cos(pitch),
+    Math.sin(pitch),
+    -Math.cos(yaw) * Math.cos(pitch),
+  ).normalize();
+}
+
+function applyPlayerToCamera() {
+  const player = state.player;
+  const horizontalSpeed = Math.hypot(player.vx, player.vz);
+  const bobbing = settings.viewBobbing && player.onGround && !state.flying;
+  const bobStrength = bobbing ? clamp(horizontalSpeed / (MOVE_SPEED * 1.65), 0, 1) : 0;
+  const bobX = Math.sin(state.stepPhase) * 0.05 * bobStrength;
+  const bobY = Math.abs(Math.cos(state.stepPhase * 0.5)) * 0.08 * bobStrength;
+  const sideTilt = settings.viewBobbing ? clamp(player.vx * 0.012, -0.04, 0.04) : 0;
+
+  // The interaction ray always starts at the eye, whatever the camera does.
+  getEyePosition(eyePosition);
+  getLookDirection(lookDirection);
+
+  const frontView = state.perspective === 2;
+  const viewYaw = frontView ? player.yaw + PI : player.yaw;
+  const viewPitch = frontView ? -player.pitch : player.pitch;
+
+  camera.rotation.y = viewYaw;
+  camera.rotation.x = viewPitch;
   camera.rotation.z = sideTilt;
-  camera.fov = lerp(camera.fov, 75 + (sprinting ? 4.2 : 0) + bobStrength * 1.8, 0.14);
+
+  if (state.perspective === 0) {
+    camera.position.set(
+      eyePosition.x + bobX,
+      eyePosition.y - bobY,
+      eyePosition.z,
+    );
+  } else {
+    // Pull the camera back along the view axis, stopping short of walls.
+    const back = getLookDirection(new THREE.Vector3(), viewYaw, viewPitch).negate();
+    let distance = THIRD_PERSON_DISTANCE;
+    cameraOffsetRay.set(eyePosition, back);
+    cameraOffsetRay.far = THIRD_PERSON_DISTANCE;
+    const blocked = cameraOffsetRay.intersectObjects(chunkMeshes.getMeshes(), false)[0];
+    if (blocked) {
+      distance = Math.max(0.6, blocked.distance - 0.35);
+    }
+    camera.position.copy(eyePosition).addScaledVector(back, distance);
+  }
+
+  const targetFov = settings.fov
+    + (state.sprinting ? 5.5 : 0)
+    + (state.flying && horizontalSpeed > MOVE_SPEED ? 4 : 0)
+    + bobStrength * 1.8;
+  camera.fov = lerp(camera.fov, targetFov, 0.14);
   camera.updateProjectionMatrix();
+  updatePlayerModel();
+}
+
+function updatePlayerModel() {
+  const visible = state.perspective !== 0 && state.running && !state.isDead;
+  playerModel.visible = visible;
+  if (!visible) {
+    return;
+  }
+  const player = state.player;
+  const parts = playerModel.userData.parts;
+  const speed = Math.hypot(player.vx, player.vz);
+  const swing = speed > 0.2 ? Math.sin(state.stepPhase) * clamp(speed / MOVE_SPEED, 0, 1.2) * 0.7 : 0;
+
+  playerModel.position.set(player.x, player.y, player.z);
+  playerModel.rotation.y = player.yaw;
+  parts.headPivot.rotation.x = -player.pitch;
+  parts.leftArm.rotation.x = state.flying ? -0.35 : swing;
+  parts.rightArm.rotation.x = state.flying ? -0.35 : -swing;
+  parts.leftLeg.rotation.x = state.flying ? 0.25 : -swing;
+  parts.rightLeg.rotation.x = state.flying ? -0.25 : swing;
+  playerModel.position.y -= state.sneaking && !state.flying ? 0.12 : 0;
 }
 
 function canPlaceBlock(x, y, z) {
@@ -3585,7 +4545,9 @@ function canPlaceBlock(x, y, z) {
 
 function updateTarget() {
   applyPlayerToCamera();
-  raycaster.setFromCamera({ x: 0, y: 0 }, camera);
+  // Always aim from the eye so first and third person share the same reach.
+  raycaster.set(eyePosition, lookDirection);
+  raycaster.far = INTERACTION_RANGE;
   const intersections = raycaster.intersectObjects(chunkMeshes.getMeshes(), false);
   const hit = intersections[0];
 
@@ -3642,8 +4604,7 @@ function interact(breaking) {
 
   if (breaking) {
     if (!canMineBlock(state.target.block.type)) {
-      state.uiMessage = `Need a better tool for ${BLOCK_NAMES[state.target.block.type]}`;
-      state.uiMessageTimer = 1.1;
+      showToast(`Need a better tool for ${BLOCK_NAMES[state.target.block.type]}`);
       resetBreakState();
       return;
     }
@@ -3674,10 +4635,9 @@ function interact(breaking) {
     if (world.setBlock(state.target.block.x, state.target.block.y, state.target.block.z, BLOCKS.air)) {
       chunkMeshes.markDirtyAtWorld(state.target.block.x, state.target.block.z);
       const dropId = getDropForBlock(brokenType);
-      if (dropId != null && isCollectibleBlock(brokenType)) {
-        state.inventory[dropId] = (state.inventory[dropId] ?? 0) + 1;
-        state.uiMessage = `Collected ${BLOCK_NAMES[dropId]}`;
-        state.uiMessageTimer = 1.1;
+      if (dropId != null && isCollectibleBlock(brokenType) && !isCreative()) {
+        addItem(dropId, 1);
+        showToast(`Collected ${BLOCK_NAMES[dropId]}`);
       }
       spawnParticles(
         state.target.block.x + 0.5,
@@ -3698,11 +4658,10 @@ function interact(breaking) {
       return;
     }
     if (canPlaceBlock(state.target.place.x, state.target.place.y, state.target.place.z)) {
-      if ((state.inventory[selectedItem] ?? 0) <= 0) {
-        state.uiMessage = `Out of ${BLOCK_NAMES[selectedItem]}`;
-        state.uiMessageTimer = 0.9;
+      if (getItemCount(selectedItem) <= 0) {
+        showToast(`Out of ${BLOCK_NAMES[selectedItem]}`);
       } else if (world.setBlock(state.target.place.x, state.target.place.y, state.target.place.z, selectedItem)) {
-        state.inventory[selectedItem] -= 1;
+        consumeItem(selectedItem, 1);
         chunkMeshes.markDirtyAtWorld(state.target.place.x, state.target.place.z);
         spawnParticles(
           state.target.place.x + 0.5,
@@ -3724,18 +4683,177 @@ function interact(breaking) {
   updateHotbar();
 }
 
-function handleInput(dt) {
-  if (state.inventoryOpen) {
-    state.player.vx = 0;
-    state.player.vz = 0;
+/* ------------------------------------------------------------------ *
+ * One-shot actions (fired from a key press, not polled)
+ * ------------------------------------------------------------------ */
+
+function showToast(message, duration = 1.6) {
+  state.uiMessage = message;
+  state.uiMessageTimer = duration;
+}
+
+function announceHeldItem() {
+  const itemId = getSelectedItem();
+  state.heldItemName = itemId == null ? "" : BLOCK_NAMES[itemId];
+  state.heldItemTimer = itemId == null ? 0 : 2;
+}
+
+function selectHotbarSlot(index) {
+  if (index < 0 || index >= HOTBAR_SIZE || index === state.activeSlot) {
     return;
   }
-  const player = state.player;
-  const forwardIntent = (state.keys.has("KeyW") ? 1 : 0)
-    + (state.keys.has("KeyS") ? -1 : 0);
-  const strafeIntent = (state.keys.has("KeyD") ? 1 : 0)
-    + (state.keys.has("KeyA") ? -1 : 0);
+  state.activeSlot = index;
+  const itemId = getSelectedItem();
+  if (isPlaceableItem(itemId)) {
+    state.selectedBlock = itemId;
+  }
+  resetBreakState();
+  announceHeldItem();
+  soundEngine.select();
+  updateHotbar();
+  state.saveDirty = true;
+}
 
+function scrollHotbar(direction) {
+  const next = (state.activeSlot + direction + HOTBAR_SIZE) % HOTBAR_SIZE;
+  selectHotbarSlot(next);
+}
+
+/** Middle click: put the block you are looking at into your hand. */
+function pickBlock() {
+  if (!state.target) {
+    return;
+  }
+  const blockType = state.target.block.type;
+  if (!isPlaceableItem(blockType)) {
+    showToast(`Cannot pick ${BLOCK_NAMES[blockType]}`);
+    return;
+  }
+  const existing = state.hotbarSlots.indexOf(blockType);
+  if (existing !== -1) {
+    selectHotbarSlot(existing);
+    return;
+  }
+  if (getItemCount(blockType) <= 0) {
+    showToast(`No ${BLOCK_NAMES[blockType]} in bag`);
+    return;
+  }
+  state.hotbarSlots[state.activeSlot] = blockType;
+  state.selectedBlock = blockType;
+  announceHeldItem();
+  soundEngine.select();
+  updateHotbar();
+  state.saveDirty = true;
+}
+
+/** Drop key: throws the held item into the world where it can be re-collected. */
+function dropHeldItem(wholeStack = false) {
+  const itemId = getSelectedItem();
+  if (itemId == null) {
+    return;
+  }
+  const available = getItemCount(itemId);
+  if (available <= 0) {
+    return;
+  }
+  const amount = isCreative() ? 1 : Math.min(available, wholeStack ? available : 1);
+  consumeItem(itemId, amount);
+
+  const player = state.player;
+  const dir = getLookDirection(new THREE.Vector3());
+  for (let i = 0; i < Math.min(amount, 8); i++) {
+    const spread = (Math.random() - 0.5) * 0.6;
+    spawnDrop(
+      itemId,
+      player.x + dir.x * 0.5,
+      player.y + getEyeHeight() - 0.35,
+      player.z + dir.z * 0.5,
+      dir.x * 3.4 + spread,
+      dir.y * 3.4 + 1.8,
+      dir.z * 3.4 + spread,
+    );
+  }
+  showToast(`Dropped ${amount} ${BLOCK_NAMES[itemId]}`);
+  soundEngine.ui(false);
+  state.saveDirty = true;
+  updateHotbar();
+  updateInventoryPanel();
+}
+
+function cyclePerspective() {
+  state.perspective = (state.perspective + 1) % 3;
+  const names = ["First Person", "Third Person Back", "Third Person Front"];
+  showToast(names[state.perspective]);
+}
+
+function toggleFullscreen() {
+  if (document.fullscreenElement) {
+    document.exitFullscreen?.().catch(() => {});
+  } else {
+    document.documentElement.requestFullscreen?.().catch(() => {});
+  }
+}
+
+function takeScreenshot() {
+  try {
+    render(0);
+    const url = canvas.toDataURL("image/png");
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `mycraft-${Math.floor(state.elapsed * 1000)}.png`;
+    link.click();
+    showToast("Screenshot saved");
+  } catch {
+    showToast("Screenshot failed");
+  }
+}
+
+function toggleFlight() {
+  if (!isCreative()) {
+    return;
+  }
+  state.flying = !state.flying;
+  state.flyVelocityY = 0;
+  state.player.vy = 0;
+  if (state.flying) {
+    state.player.onGround = false;
+  }
+  showToast(state.flying ? "Flying enabled" : "Flying disabled");
+  updateModeBanner();
+}
+
+function updateModeBanner() {
+  // The F3 overlay already reports the mode, so step aside for it.
+  if (!state.running || state.debugVisible) {
+    modeBanner.textContent = "";
+    return;
+  }
+  const parts = [isCreative() ? "Creative" : "Survival"];
+  if (state.flying) {
+    parts.push("Flying");
+  }
+  modeBanner.textContent = parts.join(" · ");
+  modeBanner.classList.toggle("is-flying", state.flying);
+}
+
+/* ------------------------------------------------------------------ *
+ * Per-frame input polling
+ * ------------------------------------------------------------------ */
+
+function handleInput(dt) {
+  const player = state.player;
+  if (state.inventoryOpen || !state.running || state.isDead) {
+    player.vx = 0;
+    player.vz = 0;
+    state.sneaking = false;
+    state.sprinting = false;
+    return;
+  }
+
+  const forwardIntent = (isActionDown("forward") ? 1 : 0) + (isActionDown("back") ? -1 : 0);
+  const strafeIntent = (isActionDown("right") ? 1 : 0) + (isActionDown("left") ? -1 : 0);
+
+  // Arrow keys stay available as a look fallback when there is no mouse.
   if (state.keys.has("ArrowLeft")) {
     player.yaw += dt * 1.9;
   }
@@ -3743,11 +4861,20 @@ function handleInput(dt) {
     player.yaw -= dt * 1.9;
   }
   if (state.keys.has("ArrowUp")) {
-    player.pitch = clamp(player.pitch + dt * 1.55, -1.45, 1.45);
+    player.pitch = clamp(player.pitch + dt * 1.55, -1.55, 1.55);
   }
   if (state.keys.has("ArrowDown")) {
-    player.pitch = clamp(player.pitch - dt * 1.55, -1.45, 1.45);
+    player.pitch = clamp(player.pitch - dt * 1.55, -1.55, 1.55);
   }
+
+  state.sneaking = isActionDown("sneak");
+  if (state.sneaking || forwardIntent <= 0) {
+    state.sprintLatched = false;
+  }
+  const sprintHeld = isActionDown("sprint");
+  state.sprinting = forwardIntent > 0
+    && !state.sneaking
+    && (state.sprintLatched || sprintHeld);
 
   const moveX = -Math.sin(player.yaw);
   const moveZ = -Math.cos(player.yaw);
@@ -3760,82 +4887,168 @@ function handleInput(dt) {
   if (length > 0.001) {
     wishX /= length;
     wishZ /= length;
-    state.stepPhase += dt * (state.keys.has("ShiftLeft") || state.keys.has("ShiftRight") ? 16 : 11);
+    state.stepPhase += dt * (state.sprinting ? 16 : state.sneaking ? 7 : 11);
   }
 
-  const sprintMultiplier = state.keys.has("ShiftLeft") || state.keys.has("ShiftRight") ? 1.65 : 1;
-  player.vx = wishX * MOVE_SPEED * sprintMultiplier;
-  player.vz = wishZ * MOVE_SPEED * sprintMultiplier;
+  let speed = MOVE_SPEED;
+  if (state.flying) {
+    speed = FLY_SPEED * (sprintHeld || state.sprintLatched ? FLY_BOOST_MULTIPLIER : 1);
+  } else if (state.sneaking) {
+    speed = MOVE_SPEED * SNEAK_MULTIPLIER;
+  } else if (state.sprinting) {
+    speed = MOVE_SPEED * SPRINT_MULTIPLIER;
+  }
+  player.vx = wishX * speed;
+  player.vz = wishZ * speed;
 
-  if (state.keys.has("Space") && player.onGround) {
+  if (state.flying) {
+    const vertical = (isActionDown("jump") ? 1 : 0) + (isActionDown("sneak") ? -1 : 0);
+    player.vy = vertical * FLY_VERTICAL_SPEED * (sprintHeld ? 1.6 : 1);
+  } else if (isActionDown("jump") && player.onGround) {
     player.vy = JUMP_SPEED;
     player.onGround = false;
     soundEngine.jump();
   }
 
-  const previousActiveSlot = state.activeSlot;
-  for (let i = 0; i < HOTBAR_SIZE; i++) {
-    if (state.keys.has(`Digit${i + 1}`)) {
-      state.activeSlot = i;
-      const itemId = getSelectedItem();
-      if (isPlaceableItem(itemId)) {
-        state.selectedBlock = itemId;
-      }
-    }
+  if (state.elapsed < state.suppressInteractUntil) {
+    return;
   }
-  if (state.activeSlot !== previousActiveSlot) {
-    soundEngine.select();
-  }
-
-  if (state.keys.has("KeyF")) {
-    state.keys.delete("KeyF");
-    if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {});
-    } else {
-      document.documentElement.requestFullscreen?.().catch(() => {});
-    }
-  }
-
-  if (state.keys.has("KeyB")) {
-    interact(false);
-  }
-  if (state.mouseDown.left) {
+  if (isActionDown("attack")) {
     interact(true);
   }
-  if (state.mouseDown.right) {
+  if (isActionDown("use")) {
     interact(false);
   }
+}
+
+/* ------------------------------------------------------------------ *
+ * HUD + F3 debug overlay
+ * ------------------------------------------------------------------ */
+
+function getFacingLabel(yaw) {
+  const fx = -Math.sin(yaw);
+  const fz = -Math.cos(yaw);
+  if (Math.abs(fz) >= Math.abs(fx)) {
+    return fz < 0 ? "north (-Z)" : "south (+Z)";
+  }
+  return fx > 0 ? "east (+X)" : "west (-X)";
+}
+
+function getBiomeLabel() {
+  const player = state.player;
+  if (isInsideRect(player.x, player.z, SNOW_REALM)) {
+    return "snow realm";
+  }
+  if (isInsideRect(player.x, player.z, CITY_PLAN)) {
+    return "city district";
+  }
+  if (isInsideRect(player.x, player.z, SUBURB_PLAN)) {
+    return "suburbs";
+  }
+  return "wilderness";
 }
 
 function updateHud() {
+  hudLayer.classList.toggle("is-hidden", !state.hudVisible);
+
+  const showToastLabel = state.uiMessageTimer > 0;
+  toastLabel.classList.toggle("is-visible", showToastLabel);
+  if (showToastLabel && toastLabel.textContent !== state.uiMessage) {
+    toastLabel.textContent = state.uiMessage;
+  }
+
+  const showItemName = state.heldItemTimer > 0;
+  itemNameLabel.classList.toggle("is-visible", showItemName);
+  if (showItemName && itemNameLabel.textContent !== state.heldItemName) {
+    itemNameLabel.textContent = state.heldItemName;
+  }
+
+  debugOverlay.classList.toggle("is-hidden", !state.debugVisible || !state.hudVisible);
+  if (!state.debugVisible || !state.hudVisible) {
+    return;
+  }
+
   const player = state.player;
   const activeItem = getSelectedItem();
-  const cityCenter = getCityCenter();
-  const snowCenter = getSnowCenter();
-  const cityDistance = Math.hypot(player.x - cityCenter.x, player.z - cityCenter.z);
-  const snowDistance = Math.hypot(player.x - snowCenter.x, player.z - snowCenter.z);
-  const targetText = state.target
-    ? `${BLOCK_NAMES[state.target.block.type]} @ ${state.target.block.x}, ${state.target.block.y}, ${state.target.block.z}`
-    : "none";
-  const breakProgress = state.breakState.key && state.breakState.hardness > 0
-    ? `${Math.round(clamp(state.breakState.progress / state.breakState.hardness, 0, 1) * 100)}%`
-    : "0%";
+  const breakPercent = state.breakState.key && state.breakState.hardness > 0
+    ? Math.round(clamp(state.breakState.progress / state.breakState.hardness, 0, 1) * 100)
+    : 0;
+  const movement = state.flying
+    ? "flying"
+    : state.sneaking
+      ? "sneaking"
+      : state.sprinting
+        ? "sprinting"
+        : player.onGround ? "walking" : "airborne";
 
-  hudPrimary.textContent =
-    `Selected: ${activeItem == null ? "Empty" : BLOCK_NAMES[activeItem]}\n` +
-    `Target: ${targetText}\n` +
-    `Break: ${breakProgress}\n` +
-    `Chunks: ${world.loadedKeys.size} active / ${world.chunks.size} cached\n` +
-    `Bag: ${PLACEABLE_BLOCKS.map((blockType) => `${BLOCK_NAMES[blockType][0]}:${state.inventory[blockType] ?? 0}`).join(" ")}`;
+  debugLeft.textContent =
+    `MyCraft — ${state.fps} fps\n` +
+    `XYZ: ${player.x.toFixed(3)} / ${player.y.toFixed(3)} / ${player.z.toFixed(3)}\n` +
+    `Block: ${Math.floor(player.x)} ${Math.floor(player.y)} ${Math.floor(player.z)}\n` +
+    `Chunk: ${Math.floor(player.x / CHUNK_SIZE)} ${Math.floor(player.z / CHUNK_SIZE)}\n` +
+    `Facing: ${getFacingLabel(player.yaw)} (yaw ${player.yaw.toFixed(2)} pitch ${player.pitch.toFixed(2)})\n` +
+    `Biome: ${getBiomeLabel()}\n` +
+    `State: ${movement} · ${isCreative() ? "creative" : "survival"}\n` +
+    `Day time: ${(state.dayTime * 24).toFixed(1)}h`;
 
-  hudSecondary.textContent =
-    `XYZ ${player.x.toFixed(1)}, ${player.y.toFixed(1)}, ${player.z.toFixed(1)}\n` +
-    `Yaw ${player.yaw.toFixed(2)} Pitch ${player.pitch.toFixed(2)}\n` +
-    `${state.inventoryOpen ? "Inventory open" : state.pointerLocked ? "Pointer lock" : "Click or drag on canvas"} | ${state.keys.has("ShiftLeft") || state.keys.has("ShiftRight") ? "Sprinting" : "Walk"} | City ${cityDistance.toFixed(0)}m | Snow ${snowDistance.toFixed(0)}m | Mobs ${passiveMobs.getEntityCount()} | Day ${(state.dayTime * 24).toFixed(1)}h${state.uiMessageTimer > 0 ? ` | ${state.uiMessage}` : ""}`;
+  debugRight.textContent =
+    `Held: ${activeItem == null ? "Empty" : BLOCK_NAMES[activeItem]}\n` +
+    `Target: ${state.target
+      ? `${BLOCK_NAMES[state.target.block.type]} @ ${state.target.block.x} ${state.target.block.y} ${state.target.block.z}`
+      : "none"}\n` +
+    `Break: ${breakPercent}%\n` +
+    `Chunks: ${world.loadedKeys.size} loaded / ${world.chunks.size} cached\n` +
+    `Render distance: ${world.loadRadius} chunks\n` +
+    `Mobs: ${passiveMobs.getEntityCount()} · Drops: ${state.drops.length}\n` +
+    `Mouse: ${state.pointerLocked ? "locked" : "free"} · View: ${["1st", "3rd back", "3rd front"][state.perspective]}`;
 }
 
-function render() {
-  applyPlayerToCamera();
+function isWorldView() {
+  if (state.screen === "playing" || state.screen === "pause") {
+    return true;
+  }
+  if (state.screen === "title") {
+    return false;
+  }
+  return state.screenReturn === "playing" || state.screenReturn === "pause";
+}
+
+/** Slow orbit around spawn that plays behind the title screen. */
+function updatePanorama(dt) {
+  state.panoramaAngle += dt * 0.045;
+  const cx = state.player.x;
+  const cz = state.player.z;
+  const cy = world.getHeightAt(Math.floor(cx), Math.floor(cz));
+  const radius = 21;
+  camera.position.set(
+    cx + Math.cos(state.panoramaAngle) * radius,
+    cy + 13,
+    cz + Math.sin(state.panoramaAngle) * radius,
+  );
+  camera.lookAt(cx, cy + 1.5, cz);
+  camera.fov = 72;
+  camera.updateProjectionMatrix();
+  playerModel.visible = false;
+}
+
+function trackFrameRate(dt) {
+  if (dt <= 0) {
+    return;
+  }
+  state.frameTimes.push(dt);
+  if (state.frameTimes.length > 30) {
+    state.frameTimes.shift();
+  }
+  const total = state.frameTimes.reduce((sum, value) => sum + value, 0);
+  state.fps = Math.round(state.frameTimes.length / Math.max(total, 0.0001));
+}
+
+function render(dt = 0) {
+  if (isWorldView()) {
+    applyPlayerToCamera();
+  } else {
+    updatePanorama(dt);
+  }
   updateLighting();
   renderer.render(scene, camera);
   updateHotbar();
@@ -3843,9 +5056,12 @@ function render() {
 }
 
 function update(dt, shouldRender = true) {
+  trackFrameRate(dt);
   if (!state.running) {
+    state.uiMessageTimer = Math.max(0, state.uiMessageTimer - dt);
+    state.heldItemTimer = Math.max(0, state.heldItemTimer - dt);
     if (shouldRender) {
-      render();
+      render(dt);
     }
     return;
   }
@@ -3853,6 +5069,7 @@ function update(dt, shouldRender = true) {
   state.elapsed += dt;
   state.dayTime = (state.dayTime + dt * 0.01) % 1;
   state.uiMessageTimer = Math.max(0, state.uiMessageTimer - dt);
+  state.heldItemTimer = Math.max(0, state.heldItemTimer - dt);
   state.viewBob = Math.max(0, state.viewBob - dt * 1.8);
   state.saveCooldown = Math.max(0, state.saveCooldown - dt);
   state.breakState.pulse = Math.max(0, state.breakState.pulse - dt * 4.2);
@@ -3864,12 +5081,20 @@ function update(dt, shouldRender = true) {
 
     const wasOnGround = state.player.onGround;
     const previousVy = state.player.vy;
-    state.player.vy -= GRAVITY * dt;
+    if (!state.flying) {
+      state.player.vy -= GRAVITY * dt;
+    }
 
     movePlayerAxis("x", state.player.vx * dt);
     movePlayerAxis("z", state.player.vz * dt);
     state.player.onGround = false;
     movePlayerAxis("y", state.player.vy * dt);
+
+    // Touching down ends creative flight, the same as Minecraft.
+    if (state.flying && state.player.onGround && state.player.vy <= 0) {
+      state.flying = false;
+      updateModeBanner();
+    }
 
     if (!wasOnGround && state.player.onGround && previousVy < -6) {
       state.viewBob = 0.18;
@@ -3878,19 +5103,15 @@ function update(dt, shouldRender = true) {
     }
 
     const horizontalSpeed = Math.hypot(state.player.vx, state.player.vz);
-    const sprinting = state.keys.has("ShiftLeft") || state.keys.has("ShiftRight");
-    if (state.player.onGround && horizontalSpeed > 0.3 && state.elapsed >= state.nextFootstepAt) {
-      soundEngine.footstep(getFootstepBlockType(), sprinting);
-      state.nextFootstepAt = state.elapsed + (sprinting ? 0.23 : 0.34);
+    if (state.player.onGround && !state.flying && horizontalSpeed > 0.3 && state.elapsed >= state.nextFootstepAt) {
+      soundEngine.footstep(getFootstepBlockType(), state.sprinting);
+      state.nextFootstepAt = state.elapsed + (state.sprinting ? 0.23 : state.sneaking ? 0.5 : 0.34);
     }
     if (!state.player.onGround || horizontalSpeed <= 0.15) {
       state.nextFootstepAt = Math.min(state.nextFootstepAt, state.elapsed + 0.08);
     }
 
-    if (state.player.onGround) {
-      state.lastSafePosX = state.player.x;
-      state.lastSafePosZ = state.player.z;
-    }
+    updateSafeAnchor(dt);
 
     if (state.player.y < -20) {
       handlePlayerDeath();
@@ -3898,6 +5119,7 @@ function update(dt, shouldRender = true) {
   }
 
   updateParticles(dt);
+  updateDrops(dt);
   passiveMobs.update(dt);
   updateTarget();
 
@@ -3924,7 +5146,7 @@ function update(dt, shouldRender = true) {
   }
 
   if (shouldRender) {
-    render();
+    render(dt);
   }
 }
 
@@ -3935,6 +5157,12 @@ function renderGameToText() {
   return JSON.stringify({
     title: "MyCraft",
     mode: state.mode,
+    screen: state.screen,
+    gameMode: state.gameMode,
+    flying: state.flying,
+    sneaking: state.sneaking,
+    sprinting: state.sprinting,
+    perspective: ["first", "third-back", "third-front"][state.perspective],
     inventoryOpen: state.inventoryOpen,
     coords_note: "Origin near spawn. x east-west, y up, z north-south. Player position is feet center.",
     player: {
@@ -4019,16 +5247,440 @@ window.advanceTime = (ms) => {
   state.suppressAnimationTick = false;
 };
 
-startButton.addEventListener("click", startGame);
+/* ------------------------------------------------------------------ *
+ * Menu screens
+ * ------------------------------------------------------------------ */
+
+const SPLASHES = [
+  "100% procedural!",
+  "Now with 9 hotbar slots!",
+  "Double-tap W to sprint!",
+  "Try creative mode!",
+  "Blocks all the way down!",
+  "Press F3 for the nerdy bits!",
+  "Sneak on the edge!",
+  "Also try mining!",
+  "No mobs were harmed!",
+  "Built with three.js!",
+  "Rebind everything!",
+  "Fly, you fools!",
+];
+
+function pickSplash() {
+  splashLabel.textContent = SPLASHES[Math.floor(Math.random() * SPLASHES.length)];
+}
+
+/** Paints the title with the game's own grass texture. */
+function applyTitleTexture() {
+  try {
+    const tile = getTileCanvas(getTileIndex(BLOCKS.grass, "pz"));
+    document.documentElement.style.setProperty(
+      "--title-texture",
+      `url("${tile.toDataURL("image/png")}")`,
+    );
+  } catch {
+    /* falls back to the plain text colour */
+  }
+}
+
+function syncModePicker() {
+  for (const button of document.querySelectorAll(".mode-option")) {
+    button.classList.toggle("is-active", button.dataset.mode === state.gameMode);
+  }
+}
+
+function syncPauseScreen() {
+  pauseModeBtn.textContent = `Mode: ${isCreative() ? "Creative" : "Survival"}`;
+}
+
+function buildControlsScreen() {
+  const conflicts = findBindingConflicts();
+  controlsList.replaceChildren();
+
+  for (const group of BINDING_GROUPS) {
+    const section = document.createElement("section");
+    section.className = "controls-group";
+    const heading = document.createElement("h3");
+    heading.textContent = group.title;
+    const rows = document.createElement("div");
+    rows.className = "controls-rows";
+
+    for (const action of group.actions) {
+      const row = document.createElement("div");
+      row.className = "control-row";
+
+      const label = document.createElement("span");
+      label.textContent = BINDING_LABELS[action] ?? action;
+
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "mc-btn bind-btn";
+      const binding = state.awaitingBind === action;
+      button.textContent = binding ? "> ? <" : describeToken(bindings[action]);
+      if (binding) {
+        button.classList.add("is-binding");
+      }
+      if (conflicts.has(action)) {
+        button.classList.add("is-conflict");
+        button.title = "This key is bound to more than one action";
+      }
+      if (FIXED_BINDINGS.has(action)) {
+        button.classList.add("is-fixed");
+        button.disabled = true;
+        button.title = "This binding is fixed";
+      } else {
+        button.addEventListener("click", () => {
+          state.awaitingBind = action;
+          buildControlsScreen();
+        });
+      }
+
+      row.append(label, button);
+      rows.appendChild(row);
+    }
+
+    section.append(heading, rows);
+    controlsList.appendChild(section);
+  }
+}
+
+function handleBindingCapture(token) {
+  const action = state.awaitingBind;
+  state.awaitingBind = null;
+  if (!action || token === "Escape") {
+    buildControlsScreen();
+    return;
+  }
+  bindings[action] = token;
+  saveBindings();
+  buildControlsScreen();
+  buildHelpControls();
+  soundEngine.select();
+}
+
+const HELP_ACTIONS = [
+  "forward",
+  "sneak",
+  "sprint",
+  "jump",
+  "attack",
+  "use",
+  "pick",
+  "drop",
+  "inventory",
+  "perspective",
+  "debug",
+  "pause",
+];
+
+function buildHelpControls() {
+  helpControls.replaceChildren();
+  for (const action of HELP_ACTIONS) {
+    const item = document.createElement("li");
+    item.innerHTML = `<b>${BINDING_LABELS[action]}</b> — <kbd>${describeToken(bindings[action])}</kbd>`;
+    helpControls.appendChild(item);
+  }
+  const scroll = document.createElement("li");
+  scroll.innerHTML = `<b>Cycle Hotbar</b> — <kbd>Mouse Wheel</kbd> or <kbd>1</kbd>…<kbd>9</kbd>`;
+  helpControls.appendChild(scroll);
+  const fly = document.createElement("li");
+  fly.innerHTML = `<b>Fly (creative)</b> — double-tap <kbd>${describeToken(bindings.jump)}</kbd>`;
+  helpControls.appendChild(fly);
+}
+
+/* ------------------------------------------------------------------ *
+ * Options
+ * ------------------------------------------------------------------ */
+
+const optSensitivity = document.getElementById("opt-sensitivity");
+const optFov = document.getElementById("opt-fov");
+const optVolume = document.getElementById("opt-volume");
+const optRender = document.getElementById("opt-render");
+const optInvert = document.getElementById("opt-invert");
+const optBobbing = document.getElementById("opt-bobbing");
+const optAutosave = document.getElementById("opt-autosave");
+const optFullscreen = document.getElementById("opt-fullscreen");
+const valSensitivity = document.getElementById("val-sensitivity");
+const valFov = document.getElementById("val-fov");
+const valVolume = document.getElementById("val-volume");
+const valRender = document.getElementById("val-render");
+
+function applySettings() {
+  world.setRenderDistance(settings.renderDistance);
+  const viewDistance = world.loadRadius * CHUNK_SIZE;
+  scene.fog.near = viewDistance * 1.5;
+  scene.fog.far = viewDistance * 3.7;
+  camera.far = Math.max(180, viewDistance * 4);
+  camera.updateProjectionMatrix();
+  soundEngine.applyVolume();
+}
+
+function syncOptionsScreen() {
+  optSensitivity.value = String(settings.sensitivity);
+  optFov.value = String(settings.fov);
+  optVolume.value = String(settings.volume);
+  optRender.value = String(settings.renderDistance);
+  valSensitivity.textContent = `${settings.sensitivity}%`;
+  valFov.textContent = String(settings.fov);
+  valVolume.textContent = `${settings.volume}%`;
+  valRender.textContent = `${settings.renderDistance} chunk${settings.renderDistance === 1 ? "" : "s"}`;
+  optInvert.textContent = `Invert Mouse: ${settings.invertMouse ? "ON" : "OFF"}`;
+  optBobbing.textContent = `View Bobbing: ${settings.viewBobbing ? "ON" : "OFF"}`;
+  optAutosave.textContent = `Autosave: ${settings.autosave ? "ON" : "OFF"}`;
+  optFullscreen.textContent = `Fullscreen: ${document.fullscreenElement ? "ON" : "OFF"}`;
+}
+
+function updateSetting(key, value) {
+  settings[key] = value;
+  saveSettings();
+  applySettings();
+  syncOptionsScreen();
+}
+
+optSensitivity.addEventListener("input", () => updateSetting("sensitivity", Number(optSensitivity.value)));
+optFov.addEventListener("input", () => updateSetting("fov", Number(optFov.value)));
+optVolume.addEventListener("input", () => updateSetting("volume", Number(optVolume.value)));
+optRender.addEventListener("input", () => updateSetting("renderDistance", Number(optRender.value)));
+optInvert.addEventListener("click", () => updateSetting("invertMouse", !settings.invertMouse));
+optBobbing.addEventListener("click", () => updateSetting("viewBobbing", !settings.viewBobbing));
+optAutosave.addEventListener("click", () => updateSetting("autosave", !settings.autosave));
+optFullscreen.addEventListener("click", () => {
+  toggleFullscreen();
+  window.setTimeout(syncOptionsScreen, 120);
+});
+
+/* ------------------------------------------------------------------ *
+ * Menu buttons
+ * ------------------------------------------------------------------ */
+
+document.getElementById("btn-play").addEventListener("click", startGame);
+document.getElementById("btn-controls").addEventListener("click", () => openSubScreen("controls"));
+document.getElementById("btn-options").addEventListener("click", () => openSubScreen("options"));
+document.getElementById("btn-help").addEventListener("click", () => openSubScreen("help"));
+
+document.getElementById("btn-resume").addEventListener("click", resumeGame);
+document.getElementById("btn-pause-controls").addEventListener("click", () => openSubScreen("controls"));
+document.getElementById("btn-pause-options").addEventListener("click", () => openSubScreen("options"));
+document.getElementById("btn-pause-help").addEventListener("click", () => openSubScreen("help"));
+pauseModeBtn.addEventListener("click", () => setGameMode(isCreative() ? "survival" : "creative"));
+document.getElementById("btn-unstuck").addEventListener("click", () => {
+  respawnPlayer();
+  showToast("Teleported to safe ground");
+});
+document.getElementById("btn-quit").addEventListener("click", () => {
+  saveGame(true);
+  showScreen("title");
+});
+
+document.getElementById("btn-controls-reset").addEventListener("click", () => {
+  Object.assign(bindings, DEFAULT_BINDINGS);
+  saveBindings();
+  buildControlsScreen();
+  buildHelpControls();
+});
+document.getElementById("btn-controls-back").addEventListener("click", closeSubScreen);
+document.getElementById("btn-options-back").addEventListener("click", closeSubScreen);
+document.getElementById("btn-help-back").addEventListener("click", closeSubScreen);
+
+for (const button of document.querySelectorAll(".mode-option")) {
+  button.addEventListener("click", () => {
+    setGameMode(button.dataset.mode, { announce: false });
+  });
+}
+
+const resetButton = document.getElementById("btn-reset");
+let resetArmed = false;
+let resetTimer = 0;
+resetButton.addEventListener("click", () => {
+  if (!resetArmed) {
+    resetArmed = true;
+    resetButton.textContent = "Erase save? Click again";
+    window.clearTimeout(resetTimer);
+    resetTimer = window.setTimeout(() => {
+      resetArmed = false;
+      resetButton.textContent = "New World";
+    }, 4000);
+    return;
+  }
+  try {
+    localStorage.removeItem(SAVE_KEY);
+  } catch {
+    /* nothing to clear */
+  }
+  window.location.reload();
+});
+
 respawnBtn.addEventListener("click", respawnPlayer);
+deathTitleBtn.addEventListener("click", () => {
+  state.isDead = false;
+  deathScreen.classList.add("is-hidden");
+  showScreen("title");
+});
 inventoryClose.addEventListener("click", () => toggleInventory(false));
 
-canvas.addEventListener("click", () => {
-  if (!state.running) {
-    startGame();
-  } else if (!state.inventoryOpen) {
-    requestPointerLock();
+/* ------------------------------------------------------------------ *
+ * Input routing
+ * ------------------------------------------------------------------ */
+
+/** Keys the browser would otherwise steal while the world has focus. */
+const ALWAYS_PREVENT = new Set(["F1", "F3", "F5", "F11"]);
+const PLAYING_PREVENT = new Set([
+  "Space", "Tab", "F2", "F4",
+  "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
+  "Digit1", "Digit2", "Digit3", "Digit4", "Digit5",
+  "Digit6", "Digit7", "Digit8", "Digit9",
+]);
+/** Press actions that stay available outside the world. */
+const GLOBAL_ACTIONS = new Set(["fullscreen", "screenshot"]);
+
+function handleEscape() {
+  if (state.inventoryOpen) {
+    toggleInventory(false);
+    return;
   }
+  switch (state.screen) {
+    case "playing":
+      if (!state.isDead) {
+        openPauseMenu();
+      }
+      break;
+    case "pause":
+      resumeGame();
+      break;
+    case "controls":
+    case "options":
+    case "help":
+      closeSubScreen();
+      break;
+    default:
+      break;
+  }
+}
+
+function handleActionPress(action, event) {
+  if (action === "fullscreen") {
+    toggleFullscreen();
+    return;
+  }
+  if (action === "screenshot") {
+    takeScreenshot();
+    return;
+  }
+  if (!state.running) {
+    return;
+  }
+
+  const inWorld = !state.inventoryOpen && !state.isDead;
+
+  switch (action) {
+    case "inventory":
+      if (!state.isDead) {
+        toggleInventory();
+      }
+      return;
+    case "toggleHud":
+      state.hudVisible = !state.hudVisible;
+      return;
+    case "debug":
+      state.debugVisible = !state.debugVisible;
+      updateModeBanner();
+      return;
+    case "perspective":
+      cyclePerspective();
+      return;
+    case "gameMode":
+      setGameMode(isCreative() ? "survival" : "creative");
+      return;
+    case "drop":
+      if (inWorld) {
+        dropHeldItem(Boolean(event?.ctrlKey));
+      }
+      return;
+    case "pick":
+      if (inWorld) {
+        pickBlock();
+      }
+      return;
+    case "jump":
+      if (!inWorld) {
+        return;
+      }
+      // Double-tap jump toggles creative flight.
+      if (isCreative() && state.elapsed - state.lastJumpTapTime < DOUBLE_TAP_WINDOW) {
+        toggleFlight();
+        state.lastJumpTapTime = -99;
+      } else {
+        state.lastJumpTapTime = state.elapsed;
+      }
+      return;
+    case "forward":
+      if (!inWorld) {
+        return;
+      }
+      // Double-tap forward starts a sprint that holds until you let go.
+      if (state.elapsed - state.lastForwardTapTime < DOUBLE_TAP_WINDOW) {
+        state.sprintLatched = true;
+      }
+      state.lastForwardTapTime = state.elapsed;
+      return;
+    default:
+      if (action.startsWith("hotbar") && inWorld) {
+        selectHotbarSlot(Number(action.slice(6)) - 1);
+      }
+  }
+}
+
+function dispatchPress(token, event) {
+  for (const action of actionsForToken(token)) {
+    if (state.running || GLOBAL_ACTIONS.has(action)) {
+      handleActionPress(action, event);
+    }
+  }
+}
+
+window.addEventListener("keydown", (event) => {
+  if (state.awaitingBind) {
+    event.preventDefault();
+    handleBindingCapture(event.code);
+    return;
+  }
+  if (event.target instanceof HTMLInputElement) {
+    return;
+  }
+
+  if (state.running) {
+    soundEngine.resume();
+  }
+
+  if (ALWAYS_PREVENT.has(event.code) || (state.running && PLAYING_PREVENT.has(event.code))) {
+    event.preventDefault();
+  }
+
+  const token = canonicalToken(event.code);
+
+  if (!event.repeat) {
+    if (event.code === "Escape") {
+      handleEscape();
+      return;
+    }
+    dispatchPress(token, event);
+  }
+
+  if (state.running && !state.inventoryOpen) {
+    state.keys.add(token);
+  }
+});
+
+window.addEventListener("keyup", (event) => {
+  state.keys.delete(canonicalToken(event.code));
+  state.keys.delete(event.code);
+});
+
+window.addEventListener("blur", () => {
+  state.keys.clear();
+  state.sprintLatched = false;
+  state.dragLook = false;
+  state.dragAnchor = null;
 });
 
 canvas.addEventListener("contextmenu", (event) => {
@@ -4036,46 +5688,57 @@ canvas.addEventListener("contextmenu", (event) => {
 });
 
 canvas.addEventListener("mousedown", (event) => {
-  if (state.inventoryOpen) {
+  if (state.awaitingBind) {
+    event.preventDefault();
+    handleBindingCapture(mouseToken(event.button));
     return;
   }
-  if (state.running && !state.pointerLocked) {
-    requestPointerLock();
+  if (!state.running || state.inventoryOpen || state.isDead) {
+    return;
   }
-  if (event.button === 0) {
-    state.mouseDown.left = true;
+  if (event.button === 1) {
+    event.preventDefault();
   }
-  if (event.button === 2) {
-    state.mouseDown.right = true;
-  }
+  soundEngine.resume();
+
   if (!state.pointerLocked) {
+    // The click that captures the mouse should not also swing the pickaxe.
+    requestPointerLock();
+    state.suppressInteractUntil = state.elapsed + 0.22;
     state.dragLook = true;
     state.dragAnchor = { x: event.clientX, y: event.clientY };
   }
+
+  const token = mouseToken(event.button);
+  state.keys.add(token);
+  dispatchPress(token, event);
 });
 
-canvas.addEventListener("pointerdown", () => {
-  if (state.running && !state.inventoryOpen && !state.pointerLocked) {
-    requestPointerLock();
+document.addEventListener("mousedown", (event) => {
+  if (!state.awaitingBind) {
+    return;
   }
-  if (state.running) {
-    soundEngine.resume();
+  const target = event.target instanceof Element ? event.target : null;
+  if (target === canvas) {
+    return;
   }
+  if (target?.closest("button")) {
+    // Clicking any other control cancels instead of binding that click.
+    state.awaitingBind = null;
+    return;
+  }
+  event.preventDefault();
+  handleBindingCapture(mouseToken(event.button));
 });
 
 window.addEventListener("mouseup", (event) => {
-  if (event.button === 0) {
-    state.mouseDown.left = false;
-  }
-  if (event.button === 2) {
-    state.mouseDown.right = false;
-  }
+  state.keys.delete(mouseToken(event.button));
   state.dragLook = false;
   state.dragAnchor = null;
 });
 
 window.addEventListener("mousemove", (event) => {
-  if (state.inventoryOpen) {
+  if (!state.running || state.inventoryOpen || state.isDead) {
     return;
   }
   if (state.pointerLocked) {
@@ -4088,73 +5751,37 @@ window.addEventListener("mousemove", (event) => {
   }
 });
 
-window.addEventListener("pointerlockchange", updatePointerState);
-window.addEventListener("pointerlockerror", () => {
-  state.uiMessage = "Mouse look fallback: hold and drag on the canvas";
-  state.uiMessageTimer = 1.4;
-});
-window.addEventListener("resize", resizeRenderer);
 window.addEventListener("wheel", (event) => {
-  if (state.inventoryOpen) {
+  if (!state.running || state.inventoryOpen || state.isDead) {
     return;
   }
   event.preventDefault();
-  const nextSlot = (state.activeSlot + (event.deltaY > 0 ? 1 : -1) + HOTBAR_SIZE) % HOTBAR_SIZE;
-  if (nextSlot !== state.activeSlot) {
-    soundEngine.select();
-  }
-  state.activeSlot = nextSlot;
-  const itemId = getSelectedItem();
-  if (isPlaceableItem(itemId)) {
-    state.selectedBlock = itemId;
-  }
+  scrollHotbar(event.deltaY > 0 ? 1 : -1);
 }, { passive: false });
 
-window.addEventListener("keydown", (event) => {
-  if (state.running) {
-    soundEngine.resume();
-  }
-  if (event.code === "KeyE") {
-    event.preventDefault();
-    if (state.running) {
-      toggleInventory();
-    }
-    return;
-  }
-  if (event.code === "KeyR") {
-    if (state.running) {
-      respawnPlayer();
-    }
-    return;
-  }
-  if (event.code === "Escape") {
-    if (state.inventoryOpen) {
-      toggleInventory(false);
-    } else {
-      exitPointerLock();
-    }
-  }
-  if (
-    event.code === "Space" ||
-    event.code.startsWith("Arrow") ||
-    event.code.startsWith("Digit")
-  ) {
-    event.preventDefault();
-  }
-  state.keys.add(event.code);
+document.addEventListener("pointerlockchange", updatePointerState);
+document.addEventListener("pointerlockerror", () => {
+  state.pointerLockUnavailable = true;
+  showToast("Mouse look fallback: hold and drag on the canvas");
 });
-
-window.addEventListener("keyup", (event) => {
-  state.keys.delete(event.code);
-});
+document.addEventListener("fullscreenchange", syncOptionsScreen);
+window.addEventListener("resize", resizeRenderer);
 
 window.addEventListener("beforeunload", () => {
-  saveGame();
+  saveGame(true);
 });
 
+/* ------------------------------------------------------------------ *
+ * Boot
+ * ------------------------------------------------------------------ */
+
+loadSettings();
+loadBindings();
+applySettings();
+applyTitleTexture();
+pickSplash();
 resizeRenderer();
 buildHotbar();
-updateInventoryPanel();
 loadGame();
 ensureValidPlayerPosition();
 world.updateLoadedChunks(state.player.x, state.player.z);
@@ -4163,5 +5790,10 @@ passiveMobs.syncLoadedChunks();
 updateTarget();
 updateHotbar();
 updateInventoryPanel();
-render();
+buildControlsScreen();
+buildHelpControls();
+syncOptionsScreen();
+syncModePicker();
+showScreen("title");
+render(0);
 requestAnimationFrame(animationLoop(performance.now()));

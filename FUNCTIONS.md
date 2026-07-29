@@ -9,20 +9,27 @@ Reference for every function and system in `main.js`. Check here before adding a
 | Name | Value / Purpose |
 |---|---|
 | `CHUNK_SIZE` | 16 — columns per chunk |
-| `LOAD_RADIUS` / `UNLOAD_RADIUS` | 2 / 4 — chunk streaming distance |
+| `DEFAULT_RENDER_DISTANCE` / `MIN_` / `MAX_RENDER_DISTANCE` | 2 / 1 / 5 — chunk streaming bounds (live values on the `World` instance) |
 | `PLAYER_HEIGHT` / `PLAYER_RADIUS` | 1.8 / 0.34 — collision capsule |
 | `GRAVITY` | 24 |
 | `MOVE_SPEED` / `JUMP_SPEED` | 5.8 / 8.8 |
-| `LOOK_SENSITIVITY` | 0.0022 |
+| `SPRINT_MULTIPLIER` / `SNEAK_MULTIPLIER` | 1.35 / 0.32 — walk-speed scalars |
+| `SNEAK_CAMERA_DROP` | 0.22 — eye-height drop while sneaking |
+| `FLY_SPEED` / `FLY_VERTICAL_SPEED` / `FLY_BOOST_MULTIPLIER` | 10.4 / 7.2 / 2.1 — creative flight |
+| `BASE_LOOK_SENSITIVITY` | 0.0022 — scaled by the sensitivity option |
+| `DOUBLE_TAP_WINDOW` | 0.32 s — sprint and flight double-tap window |
 | `MAX_STEP_HEIGHT` | 0.6 — auto-step over 1-block ledges |
-| `INTERACTION_RANGE` | 8 — raycaster reach |
+| `INTERACTION_RANGE` | 5.2 — raycaster reach (Minecraft-like) |
+| `THIRD_PERSON_DISTANCE` | 4.2 — F5 camera pull-back |
 | `FIXED_STEP` | 1/60 — physics timestep |
 | `MAX_BUILD_HEIGHT` / `MIN_WORLD_Y` / `MAX_WORLD_Y` | 48 / -2 / 64 |
 | `WATER_LEVEL` | 7 |
 | `BREAK_RESET_TIME` | 1.15 s — decay break progress when not hitting |
+| `RESPAWN_SEARCH_RADIUS` / `RESPAWN_HEADROOM` / `PIT_WALL_HEIGHT` | 16 / 20 / 2 — safe-respawn search |
+| `DROP_PICKUP_DELAY` / `DROP_PICKUP_RANGE` / `DROP_LIFETIME` | 0.55 / 1.35 / 300 — dropped items |
 | `PARTICLE_POOL_SIZE` | 192 |
 | `CLOUD_COUNT` | 18 |
-| `SAVE_KEY` | `"mycraft-save-v2"` — localStorage key |
+| `SAVE_KEY` / `SETTINGS_KEY` / `BINDINGS_KEY` | `"mycraft-save-v2"` / `"mycraft-settings-v1"` / `"mycraft-controls-v1"` |
 | `DEFAULT_SPAWN` | `{ x: 4.5, z: -1.5, yaw: -1.15, pitch: -0.28 }` |
 | `CITY_PLAN` | Bounding rect + road grid params for the city district |
 | `SUBURB_PLAN` | Wider bounding rect for detached suburban houses |
@@ -36,7 +43,22 @@ Reference for every function and system in `main.js`. Check here before adding a
 | `ITEMS` | 101–105 | stick, coal, iron_ingot, wood_pickaxe, stone_pickaxe |
 | `BLOCK_NAMES` | — | Display name for every block and item ID |
 | `PLACEABLE_BLOCKS` | — | Array of block IDs the player can place from the hotbar |
-| `HOTBAR_SIZE` | 8 | Number of hotbar slots |
+| `CREATIVE_ITEMS` | — | Full creative palette, in build-menu order |
+| `HOTBAR_SIZE` | 9 | Number of hotbar slots |
+| `CREATIVE_STACK` | 999 | Count reported for every item in creative |
+
+### Controls & settings
+
+| Constant | Purpose |
+|---|---|
+| `DEFAULT_BINDINGS` | action → token map, matching Minecraft Java Edition defaults |
+| `BINDING_LABELS` | Human-readable name per action (Controls screen) |
+| `BINDING_GROUPS` | Controls-screen grouping: Movement / Gameplay / Hotbar / Display |
+| `FIXED_BINDINGS` | Actions that cannot be rebound (`pause`) |
+| `TOKEN_ALIASES` | Right Shift/Ctrl/Alt → left twin when the twin is unbound |
+| `KEY_LABELS` / `MOUSE_LABELS` | Token → display string tables |
+| `bindings` | Live binding map (mutable, persisted) |
+| `DEFAULT_SETTINGS` / `settings` | sensitivity, fov, volume, renderDistance, invertMouse, viewBobbing, autosave |
 
 ### Recipe tables
 
@@ -178,12 +200,19 @@ Reference for every function and system in `main.js`. Check here before adding a
 | `tryStepUp(nextX, currentY, nextZ)` | Returns stepped-up Y if auto-step is possible, else `null` |
 | `applyPlayerToCamera()` | (Also in rendering) Maps player state → camera transform, bob, tilt, FOV |
 | `canPlaceBlock(x, y, z)` | Y bounds check + no collision at block center |
+| `hasGroundUnder(x, y, z)` | `true` if any footprint corner has a block beneath — powers sneak ledge protection |
 | `movePlayerToSpawn()` | Hard teleport to `DEFAULT_SPAWN` coordinates + ground height. Resets velocity |
-| `findClosestSafeRespawn()` | Searches outward from `lastSafePosX/Z` in 13 offsets for a collision-free surface point. Falls back to `DEFAULT_SPAWN` |
-| `handlePlayerDeath()` | Sets `isDead`, exits pointer lock, computes nearest respawn, shows death screen |
-| `respawnPlayer()` | Calls `findClosestSafeRespawn`, teleports player, clears `isDead`, hides death screen, re-requests pointer lock |
+| `getStandableSurfaceY(bx, bz)` | Topmost non-air/water block in a column, honouring player edits (unlike `getHeightAt`) |
+| `evaluateRespawnColumn(bx, bz)` | Returns a spawn point only if the column has headroom, open sky, and is not a pit floor (6+ of 8 neighbours ≥ 2 blocks higher) |
+| `ringOffsets(radius)` | Chebyshev ring offsets sorted nearest-first, for the outward respawn search |
+| `findClosestSafeRespawn()` | Ring-searches out to `RESPAWN_SEARCH_RADIUS` for a valid column; falls back to world spawn |
+| `updateSafeAnchor(dt)` | Throttled (0.5 s) recording of `lastSafePosX/Z`, only for columns that pass `evaluateRespawnColumn` |
+| `handlePlayerDeath()` | Sets `isDead`, cancels flight, clears held keys, exits pointer lock, shows death screen |
+| `respawnPlayer()` | Teleports to `findClosestSafeRespawn`, clears `isDead`/flight, nudges up out of any geometry, re-requests pointer lock |
 | `ensureValidPlayerPosition()` | If spawning into a collision, teleport to spawn (called once at load) |
 | `getFootstepBlockType()` | Block type underfoot for footstep audio selection |
+| `getEyeHeight()` / `getEyePosition(v)` / `getLookDirection(v, yaw, pitch)` | Eye/ray basis shared by the camera, the interaction raycast, and item drops |
+| `updatePlayerModel()` | Positions and animates `playerModel`; only visible outside first person |
 
 ---
 
@@ -191,7 +220,7 @@ Reference for every function and system in `main.js`. Check here before adding a
 
 | Function | What it does |
 |---|---|
-| `updateTarget()` | Raycasts from camera center, updates `state.target` + highlight mesh position. Also drives break-overlay color |
+| `updateTarget()` | Raycasts from the **eye** along the look direction (so third person keeps the same reach), capped at `INTERACTION_RANGE`. Updates `state.target` + highlight mesh position and drives break-overlay color |
 | `interact(breaking)` | Unified break/place handler. Respects cooldown, tool tier, block hardness. Awards drops on break, consumes inventory on place |
 | `resetBreakState()` | Clears break progress state and hides break overlay |
 | `updateBreakVisuals()` | Colors highlight + scales overlay based on current break fraction and pulse |
@@ -209,6 +238,10 @@ Reference for every function and system in `main.js`. Check here before adding a
 | Function | What it does |
 |---|---|
 | `getSelectedItem()` | `state.hotbarSlots[state.activeSlot]` |
+| `isCreative()` | `state.gameMode === "creative"` |
+| `getItemCount(itemId)` | Stack size — always `CREATIVE_STACK` in creative. **Use this, not `state.inventory` directly** |
+| `addItem(itemId, amount)` | Grants items (no-op in creative) |
+| `consumeItem(itemId, amount)` | Spends items and clears the hotbar slot at zero (no-op in creative) |
 | `getToolProfile()` | `TOOL_STATS[selectedItem]` or `TOOL_STATS.hand` |
 | `setSelectedBlock(blockType)` | Updates `state.selectedBlock`, refreshes inventory panel if open |
 | `setActiveItem(itemId)` | Equips item to hotbar (reuses existing slot or overwrites active), updates `selectedBlock` |
@@ -231,10 +264,21 @@ Reference for every function and system in `main.js`. Check here before adding a
 | `createInventorySlot(itemId, count, selected)` | Builds a button DOM element for the inventory grid |
 | `createPatternGrid(pattern)` | Builds the 2D ingredient grid shown in recipe cards |
 | `buildRecipeSection(title, subtitle, recipes, type)` | Builds an entire recipe list section DOM node with craft/smelt buttons wired up |
-| `updateInventoryPanel()` | Full rebuild of inventory grid + recipe sections, including showing station-locked sections only when the block is targeted |
+| `updateInventoryPanel()` | Full rebuild of the item grid + recipe sections. In creative it shows `CREATIVE_ITEMS` full-width and hides recipes |
 | `toggleInventory(forceOpen)` | Open/close inventory panel, exit/request pointer lock, play sound |
-| `buildHotbar()` | One-time DOM creation of 8 hotbar slot elements |
-| `updateHotbar()` | Per-frame sync of slot icons, counts, active state |
+| `buildHotbar()` | One-time DOM creation of 9 hotbar slot elements |
+| `updateHotbar()` | Per-frame sync of slot icons, counts, active state (writes only on change) |
+
+---
+
+## Dropped Items
+
+| Function | What it does |
+|---|---|
+| `spawnDrop(itemId, x, y, z, vx, vy, vz)` | Adds a billboard sprite drop to `state.drops` |
+| `updateDrops(dt)` | Gravity, block collision, bob, and pickup within `DROP_PICKUP_RANGE` after `DROP_PICKUP_DELAY` |
+| `removeDrop(index)` / `clearDrops()` | Remove from scene and dispose the sprite material |
+| `getIconTexture(itemId)` | Lazily builds a `CanvasTexture` from the cached icon canvas |
 
 ---
 
@@ -244,8 +288,10 @@ Reference for every function and system in `main.js`. Check here before adding a
 |---|---|
 | `serializeWorldEdits()` | Serialize `chunk.edits` maps to a plain object keyed by chunk key |
 | `hydrateWorldEdits(savedChunks)` | Reapply saved edits back into chunk objects |
-| `saveGame()` | Write inventory, hotbar, player, dayTime, worldEdits to `localStorage` under `SAVE_KEY` |
+| `saveGame(force)` | Write gameMode, inventory, hotbar, player, dayTime, worldEdits under `SAVE_KEY`. Skipped when the Autosave option is off unless `force` |
 | `loadGame()` | Read and apply the save; handles missing/corrupt data gracefully |
+| `loadSettings()` / `saveSettings()` | Options persistence under `SETTINGS_KEY` |
+| `loadBindings()` / `saveBindings()` | Key-binding persistence under `BINDINGS_KEY` |
 
 ---
 
@@ -253,9 +299,21 @@ Reference for every function and system in `main.js`. Check here before adding a
 
 | Function | What it does |
 |---|---|
-| `updateHud()` | Updates `hudPrimary` (selected item, target, break %, chunk stats, bag summary) and `hudSecondary` (XYZ, yaw/pitch, pointer lock status, sprint, city/snow distance, mob count, day time, UI message) |
-| `setMode(mode)` | Switches `"menu"` ↔ `"playing"`. Hides/shows menu. Also clears `isDead` + hides death screen |
-| `startGame()` | `setMode("playing")` → close inventory → focus canvas → resume audio → request pointer lock |
+| `updateHud()` | Toggles HUD visibility, drives the toast + held-item labels, and fills the F3 debug columns when `state.debugVisible` |
+| `showToast(message, duration)` | Transient centre-screen message — **use this instead of setting `uiMessage` directly** |
+| `announceHeldItem()` | Shows the held item's name above the hotbar for 2 s |
+| `updateModeBanner()` | Corner Survival/Creative/Flying badge (hidden while F3 is up) |
+| `getFacingLabel(yaw)` / `getBiomeLabel()` | Debug-overlay helpers |
+| `showScreen(name)` | Master screen switch: `playing` / `title` / `pause` / `controls` / `options` / `help` |
+| `openSubScreen(name)` / `closeSubScreen()` | Push/pop Controls, Options, Help while remembering the origin screen |
+| `setMode(mode)` | Back-compat shim over `showScreen` |
+| `startGame()` / `resumeGame()` / `openPauseMenu()` | World entry, resume from pause, and pausing |
+| `setGameMode(mode, opts)` | Switch survival/creative, cancel flight, refresh dependent UI |
+| `buildControlsScreen()` / `handleBindingCapture(token)` | Render the rebinding list and capture the next key/button |
+| `buildHelpControls()` | Fills the How-to-Play key list from the live bindings |
+| `syncOptionsScreen()` / `updateSetting(key, value)` / `applySettings()` | Options screen sync, mutation, and application (render distance, fog, camera far, volume) |
+| `pickSplash()` / `applyTitleTexture()` | Title-screen splash line and grass-textured wordmark |
+| `updatePanorama(dt)` / `isWorldView()` | Title-screen orbit camera and the "is a world on screen" test |
 
 ---
 
@@ -263,11 +321,21 @@ Reference for every function and system in `main.js`. Check here before adding a
 
 | Function | What it does |
 |---|---|
-| `handleInput(dt)` | WASD movement, arrow-key look, sprint (Shift), jump (Space), digit-key hotbar selection, F (fullscreen), B (place block) |
-| `moveLook(deltaX, deltaY)` | Apply yaw/pitch delta, clamp pitch to `[−1.45, 1.45]` |
-| `requestPointerLock()` | Request pointer lock on canvas if conditions met (running, not inventory, not already locked) |
-| `exitPointerLock()` | Release pointer lock |
-| `updatePointerState()` | Sync `state.pointerLocked`, clear drag state on lock |
+| `handleInput(dt)` | Polls held bindings: movement, sneak, sprint, jump/fly, arrow-key look fallback, and held attack/use |
+| `handleActionPress(action, event)` | One-shot actions: inventory, drop, pick, hotbar slots, HUD/debug/perspective/mode toggles, fullscreen, screenshot, and the double-tap sprint/flight detection |
+| `dispatchPress(token, event)` | Resolves a token to actions and forwards each to `handleActionPress` |
+| `handleEscape()` | Escape routing: close inventory → pause → resume → back out of a sub-screen |
+| `isActionDown(action)` | `state.keys.has(bindings[action])` |
+| `actionsForToken(token)` / `canonicalToken(token)` / `isTokenBound(token)` | Token ↔ action resolution, including right-modifier aliasing |
+| `describeToken(token)` / `keyHint(action)` | Display strings for bindings |
+| `findBindingConflicts()` | Set of actions sharing a token (highlighted red in Controls) |
+| `selectHotbarSlot(index)` / `scrollHotbar(direction)` | Hotbar selection by key and by wheel |
+| `pickBlock()` | Middle-click: put the targeted block in hand |
+| `dropHeldItem(wholeStack)` | Throws the held item into the world as a pickup-able drop |
+| `cyclePerspective()` / `toggleFlight()` / `toggleFullscreen()` / `takeScreenshot()` | F5 / double-jump / F11 / F2 |
+| `moveLook(deltaX, deltaY)` | Apply yaw/pitch delta scaled by sensitivity, honouring Invert Mouse; clamps pitch to `[−1.55, 1.55]` |
+| `requestPointerLock()` / `exitPointerLock()` | Acquire/release; the latter flags `intentionalUnlock` |
+| `updatePointerState()` | Syncs `state.pointerLocked` and **opens the pause menu on an unexpected unlock** (Esc while locked never fires `keydown`) |
 
 ---
 
@@ -294,25 +362,29 @@ Reference for every function and system in `main.js`. Check here before adding a
 
 | Function | What it does |
 |---|---|
-| `update(dt, shouldRender)` | Main tick: advances timers, streams chunks, runs `handleInput` + physics (skipped when `isDead`), tracks `lastSafePos`, detects fall death, updates particles/mobs/target/break/save, then calls `render` |
-| `render()` | Camera sync + lighting + Three.js render + UI updates |
+| `update(dt, shouldRender)` | Main tick: advances timers, streams chunks, runs `handleInput` + physics (skipped when `isDead`), records the safe anchor, detects fall death, updates particles/drops/mobs/target/break/save, then calls `render` |
+| `render(dt)` | Camera or panorama + lighting + Three.js render + UI updates |
+| `trackFrameRate(dt)` | Rolling 30-frame average feeding the F3 fps readout |
 
 ### Update flow when alive
 ```
 update(dt)
-  ├─ advance timers (elapsed, dayTime, uiMessageTimer, viewBob, saveCooldown, breakState.pulse)
+  ├─ trackFrameRate(dt)
+  ├─ if !running: tick UI timers → render(dt) [title panorama] → return
+  ├─ advance timers (elapsed, dayTime, uiMessageTimer, heldItemTimer, viewBob, saveCooldown, breakState.pulse)
   ├─ world.updateLoadedChunks / chunkMeshes.syncLoadedChunks / passiveMobs.syncLoadedChunks
   ├─ if !isDead:
   │   ├─ handleInput(dt)
-  │   ├─ gravity + movePlayerAxis x/z/y
+  │   ├─ gravity (skipped while flying) + movePlayerAxis x/z/y
+  │   ├─ landing ends flight
   │   ├─ landing effects
   │   ├─ footsteps
-  │   ├─ update lastSafePosX/Z (when onGround)
+  │   ├─ updateSafeAnchor(dt)
   │   └─ if y < -20 → handlePlayerDeath()
-  ├─ updateParticles / passiveMobs.update / updateTarget
+  ├─ updateParticles / updateDrops / passiveMobs.update / updateTarget
   ├─ break-progress decay
   ├─ auto-save
-  └─ render()
+  └─ render(dt)
 ```
 
 ---
@@ -321,17 +393,33 @@ update(dt)
 
 | Field | Purpose |
 |---|---|
-| `mode` | `"menu"` or `"playing"` |
+| `mode` | `"menu"`, `"playing"`, or the current screen name |
+| `screen` | `"title"` / `"playing"` / `"pause"` / `"controls"` / `"options"` / `"help"` |
+| `screenReturn` | Screen to come back to when closing a sub-screen |
+| `gameMode` | `"survival"` or `"creative"` (saved with the world) |
 | `running` | `true` when playing |
 | `isDead` | `true` while death screen is shown — blocks physics + input |
-| `lastSafePosX/Z` | Updated each frame when `onGround`; used by respawn logic |
+| `lastSafePosX/Z` | Last verified open-ground position; used by respawn logic |
+| `safeAnchorCooldown` | Throttle for `updateSafeAnchor` |
 | `pointerLocked` | Mirrors `document.pointerLockElement === canvas` |
+| `intentionalUnlock` | Suppresses the auto-pause for deliberate pointer-lock exits |
+| `pointerLockUnavailable` | Set when the browser refuses pointer lock (drag-look fallback) |
+| `suppressInteractUntil` | Blocks attack/use briefly after the click that captured the mouse |
 | `inventoryOpen` | Inventory panel visible |
-| `keys` | `Set<string>` of currently pressed `event.code` values |
-| `mouseDown` | `{ left, right }` mouse button state |
+| `keys` | `Set<string>` of currently held tokens — keyboard **and** mouse |
+| `awaitingBind` | Action currently being rebound on the Controls screen |
+| `sneaking` / `sprinting` / `sprintLatched` | Movement modifiers; `sprintLatched` is the double-tap sprint |
+| `flying` / `flyVelocityY` | Creative flight state |
+| `lastForwardTapTime` / `lastJumpTapTime` | Double-tap timers |
+| `perspective` | 0 first person, 1 third back, 2 third front |
+| `hudVisible` / `debugVisible` | F1 and F3 toggles |
+| `frameTimes` / `fps` | Rolling frame-rate sample |
+| `panoramaAngle` | Title-screen orbit angle |
+| `drops` | Active dropped-item entities |
+| `heldItemName` / `heldItemTimer` | Item name shown above the hotbar |
 | `selectedBlock` | Currently active placeable block ID |
-| `activeSlot` | 0–7 hotbar slot index |
-| `hotbarSlots` | Array of 8 item IDs (or `null`) |
+| `activeSlot` | 0–8 hotbar slot index |
+| `hotbarSlots` | Array of 9 item IDs (or `null`) |
 | `elapsed` | Total seconds since game start |
 | `dayTime` | 0–1 cycling day/night value (advances at `dt * 0.01`) |
 | `target` | Current raycasted block: `{ block: {x,y,z,type}, place, normal, distance }` or `null` |
@@ -345,21 +433,25 @@ update(dt)
 
 ---
 
-## Controls (complete list)
+## Controls (defaults — all rebindable except Escape)
 
 | Key | Action |
 |---|---|
 | `W / A / S / D` | Move |
-| `Shift` (hold) | Sprint |
-| `Space` | Jump |
-| `Arrow keys` | Look |
-| `1–8` | Select hotbar slot |
+| `Left Shift` (hold) | Sneak (ledge-safe) / fly down |
+| `Left Ctrl` (hold) or double-tap `W` | Sprint |
+| `Space` | Jump / fly up; double-tap toggles creative flight |
+| `Arrow keys` | Look (no-mouse fallback, not a binding) |
+| `1–9` | Select hotbar slot |
 | `Scroll wheel` | Cycle hotbar |
-| `Left click` | Break block |
-| `Right click` or `B` | Place block |
+| `Left click` (hold) | Attack / break block |
+| `Right click` | Use item / place block |
+| `Middle click` | Pick block |
+| `Q` / `Ctrl`+`Q` | Drop one / drop stack |
 | `E` | Open/close inventory |
-| `R` | Manual respawn (nearest safe ground) |
-| `F` | Toggle fullscreen |
+| `F1` / `F2` / `F3` | Toggle HUD / screenshot / debug info |
+| `F4` / `F5` / `F11` | Switch game mode / perspective / fullscreen |
+| `Escape` | Pause menu, or back out of a screen |
 
 ---
 
@@ -367,9 +459,12 @@ update(dt)
 
 | Element ID | Condition shown |
 |---|---|
-| `#menu` | `state.mode === "menu"` (hidden via `is-hidden` on `setMode("playing")`) |
+| `#screen-title` | `state.screen === "title"` |
+| `#screen-pause` | `state.screen === "pause"` |
+| `#screen-controls` / `#screen-options` / `#screen-help` | Matching `state.screen` |
 | `#inventory-panel` | `state.inventoryOpen === true` |
 | `#death-screen` | `state.isDead === true` |
-| `#hotbar` | Always visible during play |
-| `.hud` | Always visible during play (`#hud-primary` left, `#hud-secondary` right) |
-| `.crosshair` | Always visible |
+| `#hud-layer` | During play, unless F1 hid it (`#hotbar`, `.crosshair`, `#item-name`, `#toast`, `#mode-banner`) |
+| `#debug-overlay` | `state.debugVisible && state.hudVisible` (`#debug-left`, `#debug-right`) |
+
+`showScreen(name)` toggles `is-hidden` on every `#screen-*` element and sets `is-playing` on `<body>`.

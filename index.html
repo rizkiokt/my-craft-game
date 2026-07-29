@@ -9,68 +9,236 @@
   <body>
     <div class="app-shell">
       <canvas id="game" width="960" height="540" tabindex="0" aria-label="MyCraft game canvas"></canvas>
-      <div class="crosshair" aria-hidden="true"></div>
-      <div id="hotbar" class="hotbar" aria-hidden="true"></div>
+
+      <!-- ---------------------------------------------------------------- -->
+      <!-- In-world HUD                                                      -->
+      <!-- ---------------------------------------------------------------- -->
+      <div id="hud-layer" class="hud-layer">
+        <div class="crosshair" aria-hidden="true"></div>
+        <div id="mode-banner" class="mode-banner"></div>
+        <div id="toast" class="toast"></div>
+        <div class="hotbar-wrap">
+          <div id="item-name" class="item-name"></div>
+          <div id="hotbar" class="hotbar" aria-hidden="true"></div>
+        </div>
+      </div>
+
+      <div id="debug-overlay" class="debug-overlay is-hidden" aria-hidden="true">
+        <pre id="debug-left" class="debug-block"></pre>
+        <pre id="debug-right" class="debug-block debug-right"></pre>
+      </div>
+
+      <!-- ---------------------------------------------------------------- -->
+      <!-- Inventory / crafting                                              -->
+      <!-- ---------------------------------------------------------------- -->
       <div id="inventory-panel" class="inventory-panel is-hidden">
         <div class="inventory-card">
           <div class="inventory-head">
             <div>
-              <p class="eyebrow">Inventory</p>
-              <h2>Crafting Bench</h2>
+              <p class="eyebrow" id="inventory-eyebrow">Survival Inventory</p>
+              <h2>Crafting</h2>
             </div>
-            <button id="inventory-close" class="inventory-close" type="button">Close</button>
+            <button id="inventory-close" class="mc-btn mc-btn-sm" type="button">Done</button>
           </div>
-          <div class="inventory-body">
+          <div class="inventory-body" id="inventory-body">
             <section class="inventory-section">
               <div class="section-title">
-                <h3>Backpack</h3>
-                <span>Click an item to equip it</span>
+                <h3 id="inventory-grid-title">Backpack</h3>
+                <span id="inventory-grid-hint">Click an item to hold it</span>
               </div>
               <div id="inventory-grid" class="inventory-grid"></div>
             </section>
             <section class="inventory-section inventory-section-wide">
               <div class="section-title">
                 <h3>Recipes</h3>
-                <span>`E` opens and closes crafting</span>
+                <span id="inventory-recipe-hint">Press E to close</span>
               </div>
               <div id="recipe-list" class="recipe-list"></div>
             </section>
           </div>
         </div>
       </div>
-      <div class="hud">
-        <div id="hud-primary"></div>
-        <div id="hud-secondary"></div>
-      </div>
-      <div id="death-screen" class="death-screen is-hidden">
-        <div class="death-card">
-          <p class="eyebrow">You Died</p>
-          <h2>Game Over</h2>
-          <p id="death-location" class="death-subtitle"></p>
-          <button id="respawn-btn" type="button">Respawn</button>
+
+      <!-- ---------------------------------------------------------------- -->
+      <!-- Death screen                                                      -->
+      <!-- ---------------------------------------------------------------- -->
+      <div id="death-screen" class="screen death-screen is-hidden">
+        <div class="screen-panel death-panel">
+          <h2 class="death-title">You Died!</h2>
+          <p id="death-location" class="screen-subtitle"></p>
+          <div class="menu-buttons">
+            <button id="respawn-btn" class="mc-btn mc-btn-wide" type="button">Respawn</button>
+            <button id="death-title-btn" class="mc-btn mc-btn-wide" type="button">Title Screen</button>
+          </div>
         </div>
       </div>
-      <div id="menu" class="menu">
-        <div class="menu-card">
-          <p class="eyebrow">MyCraft</p>
-          <h1>Voxel Sandbox</h1>
-          <p class="intro">
-            Procedural chunks, block breaking, block placing, and a compact
-            first-person renderer.
+
+      <!-- ---------------------------------------------------------------- -->
+      <!-- Title screen                                                      -->
+      <!-- ---------------------------------------------------------------- -->
+      <div id="screen-title" class="screen screen-title">
+        <div class="title-wrap">
+          <div class="brand">
+            <h1 class="game-title">MyCraft</h1>
+            <p id="splash" class="splash">100% procedural!</p>
+          </div>
+
+          <div class="menu-buttons">
+            <button id="btn-play" class="mc-btn mc-btn-wide mc-btn-primary" type="button">
+              Play World
+            </button>
+            <div class="mode-picker" role="radiogroup" aria-label="Game mode">
+              <button class="mc-btn mode-option is-active" type="button" data-mode="survival">
+                <strong>Survival</strong>
+                <small>Mine it to keep it</small>
+              </button>
+              <button class="mc-btn mode-option" type="button" data-mode="creative">
+                <strong>Creative</strong>
+                <small>Every block + flight</small>
+              </button>
+            </div>
+            <div class="btn-row">
+              <button id="btn-controls" class="mc-btn" type="button">Controls...</button>
+              <button id="btn-options" class="mc-btn" type="button">Options...</button>
+            </div>
+            <div class="btn-row">
+              <button id="btn-help" class="mc-btn" type="button">How to Play</button>
+              <button id="btn-reset" class="mc-btn mc-btn-danger" type="button">New World</button>
+            </div>
+          </div>
+
+          <p class="menu-hint">
+            Move with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> &middot; break with
+            <kbd>Left Click</kbd> &middot; place with <kbd>Right Click</kbd> &middot; pause with <kbd>Esc</kbd>
           </p>
-          <ul class="controls">
-            <li><span>Move</span><strong>WASD</strong></li>
-            <li><span>Sprint</span><strong>Hold Shift</strong></li>
-            <li><span>Look</span><strong>Mouse, Drag, or Arrow Keys</strong></li>
-            <li><span>Jump</span><strong>Space</strong></li>
-            <li><span>Break</span><strong>Left Click</strong></li>
-            <li><span>Place</span><strong>Right Click or B</strong></li>
-            <li><span>Select Block</span><strong>1 to 8 or Wheel</strong></li>
-            <li><span>Inventory</span><strong>E</strong></li>
-            <li><span>Respawn</span><strong>R</strong></li>
-            <li><span>Fullscreen</span><strong>F</strong></li>
-          </ul>
-          <button id="start-btn" type="button">Enter World</button>
+        </div>
+        <div class="corner corner-left">MyCraft &mdash; voxel sandbox</div>
+        <div class="corner corner-right">Fan project. Not affiliated with Mojang.</div>
+      </div>
+
+      <!-- ---------------------------------------------------------------- -->
+      <!-- Pause menu                                                        -->
+      <!-- ---------------------------------------------------------------- -->
+      <div id="screen-pause" class="screen screen-blur is-hidden">
+        <div class="screen-panel">
+          <h2 class="screen-title-text">Game Menu</h2>
+          <div class="menu-buttons">
+            <button id="btn-resume" class="mc-btn mc-btn-wide mc-btn-primary" type="button">
+              Back to Game
+            </button>
+            <div class="btn-row">
+              <button id="btn-pause-controls" class="mc-btn" type="button">Controls...</button>
+              <button id="btn-pause-options" class="mc-btn" type="button">Options...</button>
+            </div>
+            <div class="btn-row">
+              <button id="btn-pause-help" class="mc-btn" type="button">How to Play</button>
+              <button id="btn-pause-mode" class="mc-btn" type="button">Mode: Survival</button>
+            </div>
+            <button id="btn-unstuck" class="mc-btn mc-btn-wide" type="button">
+              Stuck? Teleport to Safe Ground
+            </button>
+            <button id="btn-quit" class="mc-btn mc-btn-wide" type="button">Save and Quit to Title</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---------------------------------------------------------------- -->
+      <!-- Controls screen                                                   -->
+      <!-- ---------------------------------------------------------------- -->
+      <div id="screen-controls" class="screen screen-blur is-hidden">
+        <div class="screen-panel screen-panel-wide">
+          <h2 class="screen-title-text">Controls</h2>
+          <p class="screen-subtitle">
+            Click a binding, then press any key or mouse button. <kbd>Esc</kbd> cancels.
+          </p>
+          <div id="controls-list" class="controls-list"></div>
+          <div class="btn-row btn-row-end">
+            <button id="btn-controls-reset" class="mc-btn" type="button">Reset to Defaults</button>
+            <button id="btn-controls-back" class="mc-btn mc-btn-primary" type="button">Done</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---------------------------------------------------------------- -->
+      <!-- Options screen                                                    -->
+      <!-- ---------------------------------------------------------------- -->
+      <div id="screen-options" class="screen screen-blur is-hidden">
+        <div class="screen-panel">
+          <h2 class="screen-title-text">Options</h2>
+          <div class="options-grid">
+            <label class="option-row">
+              <span>Mouse Sensitivity <b id="val-sensitivity">100%</b></span>
+              <input id="opt-sensitivity" type="range" min="20" max="250" step="5" value="100" />
+            </label>
+            <label class="option-row">
+              <span>Field of View <b id="val-fov">75</b></span>
+              <input id="opt-fov" type="range" min="55" max="110" step="1" value="75" />
+            </label>
+            <label class="option-row">
+              <span>Master Volume <b id="val-volume">100%</b></span>
+              <input id="opt-volume" type="range" min="0" max="100" step="5" value="100" />
+            </label>
+            <label class="option-row">
+              <span>Render Distance <b id="val-render">2 chunks</b></span>
+              <input id="opt-render" type="range" min="1" max="5" step="1" value="2" />
+            </label>
+            <div class="option-row option-row-toggles">
+              <button id="opt-invert" class="mc-btn" type="button">Invert Mouse: OFF</button>
+              <button id="opt-bobbing" class="mc-btn" type="button">View Bobbing: ON</button>
+            </div>
+            <div class="option-row option-row-toggles">
+              <button id="opt-autosave" class="mc-btn" type="button">Autosave: ON</button>
+              <button id="opt-fullscreen" class="mc-btn" type="button">Fullscreen: OFF</button>
+            </div>
+          </div>
+          <div class="btn-row btn-row-end">
+            <button id="btn-options-back" class="mc-btn mc-btn-primary" type="button">Done</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---------------------------------------------------------------- -->
+      <!-- How to play                                                       -->
+      <!-- ---------------------------------------------------------------- -->
+      <div id="screen-help" class="screen screen-blur is-hidden">
+        <div class="screen-panel screen-panel-wide">
+          <h2 class="screen-title-text">How to Play</h2>
+          <div class="help-body">
+            <section>
+              <h3>Getting started</h3>
+              <ul id="help-controls" class="help-list"></ul>
+            </section>
+            <section>
+              <h3>Survival loop</h3>
+              <ul class="help-list">
+                <li>Punch trees for <b>Wood</b>, then open the inventory to craft <b>Planks</b> and <b>Sticks</b>.</li>
+                <li>Craft a <b>Crafting Table</b>, place it, and look at it to unlock bigger recipes.</li>
+                <li>A <b>Wood Pickaxe</b> mines stone; a <b>Stone Pickaxe</b> mines iron ore.</li>
+                <li>Place a <b>Furnace</b> and look at it to smelt iron ore with coal.</li>
+                <li>Stone and ores need the right tool &mdash; the HUD tells you when you need better gear.</li>
+              </ul>
+            </section>
+            <section>
+              <h3>Creative mode</h3>
+              <ul class="help-list">
+                <li>Every block and item is unlocked with unlimited supply.</li>
+                <li>Double-tap <b>Jump</b> to start and stop flying.</li>
+                <li>While flying, <b>Jump</b> rises and <b>Sneak</b> descends.</li>
+                <li>Blocks break instantly and nothing is consumed when you build.</li>
+              </ul>
+            </section>
+            <section>
+              <h3>Where to explore</h3>
+              <ul class="help-list">
+                <li><b>City district</b> around x 18, z -14 &mdash; brick towers, roads, and villagers.</li>
+                <li><b>Snow realm</b> east near x 112, z 66 &mdash; igloos, lodges, and pine forest.</li>
+                <li>Caves and ore veins run below the surface; bring a pickaxe.</li>
+              </ul>
+            </section>
+          </div>
+          <div class="btn-row btn-row-end">
+            <button id="btn-help-back" class="mc-btn mc-btn-primary" type="button">Done</button>
+          </div>
         </div>
       </div>
     </div>
