@@ -64,9 +64,13 @@ never asks to capture your pointer.
 - **Left half of the screen** — put your thumb down anywhere and a stick appears under it.
   Push to walk; push it right to the edge to run.
 - **Right half** — drag to look around.
-- **Jump**, **Mine** (hold to break), **Place** and **Sneak** sit in the bottom-right corner
-  under your other thumb.
-- **Bag**, **View** and **Menu** are along the top-left.
+- **Picture buttons** sit in the bottom-right corner under your other thumb:
+  - **↑** jump
+  - **↓** sneak
+  - **cracked orange block** — hold to break
+  - **whole green block** — place
+- Along the top-left: a **backpack** for your things, a **camera** to change the view, and
+  **pause bars** for the menu.
 - **Tap a hotbar slot** to change what you are holding.
 
 Everything else — the menus, crafting, chests — is ordinary tapping.

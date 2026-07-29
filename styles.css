@@ -1537,33 +1537,71 @@ body.is-touch .touch-layer {
 
 .touch-btn {
   pointer-events: auto;
-  min-width: 74px;
-  padding: 14px 10px;
-  border: 2px solid rgba(255, 255, 255, 0.16);
-  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  width: 66px;
+  height: 66px;
+  padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
   background: rgba(16, 20, 28, 0.6);
   color: #f2f4f8;
-  font: 600 14px/1 "Trebuchet MS", sans-serif;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
   -webkit-tap-highlight-color: transparent;
 }
 
+/* The glyph must never be the event target, or a press can miss the button. */
+.touch-btn svg {
+  width: 30px;
+  height: 30px;
+  pointer-events: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.touch-btn svg .fill {
+  fill: currentColor;
+  stroke: none;
+}
+
+/*
+ * Break and build are the same cube, whole or cracked, so they are tinted
+ * apart as well as drawn apart. Two glyphs this similar are easy to confuse
+ * mid-game, and colour reads faster than shape.
+ */
+.touch-btn[data-hold="attack"] {
+  color: #ffcb85;
+}
+
+.touch-btn[data-hold="use"] {
+  color: #a3e2a6;
+}
+
 .touch-btn.is-down {
-  background: rgba(120, 190, 255, 0.42);
-  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(120, 190, 255, 0.5);
+  border-color: rgba(255, 255, 255, 0.62);
 }
 
 .touch-btn-sm {
-  min-width: 58px;
-  padding: 10px 8px;
-  font-size: 12px;
+  width: 48px;
+  height: 48px;
+}
+
+.touch-btn-sm svg {
+  width: 24px;
+  height: 24px;
 }
 
 .touch-btn-lg {
-  min-width: 88px;
-  padding: 20px 10px;
-  border-radius: 999px;
+  width: 86px;
+  height: 86px;
+}
+
+.touch-btn-lg svg {
+  width: 38px;
+  height: 38px;
 }
 
 /* Top left, because the mode banner already owns the right-hand corner. */
@@ -1650,9 +1688,17 @@ body.is-touch .menu-hint-touch {
   display: block;
 }
 
-/* The bottom right corner belongs to the buttons, so messages move clear. */
+/*
+ * The bottom right corner belongs to the buttons, so messages stack above
+ * them. --touch-cluster-top is how high the buttons reach; keep it in step
+ * with .touch-cluster's offset and button sizes.
+ */
+body.is-touch {
+  --touch-cluster-top: 280px;
+}
+
 body.is-touch .toast {
-  bottom: 224px;
+  bottom: var(--touch-cluster-top);
 }
 
 /*
@@ -1662,7 +1708,8 @@ body.is-touch .toast {
  */
 body.is-touch .item-name {
   position: absolute;
-  bottom: 246px;
+  /* .hotbar-wrap already sits 16px up, so this clears the toast above it. */
+  bottom: calc(var(--touch-cluster-top) + 14px);
   left: 50%;
   transform: translateX(-50%);
   white-space: nowrap;
@@ -1676,21 +1723,26 @@ body.is-touch .item-name {
   }
 
   .touch-btn {
-    min-width: 62px;
-    padding: 10px 8px;
-    font-size: 12px;
+    width: 54px;
+    height: 54px;
+  }
+
+  .touch-btn svg {
+    width: 26px;
+    height: 26px;
   }
 
   .touch-btn-lg {
-    min-width: 72px;
-    padding: 15px 8px;
+    width: 68px;
+    height: 68px;
   }
 
-  body.is-touch .toast {
-    bottom: 172px;
+  .touch-btn-lg svg {
+    width: 32px;
+    height: 32px;
   }
 
-  body.is-touch .item-name {
-    bottom: 190px;
+  body.is-touch {
+    --touch-cluster-top: 222px;
   }
 }

@@ -49,9 +49,37 @@ function pick(list, random) {
   return list[Math.floor(random() * list.length) % list.length];
 }
 
-export function randomPalette(random = Math.random) {
-  const [shirtHue, shirtSat] = pick(CLOTH_HUES, random);
-  const [pantsHue, pantsSat] = pick(CLOTH_HUES, random);
+function shuffled(list, random) {
+  const copy = [...list];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+/**
+ * One look per character, dealt from shuffled decks so no two of them turn up
+ * in the same shirt. Rolling each independently looks wrong surprisingly
+ * often: five picks from eleven hues collide more than half the time.
+ */
+export function rollRosterPalettes(count, random = Math.random) {
+  const shirts = shuffled(CLOTH_HUES, random);
+  const trousers = shuffled(CLOTH_HUES, random);
+  return Array.from({ length: count }, (_, index) => randomPalette(
+    random,
+    shirts[index % shirts.length],
+    trousers[index % trousers.length],
+  ));
+}
+
+export function randomPalette(
+  random = Math.random,
+  shirtCloth = pick(CLOTH_HUES, random),
+  pantsCloth = pick(CLOTH_HUES, random),
+) {
+  const [shirtHue, shirtSat] = shirtCloth;
+  const [pantsHue, pantsSat] = pantsCloth;
   return {
     skin: pick(SKIN_TONES, random),
     hair: pick(HAIR_TONES, random),
@@ -187,12 +215,13 @@ export class NpcManager {
 
   /** Places the roster in a loose ring around a point, on solid ground. */
   spawnRoster(centerX, centerZ) {
+    const looks = rollRosterPalettes(NPC_NAMES.length);
     NPC_NAMES.forEach((name, index) => {
       const angle = (index / NPC_NAMES.length) * PI * 2;
       const radius = 9 + hash3(index, 3, 7) * 7;
       const x = centerX + Math.cos(angle) * radius;
       const z = centerZ + Math.sin(angle) * radius;
-      this.spawn({ name, x, z });
+      this.spawn({ name, x, z, palette: looks[index] });
     });
   }
 

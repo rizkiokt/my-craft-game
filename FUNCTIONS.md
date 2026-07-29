@@ -309,7 +309,8 @@ The code lives in `src/` as layered ES modules (see CLAUDE.md for the layering r
 
 | Function | What it does |
 |---|---|
-| `randomPalette(random)` | Rolls skin/hair/shirt/trousers/shoes from the curated tables. Called once per character per world, then saved |
+| `randomPalette(random, shirt, trousers)` | Rolls skin/hair/shirt/trousers/shoes from the curated tables. Called once per character per world, then saved |
+| `rollRosterPalettes(count, random)` | One look per character, dealt from shuffled decks so no two share a shirt or trouser colour |
 | `spawnRoster(x, z)` / `spawn(entry)` | Place the five characters in a ring on solid ground |
 | `raycast(ray, maxDistance)` | Nearest friend under the crosshair, for right-clicking one |
 | `greet(npc)` / `stopFollowing(npc, line)` | Toggle following. Asking overrides a spontaneous tag-along |

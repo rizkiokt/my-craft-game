@@ -41,17 +41,60 @@
           <div id="touch-thumb" class="touch-thumb"></div>
         </div>
 
+        <!--
+          Picture buttons rather than words: quicker to read mid-game, and they
+          work for players who cannot read yet. Each keeps an aria-label.
+        -->
         <div class="touch-topbar">
-          <button class="touch-btn touch-btn-sm" data-press="inventory" type="button">Bag</button>
-          <button class="touch-btn touch-btn-sm" data-press="perspective" type="button">View</button>
-          <button class="touch-btn touch-btn-sm" data-menu="pause" type="button">Menu</button>
+          <button class="touch-btn touch-btn-sm" data-press="inventory" type="button" aria-label="Backpack" title="Backpack">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 10.2c0-2.6 2.7-4.2 6-4.2s6 1.6 6 4.2v8.4a1.6 1.6 0 0 1-1.6 1.6H7.6A1.6 1.6 0 0 1 6 18.6z" />
+              <path d="M9.6 8.4V6.6a2.4 2.4 0 0 1 4.8 0v1.8" />
+              <path d="M9 13.2h6v3.6H9z" class="fill" />
+            </svg>
+          </button>
+          <button class="touch-btn touch-btn-sm" data-press="perspective" type="button" aria-label="Camera view" title="Camera view">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 8h4l1.6-2h6.8L17 8h4v11H3z" />
+              <circle cx="12" cy="13" r="3.4" />
+            </svg>
+          </button>
+          <button class="touch-btn touch-btn-sm" data-menu="pause" type="button" aria-label="Menu" title="Menu">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8.5 5h2.2v14H8.5zM13.3 5h2.2v14h-2.2z" class="fill" />
+            </svg>
+          </button>
         </div>
 
         <div class="touch-cluster">
-          <button class="touch-btn" data-hold="sneak" type="button">Sneak</button>
-          <button class="touch-btn" data-hold="use" type="button">Place</button>
-          <button class="touch-btn" data-hold="attack" type="button">Mine</button>
-          <button class="touch-btn touch-btn-lg" data-hold="jump" type="button">Jump</button>
+          <button class="touch-btn" data-hold="sneak" type="button" aria-label="Sneak" title="Sneak">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 20.5 4.5 12h4V5h7v7h4z" class="fill" />
+            </svg>
+          </button>
+          <button class="touch-btn" data-hold="use" type="button" aria-label="Place block" title="Place block">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3.2 20.5 8v8L12 20.8 3.5 16V8z" />
+              <path d="M3.5 8 12 12.8 20.5 8M12 12.8v8" />
+            </svg>
+          </button>
+          <button class="touch-btn" data-hold="attack" type="button" aria-label="Mine" title="Mine">
+            <!--
+              A block coming apart, deliberately the same cube as Place with a
+              crack through it: the pair reads at a glance, and a pickaxe is
+              indistinguishable from an umbrella at this size.
+            -->
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3.2 20.5 8v8L12 20.8 3.5 16V8z" />
+              <path d="M3.5 8 12 12.8 20.5 8M12 12.8v8" />
+              <path d="M11.6 3.6 9.4 7.2 12.4 9.2 9.6 12.6 7.2 13.6 8.8 17.4" stroke-width="1.5" />
+            </svg>
+          </button>
+          <button class="touch-btn touch-btn-lg" data-hold="jump" type="button" aria-label="Jump" title="Jump">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3.5 19.5 12h-4v7h-7v-7h-4z" class="fill" />
+            </svg>
+          </button>
         </div>
       </div>
 

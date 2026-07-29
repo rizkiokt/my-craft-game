@@ -84,6 +84,12 @@ sprint latching and double-tap flight all keep working. Nothing in that module k
 action does. A new button is one element with `data-hold` (held) or `data-press` (one-shot)
 naming the action.
 
+Buttons are inline SVG glyphs, not words — quicker to read mid-game and readable by players
+who cannot read yet. Each carries an `aria-label`, and `.touch-btn svg` sets
+`pointer-events: none` so a press can never land on the glyph instead of the button. Break and
+build are the same cube (cracked and whole) and are **tinted apart** as well as drawn apart,
+because two glyphs that similar are easy to confuse at a glance.
+
 Visibility is a body class, not a JS branch: `syncTouchControls()` toggles `is-touch` and
 `styles.css` does the rest, keyed off the `is-playing` class `showScreen()` already sets.
 That is why `ui/options.js` (layer 5) can own the setting while `touch.js` (layer 6) owns
@@ -204,9 +210,11 @@ not reshuffle on every repaint; `rerollOffers()` bumps the seed after a successf
 
 ### Friends (NPCs)
 
-`src/npcs.js` owns the roster of five characters. Palettes are rolled by `randomPalette()`
-when a world is first created and then saved, so friends differ per world but stay
-themselves.
+`src/npcs.js` owns the roster of five characters. Palettes are rolled when a world is first
+created and then saved, so friends differ per world but stay themselves. `spawnRoster()` uses
+`rollRosterPalettes()`, which **deals shirts and trousers from shuffled decks** rather than
+rolling each independently — five picks from eleven hues collide more than half the time, and
+two friends in the same shirt read as a bug.
 
 Jobs are a small state machine: `startActivity()` picks follow/build/mine/wander and stores
 `npc.job = {kind, site, plan, step}`. `runPlan()` walks to the site and applies one block per
@@ -268,6 +276,10 @@ Two ordering rules in `interact()` matter:
 ### The player avatar
 
 `src/playerModel.js` builds the character from boxes with **one canvas texture per face** — BoxGeometry already exposes a material group per side, so the face, collar and shoes need no hand-authored UVs. Armour pieces are slightly larger boxes parented to the limb they cover, tinted from `ARMOR_ITEMS[itemId].color` and toggled per frame by `syncArmor()`.
+
+**`createCharacterModel()` starts every armour mesh hidden**, because only the player runs
+`syncArmor()`. Leaving them visible put every NPC in a blank grey suit of armour that covered
+their own colours completely — the same trap waits for anything else reusing this model.
 
 The held item is a cube with atlas UVs for blocks, or a flat quad using the item's icon. The same mesh factory feeds the first-person hand, which is a child of the camera — note `scene.add(camera)` is required for a camera's children to render at all.
 

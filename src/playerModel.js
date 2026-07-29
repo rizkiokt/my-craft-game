@@ -268,6 +268,13 @@ export function createCharacterModel(palette = DEFAULT_PALETTE) {
   armorMeshes.rightBoot.position.y = -0.6;
   rightLeg.add(armorMeshes.rightBoot);
 
+  // Wearing nothing is the starting state. syncArmor() reveals a piece when a
+  // slot is filled, but only the player runs it -- leave these visible and
+  // every NPC is a blank grey suit of armour instead of their own colours.
+  for (const mesh of Object.values(armorMeshes)) {
+    mesh.visible = false;
+  }
+
   const heldAnchor = new THREE.Group();
   heldAnchor.position.set(0, -0.66, -0.08);
   rightArm.add(heldAnchor);
