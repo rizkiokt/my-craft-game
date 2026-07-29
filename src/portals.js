@@ -56,10 +56,21 @@ export function nearestDestination(x, z) {
  * rectangle within the size limits works, in either vertical plane.
  * ------------------------------------------------------------------ */
 
-/** In-plane neighbours. A portal lies flat in one vertical plane. */
+/** In-plane neighbours the flood walks through. A portal lies in one vertical plane. */
 const PLANE_OFFSETS = {
   x: [[0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]],
   z: [[0, 1, 0], [0, -1, 0], [1, 0, 0], [-1, 0, 0]],
+};
+
+/**
+ * Where to start looking for the opening, from the block you touched. The
+ * diagonals matter: from a corner of the frame the opening is only ever a
+ * diagonal step away, and most people build the full rectangle, so leaving
+ * them out means touching a corner never lights anything.
+ */
+const PLANE_STARTS = {
+  x: [...PLANE_OFFSETS.x, [0, 1, 1], [0, 1, -1], [0, -1, 1], [0, -1, -1]],
+  z: [...PLANE_OFFSETS.z, [1, 1, 0], [-1, 1, 0], [1, -1, 0], [-1, -1, 0]],
 };
 
 function floodOpening(axis, start) {
@@ -75,7 +86,7 @@ function floodOpening(axis, start) {
     }
     seen.set(key, cell);
     if (seen.size > limit) {
-      return null;
+      return { error: "open" };
     }
     for (const [dx, dy, dz] of PLANE_OFFSETS[axis]) {
       const next = [cell[0] + dx, cell[1] + dy, cell[2] + dz];
@@ -84,9 +95,9 @@ function floodOpening(axis, start) {
         queue.push(next);
         continue;
       }
-      // Anything else in the way means this is not a sealed frame.
+      // Anything else beside the gap means this is not a sealed frame.
       if (block !== BLOCKS.portal_frame) {
-        return null;
+        return { error: "open" };
       }
     }
   }
@@ -96,34 +107,53 @@ function floodOpening(axis, start) {
   const ups = cells.map((cell) => cell[1]);
   const width = Math.max(...across) - Math.min(...across) + 1;
   const height = Math.max(...ups) - Math.min(...ups) + 1;
-  if (width < PORTAL_MIN_WIDTH || width > PORTAL_MAX_WIDTH) {
-    return null;
+  if (width < PORTAL_MIN_WIDTH || width > PORTAL_MAX_WIDTH
+    || height < PORTAL_MIN_HEIGHT || height > PORTAL_MAX_HEIGHT) {
+    return { error: "size", width, height };
   }
-  if (height < PORTAL_MIN_HEIGHT || height > PORTAL_MAX_HEIGHT) {
-    return null;
-  }
-  // A ragged opening floods to the same cells as a rectangle would not.
+  // A ragged opening floods to cells a rectangle would not.
   if (cells.length !== width * height) {
-    return null;
+    return { error: "ragged" };
   }
-  return cells;
+  return { cells };
 }
 
-/** The opening a frame block belongs to, whichever way the frame faces. */
+/**
+ * The opening a frame block belongs to, whichever way the frame faces, or why
+ * it did not work. The reason is worth carrying back: "build a frame" is no
+ * help at all when you believe you have built one.
+ */
 export function findPortalOpening(fx, fy, fz) {
+  let problem = { error: "open" };
   for (const axis of ["x", "z"]) {
-    for (const [dx, dy, dz] of PLANE_OFFSETS[axis]) {
+    for (const [dx, dy, dz] of PLANE_STARTS[axis]) {
       const start = [fx + dx, fy + dy, fz + dz];
       if (world.getBlock(start[0], start[1], start[2]) !== BLOCKS.air) {
         continue;
       }
-      const cells = floodOpening(axis, start);
-      if (cells) {
-        return { axis, cells };
+      const result = floodOpening(axis, start);
+      if (result.cells) {
+        return { axis, cells: result.cells };
+      }
+      // A sealed gap of the wrong size says far more than a leaky one.
+      if (result.error === "size" || result.error === "ragged") {
+        problem = result;
       }
     }
   }
-  return null;
+  return problem;
+}
+
+/** What to tell someone whose frame did not light. */
+export function describeFrameProblem(problem) {
+  if (problem?.error === "size") {
+    return `The gap is ${problem.width} wide and ${problem.height} tall — it needs to be `
+      + `${PORTAL_MIN_WIDTH}-${PORTAL_MAX_WIDTH} wide and ${PORTAL_MIN_HEIGHT}-${PORTAL_MAX_HEIGHT} tall`;
+  }
+  if (problem?.error === "ragged") {
+    return "The gap needs to be a plain rectangle";
+  }
+  return "The frame is not closed — every side of the gap needs a frame block";
 }
 
 /* ------------------------------------------------------------------ *
@@ -144,8 +174,8 @@ function defaultDestination(x, z) {
  */
 export function lightPortal(fx, fy, fz) {
   const opening = findPortalOpening(fx, fy, fz);
-  if (!opening) {
-    return null;
+  if (!opening.cells) {
+    return opening;
   }
   const destinationId = defaultDestination(fx, fz).id;
   for (const [x, y, z] of opening.cells) {

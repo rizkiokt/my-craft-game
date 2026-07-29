@@ -181,7 +181,9 @@ Walking works. Portals are faster.
 1. **Craft Portal Frames** at a crafting table: eight stone around one iron ingot makes six.
    You need ten for the smallest portal.
 2. **Build a frame** standing up, with a hole two blocks wide and three tall in the middle.
-   Corners are optional, just like Minecraft.
+   **All four sides need frame blocks, including the bottom row** — standing a frame on the
+   ground does not count, the ground is not part of it. Corners are optional, just like
+   Minecraft. Bigger gaps work too, up to 4 wide and 5 tall.
 3. **It lights itself** the moment you place the block that finishes it, and asks where it
    should go. If it does not light, there is a gap somewhere in the ring.
 4. **Step in** and stand still for a moment.

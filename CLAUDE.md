@@ -210,7 +210,12 @@ Two details are load-bearing:
 Rather than matching a fixed shape, `findPortalOpening()` **floods the air pocket a frame
 encloses and checks everything around it is frame** — so any rectangle between
 `PORTAL_MIN_*` and `PORTAL_MAX_*` works, in either vertical plane, and a frame with a gap in
-it floods away and fails. Lighting records **every cell** in `state.portals` keyed `"x,y,z"`,
+it floods away and fails. It searches the **diagonal** in-plane neighbours as well as the
+orthogonal ones: from a corner of the frame the opening is only ever a diagonal step away, and
+most people build the full rectangle, so leaving them out meant touching a corner never lit
+anything. On failure it returns the reason and `describeFrameProblem()` turns it into something
+actionable — "build a frame" is no help to someone who believes they have, and the common miss
+is standing a frame on the ground with no bottom row. Lighting records **every cell** in `state.portals` keyed `"x,y,z"`,
 so standing in one is a lookup rather than a search.
 
 **Placing a frame block that completes a ring lights it**, so there is no separate step to

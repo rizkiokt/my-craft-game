@@ -10,7 +10,7 @@ import { clamp, floorVector } from "./math.js";
 import { CAT_COATS, passiveMobs } from "./mobs.js";
 import { npcs } from "./npcs.js";
 import { spawnHearts, spawnParticles } from "./particles.js";
-import { clearPortalAt, extinguishAround, lightPortal } from "./portals.js";
+import { clearPortalAt, describeFrameProblem, extinguishAround, lightPortal } from "./portals.js";
 import { applyPlayerToCamera, eyePosition, hasCollision, lookDirection } from "./player.js";
 import { scene } from "./scene.js";
 import { soundEngine } from "./sound.js";
@@ -177,13 +177,13 @@ export function updateTarget() {
 /** Lights the frame a block belongs to, if it is finished, and asks where to. */
 function tryLightPortal(x, y, z) {
   const lit = lightPortal(x, y, z);
-  if (!lit) {
-    return false;
+  if (!lit.cells) {
+    return lit;
   }
   soundEngine.ui(true);
   chunkMeshes.syncLoadedChunks();
   openPortalPicker(lit.cells, lit.destinationId);
-  return true;
+  return null;
 }
 
 export function interact(breaking, isPress = false) {
@@ -320,8 +320,11 @@ export function interact(breaking, isPress = false) {
       && !isPlaceableItem(getSelectedItem())) {
       if (isPress) {
         state.usePressed = false;
-        if (!tryLightPortal(state.target.block.x, state.target.block.y, state.target.block.z)) {
-          showToast("The frame needs a gap 2 wide and 3 tall");
+        const problem = tryLightPortal(
+          state.target.block.x, state.target.block.y, state.target.block.z,
+        );
+        if (problem) {
+          showToast(describeFrameProblem(problem));
         }
       }
       return;
