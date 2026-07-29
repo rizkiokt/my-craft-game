@@ -4,60 +4,63 @@
 // along if you ask. Nothing here fights: the only interaction is saying hello.
 
 import * as THREE from "../node_modules/three/build/three.module.js";
-import { BLOCKS, NPC_FOLLOW_DISTANCE, NPC_TELEPORT_DISTANCE, PI } from "./constants.js";
+import { chunkMeshes } from "./chunkMesh.js";
+import { BLOCKS, DEFAULT_SPAWN, NPC_FOLLOW_DISTANCE, NPC_TELEPORT_DISTANCE, PI } from "./constants.js";
 import { clamp, hash3, lerp, lerpAngle, wrapAngle } from "./math.js";
 import { animateCharacter, createCharacterModel } from "./playerModel.js";
 import { scene } from "./scene.js";
 import { state } from "./state.js";
-import { getSurfaceData } from "./world.js";
+import { getSurfaceData, world } from "./world.js";
 
-/** The regulars. Names are short and easy to read on a tag. */
-export const NPC_ROSTER = [
-  {
-    name: "Alex",
-    palette: { skin: "#e0b48c", hair: "#c86a2a", shirt: "#4fa35c", shirtDark: "#3d8449", pants: "#4a4f6b", shoe: "#4a3a2a" },
-    lines: [
-      "Hi! Want to build something together?",
-      "I found coal over that way.",
-      "This hill is a good spot for a house.",
-    ],
-  },
-  {
-    name: "Sam",
-    palette: { skin: "#8d5a3b", hair: "#241a14", shirt: "#c85a4a", shirtDark: "#a4453a", pants: "#37405e", shoe: "#4a3a2a" },
-    lines: [
-      "Nice pickaxe!",
-      "Careful digging straight down.",
-      "I like your hat. Do you have a hat?",
-    ],
-  },
-  {
-    name: "Robin",
-    palette: { skin: "#f0cfae", hair: "#e8d67a", shirt: "#7a5cc0", shirtDark: "#63499e", pants: "#3c4a78", shoe: "#3a3a42" },
-    lines: [
-      "There are cats around here somewhere.",
-      "Race you to the top of that tower!",
-      "I keep my best blocks in a chest.",
-    ],
-  },
-  {
-    name: "Kai",
-    palette: { skin: "#c68a5e", hair: "#1f1b18", shirt: "#3f8fc0", shirtDark: "#336f96", pants: "#2f3a52", shoe: "#4a3a2a" },
-    lines: [
-      "Did you see the snowy place out east?",
-      "Diamonds are deep down. Really deep.",
-      "Watch this!",
-    ],
-  },
-  {
-    name: "Mia",
-    palette: { skin: "#f2ddc4", hair: "#5a3b2a", shirt: "#e0a13c", shirtDark: "#bd8329", pants: "#4a4457", shoe: "#3a3a42" },
-    lines: [
-      "Hello! Lovely day for digging.",
-      "I built a little house over there.",
-      "Follow me, I want to show you something.",
-    ],
-  },
+/** Names are short so they read well on a floating tag. */
+export const NPC_NAMES = ["Alex", "Sam", "Robin", "Kai", "Mia"];
+
+/* ------------------------------------------------------------------ *
+ * Looks
+ *
+ * Colours are rolled per character when a world is first created and then
+ * saved, so your friends look different in every world but stay themselves.
+ * ------------------------------------------------------------------ */
+
+const SKIN_TONES = ["#f7e2cc", "#f2ddc4", "#e0b48c", "#c68a5e", "#a06a42", "#8d5a3b", "#5e3a26"];
+const HAIR_TONES = ["#241a14", "#3a2a1d", "#5a3b2a", "#7a3f2a", "#c86a2a", "#e8d67a", "#1f1b18", "#8b8b93"];
+const SHOE_TONES = ["#4a3a2a", "#3a3a42", "#2f2a26"];
+
+/** Shirt and trouser colours share a hue table so nothing clashes badly. */
+const CLOTH_HUES = [
+  [8, 78], [24, 82], [45, 80], [95, 55], [140, 52], [170, 55],
+  [200, 62], [225, 58], [265, 50], [310, 55], [340, 62],
+];
+
+function hsl(hue, saturation, lightness) {
+  return `hsl(${hue} ${saturation}% ${lightness}%)`;
+}
+
+function pick(list, random) {
+  return list[Math.floor(random() * list.length) % list.length];
+}
+
+export function randomPalette(random = Math.random) {
+  const [shirtHue, shirtSat] = pick(CLOTH_HUES, random);
+  const [pantsHue, pantsSat] = pick(CLOTH_HUES, random);
+  return {
+    skin: pick(SKIN_TONES, random),
+    hair: pick(HAIR_TONES, random),
+    shirt: hsl(shirtHue, shirtSat, 46),
+    shirtDark: hsl(shirtHue, shirtSat, 36),
+    pants: hsl(pantsHue, Math.round(pantsSat * 0.6), 32),
+    shoe: pick(SHOE_TONES, random),
+  };
+}
+
+const IDLE_LINES = [
+  "Nice day for it.",
+  "I found coal over that way.",
+  "This looks like a good spot.",
+  "Careful digging straight down.",
+  "There are cats around here somewhere.",
+  "I keep my best blocks in a chest.",
+  "Diamonds are deep down. Really deep.",
 ];
 
 const GREETINGS = [
@@ -115,22 +118,22 @@ export class NpcManager {
 
   /** Places the roster in a loose ring around a point, on solid ground. */
   spawnRoster(centerX, centerZ) {
-    NPC_ROSTER.forEach((template, index) => {
-      const angle = (index / NPC_ROSTER.length) * PI * 2;
+    NPC_NAMES.forEach((name, index) => {
+      const angle = (index / NPC_NAMES.length) * PI * 2;
       const radius = 9 + hash3(index, 3, 7) * 7;
       const x = centerX + Math.cos(angle) * radius;
       const z = centerZ + Math.sin(angle) * radius;
-      this.spawn({ name: template.name, x, z });
+      this.spawn({ name, x, z });
     });
   }
 
-  spawn({ name, x, z, following = false }) {
-    const template = NPC_ROSTER.find((entry) => entry.name === name) ?? NPC_ROSTER[0];
+  spawn({ name, x, z, following = false, palette }) {
+    const look = palette ?? randomPalette();
     const surface = getSurfaceData(x, z);
-    const group = createCharacterModel(template.palette);
+    const group = createCharacterModel(look);
     group.visible = true;
 
-    const tag = createLabelSprite(template.name);
+    const tag = createLabelSprite(name);
     tag.position.set(0, 2.1, 0);
     group.add(tag);
 
@@ -140,8 +143,8 @@ export class NpcManager {
     group.add(bubble);
 
     const npc = {
-      name: template.name,
-      template,
+      name,
+      palette: look,
       group,
       parts: group.userData.parts,
       tag,
@@ -162,6 +165,11 @@ export class NpcManager {
       bubbleTimer: 0,
       following,
       phase: hash3(x, 8, z) * PI * 2,
+      activity: "wander",
+      plan: null,
+      planStep: 0,
+      workTimer: 0,
+      activityTimer: 3 + Math.random() * 6,
     };
     group.position.set(x, npc.y, z);
     group.userData.npc = npc;
@@ -218,6 +226,174 @@ export class NpcManager {
     }
   }
 
+  /* ---------------------------------------------------------------- *
+   * Jobs
+   *
+   * A character picks something to do, walks to the site, then works
+   * through a plan of block changes one at a time so you can watch it
+   * happen. Sites are only claimed where nobody has already built, so
+   * they never knock a hole in something you made.
+   * ---------------------------------------------------------------- */
+
+  /** Refuses a site that overlaps existing edits or sits on top of spawn. */
+  siteIsFree(centerX, centerZ, radius, baseY, height) {
+    if (Math.hypot(centerX - DEFAULT_SPAWN.x, centerZ - DEFAULT_SPAWN.z) < 8) {
+      return false;
+    }
+    for (let dz = -radius; dz <= radius; dz++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        for (let dy = 0; dy <= height; dy++) {
+          if (world.hasEditAt(centerX + dx, baseY + dy, centerZ + dz)) {
+            return false;
+          }
+        }
+      }
+    }
+    return true;
+  }
+
+  /** A flat, unclaimed 5x5 patch makes a buildable plot. */
+  findHutSite(npc) {
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const angle = Math.random() * PI * 2;
+      const radius = 7 + Math.random() * 8;
+      const cx = Math.round(npc.homeX + Math.cos(angle) * radius);
+      const cz = Math.round(npc.homeZ + Math.sin(angle) * radius);
+      const base = getSurfaceData(cx, cz);
+      if (base.blockType === BLOCKS.water || base.blockType === BLOCKS.sand) {
+        continue;
+      }
+      let flat = true;
+      for (let dz = -2; dz <= 2 && flat; dz++) {
+        for (let dx = -2; dx <= 2 && flat; dx++) {
+          const corner = getSurfaceData(cx + dx, cz + dz);
+          if (corner.y !== base.y || corner.blockType === BLOCKS.water) {
+            flat = false;
+          }
+        }
+      }
+      if (flat && this.siteIsFree(cx, cz, 2, base.y, 4)) {
+        return { x: cx, y: base.y, z: cz };
+      }
+    }
+    return null;
+  }
+
+  /** Walls two high with a doorway, a flat roof, and a torch inside. */
+  planHut(site) {
+    const plan = [];
+    for (let dy = 0; dy < 2; dy++) {
+      for (let dz = -2; dz <= 2; dz++) {
+        for (let dx = -2; dx <= 2; dx++) {
+          const edge = Math.abs(dx) === 2 || Math.abs(dz) === 2;
+          const doorway = dx === 0 && dz === 2;
+          if (edge && !doorway) {
+            plan.push({ x: site.x + dx, y: site.y + dy, z: site.z + dz, block: BLOCKS.planks });
+          }
+        }
+      }
+    }
+    for (let dz = -2; dz <= 2; dz++) {
+      for (let dx = -2; dx <= 2; dx++) {
+        plan.push({ x: site.x + dx, y: site.y + 2, z: site.z + dz, block: BLOCKS.planks });
+      }
+    }
+    plan.push({ x: site.x, y: site.y, z: site.z, block: BLOCKS.torch });
+    return plan;
+  }
+
+  /** A shallow pocket dug into the ground, lit with a torch at the bottom. */
+  planMine(npc) {
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const angle = Math.random() * PI * 2;
+      const radius = 4 + Math.random() * 7;
+      const cx = Math.round(npc.homeX + Math.cos(angle) * radius);
+      const cz = Math.round(npc.homeZ + Math.sin(angle) * radius);
+      const base = getSurfaceData(cx, cz);
+      if (base.blockType === BLOCKS.water || !this.siteIsFree(cx, cz, 0, base.y - 4, 5)) {
+        continue;
+      }
+      const plan = [];
+      for (let depth = 1; depth <= 3; depth++) {
+        plan.push({ x: cx, y: base.y - depth, z: cz, block: BLOCKS.air });
+      }
+      plan.push({ x: cx, y: base.y - 3, z: cz, block: BLOCKS.torch });
+      return { site: { x: cx, y: base.y, z: cz }, plan };
+    }
+    return null;
+  }
+
+  /** Chooses what to do next once a character is free. */
+  startActivity(npc) {
+    const roll = Math.random();
+    if (roll < 0.4) {
+      const site = this.findHutSite(npc);
+      if (site) {
+        npc.activity = "build";
+        npc.site = site;
+        npc.plan = this.planHut(site);
+        npc.planStep = 0;
+        this.say(npc, "I am going to build something here.");
+        return;
+      }
+    } else if (roll < 0.75) {
+      const mine = this.planMine(npc);
+      if (mine) {
+        npc.activity = "mine";
+        npc.site = mine.site;
+        npc.plan = mine.plan;
+        npc.planStep = 0;
+        this.say(npc, "Let us see what is down here.");
+        return;
+      }
+    }
+    npc.activity = "wander";
+    npc.plan = null;
+    npc.activityTimer = 8 + Math.random() * 12;
+  }
+
+  /**
+   * Walks to the site and applies one block per beat. Returns true while the
+   * character is busy, so the wander logic stays out of the way.
+   */
+  workOnPlan(npc, dt) {
+    const step = npc.plan[npc.planStep];
+    if (!step) {
+      const finished = npc.activity;
+      npc.activity = "wander";
+      npc.plan = null;
+      npc.activityTimer = 10 + Math.random() * 14;
+      this.say(npc, finished === "build" ? "There, a place of my own." : "That will do for now.");
+      return { busy: false, moving: false };
+    }
+
+    // Stand next to the work, not on top of it.
+    const dx = npc.site.x - npc.x;
+    const dz = npc.site.z - npc.z;
+    const distance = Math.hypot(dx, dz);
+    if (distance > 3.2) {
+      const walked = this.step(npc, dx / distance, dz / distance, dt, 3);
+      return { busy: true, moving: walked };
+    }
+    npc.heading = lerpAngle(npc.heading, Math.atan2(step.x + 0.5 - npc.x, step.z + 0.5 - npc.z), clamp(dt * 6, 0, 1));
+
+    npc.workTimer -= dt;
+    if (npc.workTimer > 0) {
+      return { busy: true, moving: false };
+    }
+    npc.workTimer = 0.45;
+    npc.swing = 1;
+
+    // Skip anything already the way we want it, or that someone else changed.
+    const current = world.getBlock(step.x, step.y, step.z);
+    if (current !== step.block) {
+      world.setBlock(step.x, step.y, step.z, step.block);
+      chunkMeshes.markDirtyAtWorld(step.x, step.z);
+    }
+    npc.planStep += 1;
+    return { busy: true, moving: false };
+  }
+
   updateNpc(npc, dt) {
     const player = state.player;
     const toPlayerX = player.x - npc.x;
@@ -225,6 +401,20 @@ export class NpcManager {
     const playerDistance = Math.hypot(toPlayerX, toPlayerZ);
 
     let moving = false;
+
+    // A character with a job gets on with it unless you have called them away.
+    if (!npc.following && npc.plan) {
+      const work = this.workOnPlan(npc, dt);
+      if (work.busy) {
+        this.finishFrame(npc, dt, work.moving, playerDistance);
+        return;
+      }
+    } else if (!npc.following) {
+      npc.activityTimer -= dt;
+      if (npc.activityTimer <= 0) {
+        this.startActivity(npc);
+      }
+    }
 
     if (npc.following) {
       // Same shape as the cat: trail you, and catch up if you get far ahead.
@@ -257,12 +447,11 @@ export class NpcManager {
       }
     }
 
-    // Occasional mining swing, as though they are busy with something.
-    npc.swingTimer -= dt;
-    if (npc.swingTimer <= 0) {
-      npc.swingTimer = 4 + Math.random() * 8;
-      npc.swing = 1;
-    }
+    this.finishFrame(npc, dt, moving, playerDistance);
+  }
+
+  /** Shared per-frame tail: chatter, tags and posing. */
+  finishFrame(npc, dt, moving, playerDistance) {
     npc.swing = Math.max(0, npc.swing - dt * 2.2);
 
     // Occasional idle chatter when you are close enough to read it.
@@ -270,8 +459,7 @@ export class NpcManager {
     if (npc.speakTimer <= 0) {
       npc.speakTimer = 14 + Math.random() * 22;
       if (playerDistance < 12) {
-        const lines = npc.template.lines;
-        this.say(npc, lines[Math.floor(Math.random() * lines.length)]);
+        this.say(npc, IDLE_LINES[Math.floor(Math.random() * IDLE_LINES.length)]);
       }
     }
     if (npc.bubbleTimer > 0) {
@@ -334,6 +522,7 @@ export class NpcManager {
   serialize() {
     return this.npcs.map((npc) => ({
       name: npc.name,
+      palette: npc.palette,
       x: Number(npc.x.toFixed(2)),
       z: Number(npc.z.toFixed(2)),
       following: npc.following,
@@ -358,6 +547,7 @@ export class NpcManager {
     return this.npcs
       .map((npc) => ({
         name: npc.name,
+        activity: npc.activity,
         following: npc.following || undefined,
         x: Number(npc.x.toFixed(1)),
         y: Number(npc.y.toFixed(1)),

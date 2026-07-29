@@ -256,8 +256,18 @@ Armour does not protect against drowning or the void. Creative mode takes no dam
 ## Friends
 
 Five characters live around spawn: **Alex, Sam, Robin, Kai and Mia**. They look like
-players, wander about doing their own thing, swing a pickaxe now and then, and chat when
-you are close enough to read them. Their names float above their heads.
+players, and their colours are rolled fresh for every world, so your friends are never
+quite the same twice. Their names float above their heads.
+
+They get on with things rather than milling about:
+
+- **Building** — they pick a flat, unclaimed patch and put up a small plank hut, block by
+  block, then light it with a torch. The huts stay in your world.
+- **Mining** — they dig a short pocket into the ground and drop a torch at the bottom.
+- **Wandering** — between jobs they stroll about and chat.
+
+They only ever build or dig where nobody has already been, so they will not knock a hole
+in something you made.
 
 - **Right-click a friend** and they will come along with you.
 - **Right-click again** and they will stay put where they are.

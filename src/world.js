@@ -570,6 +570,19 @@ export class World {
     return `${lx},${wy},${lz}`;
   }
 
+  /** True if a player (or an NPC) has already changed this cell. */
+  hasEditAt(wx, wy, wz) {
+    const cx = Math.floor(wx / CHUNK_SIZE);
+    const cz = Math.floor(wz / CHUNK_SIZE);
+    const chunk = this.chunks.get(this.getChunkKey(cx, cz));
+    if (!chunk) {
+      return false;
+    }
+    const lx = ((wx % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+    const lz = ((wz % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+    return chunk.edits.has(this.getEditKey(lx, wy, lz));
+  }
+
   getBlock(wx, wy, wz) {
     if (wy > MAX_WORLD_Y) {
       return BLOCKS.air;

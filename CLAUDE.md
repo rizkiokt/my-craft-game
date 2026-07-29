@@ -183,7 +183,14 @@ not reshuffle on every repaint; `rerollOffers()` bumps the seed after a successf
 
 ### Friends (NPCs)
 
-`src/npcs.js` owns the roster of five characters. They reuse the player avatar through
+`src/npcs.js` owns the roster of five characters. Palettes are rolled by `randomPalette()`
+when a world is first created and then saved, so friends differ per world but stay
+themselves.
+
+Jobs are a small state machine: `startActivity()` picks build/mine/wander, builds a `plan`
+of block changes, and `workOnPlan()` walks to the site and applies one block per beat so you
+can watch it happen. **`siteIsFree()` refuses any site overlapping existing edits or sitting
+within 8 blocks of spawn**, which is what stops them digging through player builds. They reuse the player avatar through
 `createCharacterModel(palette)` and `animateCharacter()` from `playerModel.js`, so a change
 to the body shape or walk applies to everyone at once.
 

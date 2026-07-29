@@ -122,6 +122,7 @@ export function renderGameToText() {
       active: world.loadedKeys.size,
       cached: world.chunks.size,
       generatedSinceLoad: world.totalGenerated,
+      edited: [...world.chunks.values()].reduce((sum, c) => sum + c.edits.size, 0),
     },
   });
 }
