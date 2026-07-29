@@ -7,6 +7,7 @@ export const itemNameLabel = document.getElementById("item-name");
 export const toastLabel = document.getElementById("toast");
 export const modeBanner = document.getElementById("mode-banner");
 export const damageFlashEl = document.getElementById("damage-flash");
+export const underwaterEl = document.getElementById("underwater");
 export const vitals = document.getElementById("vitals");
 export const healthRow = document.getElementById("health-row");
 export const armorRow = document.getElementById("armor-row");

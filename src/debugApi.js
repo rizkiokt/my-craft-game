@@ -29,6 +29,8 @@ export function renderGameToText() {
     worldName: state.worldName,
     gameMode: state.gameMode,
     flying: state.flying,
+    swimming: state.swimming,
+    submerged: state.submerged,
     sneaking: state.sneaking,
     sprinting: state.sprinting,
     perspective: ["first", "third-back", "third-front"][state.perspective],

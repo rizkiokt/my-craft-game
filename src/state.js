@@ -82,6 +82,8 @@ export const state = {
   sprintLatched: false,
   lastForwardTapTime: -99,
   lastJumpTapTime: -99,
+  swimming: false,
+  submerged: false,
   flying: false,
   flyVelocityY: 0,
   perspective: 0,

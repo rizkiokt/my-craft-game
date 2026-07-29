@@ -41,6 +41,21 @@ export function hasCollision(x, y, z) {
   return false;
 }
 
+/**
+ * How deep in the water the player is. Feet and head are asked separately: you
+ * swim when your feet are wet, but the view only goes blue when your head is
+ * under.
+ */
+export function getSubmersion() {
+  const player = state.player;
+  const bx = Math.floor(player.x);
+  const bz = Math.floor(player.z);
+  const feet = world.getBlock(bx, Math.floor(player.y + 0.1), bz) === BLOCKS.water;
+  const chest = world.getBlock(bx, Math.floor(player.y + 0.9), bz) === BLOCKS.water;
+  const head = world.getBlock(bx, Math.floor(player.y + CAMERA_HEIGHT), bz) === BLOCKS.water;
+  return { feet, chest, head, swimming: feet || chest };
+}
+
 export function movePlayerToSpawn() {
   state.player.x = DEFAULT_SPAWN.x;
   state.player.y = world.getHeightAt(Math.floor(DEFAULT_SPAWN.x), Math.floor(DEFAULT_SPAWN.z)) + 1.05;

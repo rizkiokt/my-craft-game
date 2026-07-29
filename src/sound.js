@@ -98,6 +98,7 @@ export class SoundEngine {
     this.wet = null;
     this.ambientBus = null;
     this.musicBus = null;
+    this.muffle = null;
     this.noiseBuffer = null;
     this.enabled = false;
     this.ambience = null;
@@ -125,9 +126,15 @@ export class SoundEngine {
       limiter.release.value = 0.16;
       limiter.connect(this.context.destination);
 
+      // Everything passes through a lowpass that only closes underwater.
+      this.muffle = this.context.createBiquadFilter();
+      this.muffle.type = "lowpass";
+      this.muffle.frequency.value = 20000;
+      this.muffle.connect(limiter);
+
       this.master = this.context.createGain();
       this.master.gain.value = this.getMasterLevel();
-      this.master.connect(limiter);
+      this.master.connect(this.muffle);
 
       // Dry and reverb paths, so effects sit in a space rather than on top of
       // the listener.
@@ -525,6 +532,14 @@ export class SoundEngine {
   /** The loop tells the bed where the player is; nothing here inspects state. */
   setScene(scene) {
     Object.assign(this.scene, scene);
+    if (this.muffle) {
+      // Underwater the world goes dull, which sells being under far more than
+      // any single splash does.
+      const target = this.scene.submerged ? 620 : 20000;
+      const now = this.context.currentTime;
+      this.muffle.frequency.cancelScheduledValues(now);
+      this.muffle.frequency.setTargetAtTime(target, now, 0.12);
+    }
   }
 
   /**

@@ -164,6 +164,20 @@ Your current seed is shown on the title screen and is saved with the world.
 
 ---
 
+## Water and Swimming
+
+Water is see-through, so you can look down into a lake and see the bottom, and its surface sits
+a little below the block top so a shoreline looks like a shoreline.
+
+- **You float and swim** rather than sinking like a stone. Let go and you drift slowly down.
+- **Hold `Space`** to swim upwards. Hold it as you break the surface and you will haul yourself
+  out onto the bank.
+- **Falling into water never hurts**, however far you fell.
+- Under the surface the view goes blue and everything sounds muffled. Watch the bubbles in the
+  corner — that is your air, and it runs out.
+
+---
+
 ## Biomes and Portals
 
 The world is made of biomes that go on forever. Walk far enough in any direction and you will

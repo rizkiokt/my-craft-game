@@ -2,7 +2,7 @@
 
 import { dispatchPress, handleEscape, scrollHotbar } from "./actions.js";
 import { canonicalToken, isActionDown, mouseToken } from "./bindings.js";
-import { FLY_BOOST_MULTIPLIER, FLY_SPEED, FLY_VERTICAL_SPEED, JUMP_SPEED, MOVE_SPEED, SNEAK_MULTIPLIER, SPRINT_MULTIPLIER } from "./constants.js";
+import { FLY_BOOST_MULTIPLIER, FLY_SPEED, FLY_VERTICAL_SPEED, JUMP_SPEED, MOVE_SPEED, SNEAK_MULTIPLIER, SPRINT_MULTIPLIER, SWIM_MOVE_SCALE } from "./constants.js";
 import { canvas } from "./dom.js";
 import { interact } from "./interaction.js";
 import { clamp } from "./math.js";
@@ -71,7 +71,9 @@ export function handleInput(dt) {
   }
 
   let speed = MOVE_SPEED;
-  if (state.flying) {
+  if (state.swimming && !state.flying) {
+    speed = MOVE_SPEED * SWIM_MOVE_SCALE;
+  } else if (state.flying) {
     speed = FLY_SPEED * (sprintHeld || state.sprintLatched ? FLY_BOOST_MULTIPLIER : 1);
   } else if (state.sneaking) {
     speed = MOVE_SPEED * SNEAK_MULTIPLIER;
@@ -84,7 +86,7 @@ export function handleInput(dt) {
   if (state.flying) {
     const vertical = (isActionDown("jump") ? 1 : 0) + (isActionDown("sneak") ? -1 : 0);
     player.vy = vertical * FLY_VERTICAL_SPEED * (sprintHeld ? 1.6 : 1);
-  } else if (isActionDown("jump") && player.onGround) {
+  } else if (isActionDown("jump") && player.onGround && !state.swimming) {
     player.vy = JUMP_SPEED;
     player.onGround = false;
     soundEngine.jump();

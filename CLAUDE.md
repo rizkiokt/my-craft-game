@@ -345,6 +345,26 @@ The held item is a cube with atlas UVs for blocks, or a flat quad using the item
 
 `applyPlayerToCamera()` records `state.cameraDistance`; the model hides below 1.3 so a wall squeezing the third-person camera never puts it inside the avatar.
 
+### Water and swimming
+
+Water is meshed **separately from the solid world**. `buildGeometry()` fills two buffers and
+`rebuildChunk()` makes two meshes: the solid one goes in `this.meshes`, the water one in
+`this.waterMeshes` with `waterMaterial` (transparent, `depthWrite: false`, double-sided) and
+`renderOrder: 1`. Keeping them apart matters — only the solid mesh belongs in the crosshair
+raycast, and an empty carrier mesh would be walked every frame for nothing.
+
+The top face of an exposed water block is dropped by `WATER_DROP`, which is what makes a
+shoreline read as water rather than as blue stone.
+
+`getSubmersion()` reports feet, chest and head separately: you **swim** when your feet or chest
+are wet, but the view only goes blue when your head is under. Swimming replaces gravity with
+buoyancy (`SWIM_*` in constants), clears `state.fallStartY` so a dive never hurts, and turns
+the jump binding into "swim up" — breaking the surface with jump held pushes you out onto the
+bank. Entering or leaving water splashes.
+
+`state.submerged` drives two things: the `.underwater` tint overlay, and a lowpass on the whole
+audio output. **The muffle is what actually sells being under**, more than any splash.
+
 ### Sound
 
 `src/sound.js` synthesises everything; there are no audio files to license, host or download,

@@ -16,6 +16,12 @@ export const FLY_SPEED = 10.4;
 export const FLY_BOOST_MULTIPLIER = 2.1;
 export const FLY_VERTICAL_SPEED = 7.2;
 export const JUMP_SPEED = 8.8;
+/* Swimming: buoyant enough to hold you up, slow enough to feel like water. */
+export const SWIM_GRAVITY_SCALE = 0.26;
+export const SWIM_SINK_SPEED = -2.4;
+export const SWIM_RISE_SPEED = 3.4;
+export const SWIM_MOVE_SCALE = 0.58;
+export const SWIM_JUMP_OUT = 5.6;
 export const BASE_LOOK_SENSITIVITY = 0.0022;
 export const DOUBLE_TAP_WINDOW = 0.32;
 export const MAX_STEP_HEIGHT = 0.6;

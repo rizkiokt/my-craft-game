@@ -1978,3 +1978,24 @@ body.is-touch .item-name {
     margin-bottom: 32px;
   }
 }
+
+/* ------------------------------------------------------------------ *
+ * Underwater
+ *
+ * A tint and a vignette rather than a flat wash, so the edges of the
+ * screen go murky and the middle stays readable.
+ * ------------------------------------------------------------------ */
+
+.underwater {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(28, 96, 150, 0.18) 30%, rgba(10, 52, 92, 0.62) 100%),
+    linear-gradient(180deg, rgba(40, 120, 175, 0.3), rgba(8, 44, 82, 0.5));
+}
+
+.underwater.is-visible {
+  opacity: 1;
+}

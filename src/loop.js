@@ -3,8 +3,17 @@
 import { captureScreenshot } from "./actions.js";
 import { chunkMeshes } from "./chunkMesh.js";
 import { isOutOfHealth, updateVitals } from "./combat.js";
-import { BLOCKS, BREAK_RESET_TIME, GRAVITY } from "./constants.js";
+import {
+  BLOCKS,
+  BREAK_RESET_TIME,
+  GRAVITY,
+  SWIM_GRAVITY_SCALE,
+  SWIM_JUMP_OUT,
+  SWIM_RISE_SPEED,
+  SWIM_SINK_SPEED,
+} from "./constants.js";
 import { updateDrops } from "./drops.js";
+import { isActionDown } from "./bindings.js";
 import { handleInput } from "./input.js";
 import { getTargetKey, resetBreakState, updateBreakVisuals, updateTarget } from "./interaction.js";
 import { clamp } from "./math.js";
@@ -12,7 +21,7 @@ import { passiveMobs } from "./mobs.js";
 import { npcs } from "./npcs.js";
 import { updatePortalTravel } from "./portals.js";
 import { spawnParticles, updateParticles } from "./particles.js";
-import { applyPlayerToCamera, getFootstepBlockType, handlePlayerDeath, movePlayerAxis, updateSafeAnchor } from "./player.js";
+import { applyPlayerToCamera, getFootstepBlockType, getSubmersion, handlePlayerDeath, movePlayerAxis, updateSafeAnchor } from "./player.js";
 import { saveGame } from "./save.js";
 import { camera, renderer, scene, updateLighting } from "./scene.js";
 import { soundEngine } from "./sound.js";
@@ -76,6 +85,7 @@ function updateSoundScene(dt) {
       enclosed: isRoofedOver(px, Math.floor(state.player.y + 2), pz),
       ember: getBiomeAt(px, pz)?.region.id === "ember",
       menu: !state.running,
+      submerged: state.submerged,
     });
   }
   soundEngine.updateAmbience(dt);
@@ -111,8 +121,32 @@ export function update(dt, shouldRender = true) {
 
     const wasOnGround = state.player.onGround;
     const previousVy = state.player.vy;
-    if (!state.flying) {
+    const water = getSubmersion();
+    const wasSwimming = state.swimming;
+    state.swimming = water.swimming && !state.flying;
+
+    if (state.swimming) {
+      // Buoyancy rather than free fall, with a slow sink and a slower rise, so
+      // water holds you up instead of dropping you through it.
+      state.player.vy -= GRAVITY * SWIM_GRAVITY_SCALE * dt;
+      if (isActionDown("jump")) {
+        state.player.vy = Math.min(SWIM_RISE_SPEED, state.player.vy + GRAVITY * 0.9 * dt);
+      }
+      state.player.vy = clamp(state.player.vy, SWIM_SINK_SPEED, SWIM_RISE_SPEED);
+      // Breaking the surface with the jump held is a push out onto the bank.
+      if (!water.chest && isActionDown("jump")) {
+        state.player.vy = Math.max(state.player.vy, SWIM_JUMP_OUT);
+      }
+      state.fallStartY = null;
+    } else if (!state.flying) {
       state.player.vy -= GRAVITY * dt;
+    }
+
+    state.submerged = water.head && !state.flying;
+
+    if (state.swimming !== wasSwimming) {
+      soundEngine.splash();
+      spawnParticles(state.player.x, state.player.y + 0.4, state.player.z, BLOCKS.water, 10, 2.2);
     }
 
     movePlayerAxis("x", state.player.vx * dt);

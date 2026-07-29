@@ -2,7 +2,7 @@
 
 import { BLOCK_NAMES, CHUNK_SIZE, CITY_PLAN, HOTBAR_SIZE, MAX_AIR, MAX_HEALTH, SNOW_REALM, SUBURB_PLAN } from "../constants.js";
 import { getArmorPoints, getDamageReduction } from "../combat.js";
-import { airRow, armorRow, damageFlashEl, debugLeft, debugOverlay, debugRight, healthRow, hotbar, hudLayer, itemNameLabel, modeBanner, toastLabel, vitals, xpBar, xpFill, xpLevel } from "../dom.js";
+import { airRow, armorRow, damageFlashEl, debugLeft, debugOverlay, debugRight, healthRow, hotbar, hudLayer, underwaterEl, itemNameLabel, modeBanner, toastLabel, vitals, xpBar, xpFill, xpLevel } from "../dom.js";
 import { describeEnchantments, getLevel, getLevelProgress } from "../enchanting.js";
 import { itemIcons } from "../icons.js";
 import { getItemCount, getSelectedItem, isCreative } from "../items.js";
@@ -144,6 +144,7 @@ function updateVitalsHud() {
 
 export function updateHud() {
   hudLayer.classList.toggle("is-hidden", !state.hudVisible);
+  underwaterEl.classList.toggle("is-visible", state.submerged);
   updateVitalsHud();
 
   // Experience bar sits above the hotbar, as in Minecraft.
