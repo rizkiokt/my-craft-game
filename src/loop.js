@@ -20,6 +20,7 @@ import { state } from "./state.js";
 import { updateHotbar, updateHud, updateModeBanner } from "./ui/hud.js";
 import { isWorldView, updatePanorama } from "./ui/screens.js";
 import { world } from "./world.js";
+import { getBiomeAt } from "./worldgen.js";
 export function trackFrameRate(dt) {
   if (dt <= 0) {
     return;
@@ -48,8 +49,43 @@ export function render(dt = 0) {
   updateHud();
 }
 
+/** True when there is stone rather than sky overhead: a cave, or a cellar. */
+function isRoofedOver(px, fromY, pz) {
+  for (let y = fromY; y <= fromY + 18; y++) {
+    if (world.isSolid(px, y, pz)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Reads the world once a beat and steers the ambient bed from it. */
+let sceneCheck = 0;
+
+function updateSoundScene(dt) {
+  sceneCheck -= dt;
+  if (sceneCheck <= 0) {
+    sceneCheck = 0.5;
+    const px = Math.floor(state.player.x);
+    const pz = Math.floor(state.player.z);
+    const hours = state.dayTime * 24;
+    soundEngine.setScene({
+      night: hours < 6 || hours > 19,
+      // Asked directly rather than read off the light volume, which is only
+      // recomputed lazily and can be a frame or two behind.
+      enclosed: isRoofedOver(px, Math.floor(state.player.y + 2), pz),
+      ember: getBiomeAt(px, pz)?.region.id === "ember",
+      menu: !state.running,
+    });
+  }
+  soundEngine.updateAmbience(dt);
+  soundEngine.updateMusic(dt);
+}
+
 export function update(dt, shouldRender = true) {
   trackFrameRate(dt);
+  // Ahead of the running gate: the menus have music too.
+  updateSoundScene(dt);
   if (!state.running) {
     state.uiMessageTimer = Math.max(0, state.uiMessageTimer - dt);
     state.heldItemTimer = Math.max(0, state.heldItemTimer - dt);

@@ -18,6 +18,7 @@ import {
   PORTAL_MIN_WIDTH,
 } from "./constants.js";
 import { teleportTo } from "./player.js";
+import { soundEngine } from "./sound.js";
 import { state } from "./state.js";
 import { world } from "./world.js";
 import { findNearestBiome } from "./worldgen.js";
@@ -389,6 +390,7 @@ export function travelTo(destinationId) {
 
   state.portalCooldown = PORTAL_COOLDOWN;
   state.portalTimer = 0;
+  soundEngine.portal(true);
   toast(`Arrived at ${destination.name}`);
   state.saveDirty = true;
 }

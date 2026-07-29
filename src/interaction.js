@@ -180,7 +180,7 @@ function tryLightPortal(x, y, z) {
   if (!lit.cells) {
     return lit;
   }
-  soundEngine.ui(true);
+  soundEngine.portal(false);
   chunkMeshes.syncLoadedChunks();
   openPortalPicker(lit.cells, lit.destinationId);
   return null;

@@ -345,6 +345,36 @@ The held item is a cube with atlas UVs for blocks, or a flat quad using the item
 
 `applyPlayerToCamera()` records `state.cameraDistance`; the model hides below 1.3 so a wall squeezing the third-person camera never puts it inside the avatar.
 
+### Sound
+
+`src/sound.js` synthesises everything; there are no audio files to license, host or download,
+and the bed can react to where you are in a way fixed clips cannot. Four things carry the
+weight:
+
+- **One long noise buffer, played from a random offset** per hit, plus a little random pitch on
+  every event, so repeated footsteps never share a texture.
+- **Layered voices**: a filtered noise burst for the surface and a pitched body for the mass,
+  described per material in `MATERIALS`. Callers pass block types; `BLOCK_MATERIAL` maps them.
+- **A convolution reverb from procedurally generated decaying noise.** This is the single
+  biggest difference between "synthesised" and "toy" — without it everything happens inside
+  the listener's head.
+- **`VOICE` and a limiter.** Every voice is written at a working level and scaled in one place;
+  the old engine peaked around −40 dBFS, which is most of why it sounded thin.
+
+The **ambient bed** is three looping filtered noise beds (wind, cave rumble, lava) built once
+and crossfaded, plus scheduled one-shots — birds by day, crickets at night, drips underground,
+crackles in the Ember Deep. **`music`** is a slow four-chord pad with sparse pentatonic notes
+over it, loud in the menus and barely there in play.
+
+Nothing in `sound.js` inspects game state: `loop.js` calls `setScene()` with `night`,
+`enclosed`, `ember` and `menu`. `enclosed` asks the world for a roof directly rather than
+reading the light volume, which is only recomputed lazily and can lag a frame.
+
+**Browsers will not start audio without a gesture**, so `input.js` resumes the context on the
+first `pointerdown` anywhere — that is what lets the title screen have music at all.
+
+`settings.ambience` drives the bed and the music together, separately from `settings.volume`.
+
 ### Health, damage and armour
 
 `src/combat.js` owns hearts, air, armour and every damage source. `updateVitals(dt)` runs

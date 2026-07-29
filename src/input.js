@@ -253,6 +253,10 @@ export function installInputHandlers() {
   document.addEventListener("fullscreenchange", syncOptionsScreen);
   window.addEventListener("resize", resizeRenderer);
 
+  // Browsers will not start audio without a gesture, and the title screen has
+  // music, so the very first click anywhere wakes it up.
+  document.addEventListener("pointerdown", () => soundEngine.resume());
+
   window.addEventListener("beforeunload", () => {
     saveGame(true);
   });

@@ -18,6 +18,7 @@ import {
 import { getEnchantLevel } from "./enchanting.js";
 import { addItem, consumeItem, getItemCount, isCreative } from "./items.js";
 import { clamp } from "./math.js";
+import { soundEngine } from "./sound.js";
 import { state } from "./state.js";
 import { world } from "./world.js";
 
@@ -210,6 +211,7 @@ export function updateVitals(dt) {
     if (state.burnTimer >= LAVA_INTERVAL) {
       state.burnTimer = 0;
       damagePlayer(LAVA_DAMAGE, { cause: "the lava" });
+      soundEngine.burn();
       state.uiMessage = "That is hot! Get out of the lava";
       state.uiMessageTimer = 1.2;
     }

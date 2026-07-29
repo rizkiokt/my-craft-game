@@ -13,6 +13,7 @@ import { world } from "../world.js";
 export const optSensitivity = document.getElementById("opt-sensitivity");
 export const optFov = document.getElementById("opt-fov");
 export const optVolume = document.getElementById("opt-volume");
+export const optAmbience = document.getElementById("opt-ambience");
 export const optRender = document.getElementById("opt-render");
 export const optInvert = document.getElementById("opt-invert");
 export const optBobbing = document.getElementById("opt-bobbing");
@@ -22,6 +23,7 @@ export const optTouch = document.getElementById("opt-touch");
 export const valSensitivity = document.getElementById("val-sensitivity");
 export const valFov = document.getElementById("val-fov");
 export const valVolume = document.getElementById("val-volume");
+export const valAmbience = document.getElementById("val-ambience");
 export const valRender = document.getElementById("val-render");
 
 export function applySettings() {
@@ -38,10 +40,12 @@ export function syncOptionsScreen() {
   optSensitivity.value = String(settings.sensitivity);
   optFov.value = String(settings.fov);
   optVolume.value = String(settings.volume);
+  optAmbience.value = String(settings.ambience);
   optRender.value = String(settings.renderDistance);
   valSensitivity.textContent = `${settings.sensitivity}%`;
   valFov.textContent = String(settings.fov);
   valVolume.textContent = `${settings.volume}%`;
+  valAmbience.textContent = `${settings.ambience}%`;
   valRender.textContent = `${settings.renderDistance} chunk${settings.renderDistance === 1 ? "" : "s"}`;
   optInvert.textContent = `Invert Mouse: ${settings.invertMouse ? "ON" : "OFF"}`;
   optBobbing.textContent = `View Bobbing: ${settings.viewBobbing ? "ON" : "OFF"}`;
@@ -74,6 +78,7 @@ export function installOptionsHandlers() {
   optSensitivity.addEventListener("input", () => updateSetting("sensitivity", Number(optSensitivity.value)));
   optFov.addEventListener("input", () => updateSetting("fov", Number(optFov.value)));
   optVolume.addEventListener("input", () => updateSetting("volume", Number(optVolume.value)));
+  optAmbience.addEventListener("input", () => updateSetting("ambience", Number(optAmbience.value)));
   optRender.addEventListener("input", () => updateSetting("renderDistance", Number(optRender.value)));
   optInvert.addEventListener("click", () => updateSetting("invertMouse", !settings.invertMouse));
   optBobbing.addEventListener("click", () => updateSetting("viewBobbing", !settings.viewBobbing));

@@ -6,6 +6,7 @@ export const DEFAULT_SETTINGS = {
   sensitivity: 100,
   fov: 75,
   volume: 100,
+  ambience: 70,
   renderDistance: DEFAULT_RENDER_DISTANCE,
   invertMouse: false,
   viewBobbing: true,

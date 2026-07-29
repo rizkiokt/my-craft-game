@@ -110,9 +110,14 @@ Open **Options...** from the title screen or the pause menu:
 - **Master Volume**
 - **Render Distance** — 1 to 5 chunks
 - **Invert Mouse**, **View Bobbing**, **Autosave**, **Fullscreen**
+- **Background Sound** — the wind, birds, crickets and music. Separate from Master Volume, so
+  you can keep the effects and turn the music down
 - **Touch Controls** — AUTO / ON / OFF
 
 Settings and key bindings persist in `localStorage` alongside your world save.
+
+> Browsers will not play sound until you have clicked something, so the title music starts on
+> your first click rather than the moment the page opens.
 
 ---
 
