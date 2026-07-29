@@ -18,6 +18,7 @@ The code lives in `src/` as layered ES modules (see CLAUDE.md for the layering r
 | Crafting / Inventory | `src/ui/inventory.js` |
 | Dropped items | `src/drops.js` |
 | Friends (NPCs) | `src/npcs.js` |
+| Biomes & portals | `src/worldgen.js`, `src/portals.js`, `src/ui/portals.js` |
 | Save / Load | `src/save.js`, `src/ui/worlds.js` |
 | UI / HUD | `src/ui/hud.js`, `src/ui/screens.js`, `src/ui/controlsScreen.js`, `src/ui/options.js`, `src/ui/menus.js` |
 | Input / Camera | `src/input.js`, `src/actions.js`, `src/touch.js`, `src/pointerLock.js`, `src/fullscreen.js` |
@@ -327,6 +328,27 @@ The code lives in `src/` as layered ES modules (see CLAUDE.md for the layering r
 | `step(npc, dirX, dirZ, dt, speed)` | One move, retrying sideways when the way is blocked |
 | `serialize()` / `restore(saved)` | Persist name, palette, position, and asked-for following |
 | `getNearby(limit)` / `describeActivity(npc)` | Diagnostics for the debug overlay and scripted tests |
+
+---
+
+## Biomes & Portals
+
+| Function | What it does |
+|---|---|
+| `getBiomeAt(wx, wz)` | The region a column falls in, with a strength that fades over `BIOME_EDGE` blocks at the border |
+| `getBiomeTargetHeight(region, wx, wz)` | The ground height a biome wants, before blending with the natural land |
+| `getBiomeBlock(region, wx, wy, wz, height)` | The block a biome wants there, or null to fall through to the ordinary rules |
+| `getOasisDepth(region, wx, wz)` | How far into the desert's central bowl a column sits |
+| `getEmberFloor(region, wx, wz)` | The floor of the Ember Deep's cavern; its roof hangs a fixed distance under the surface |
+| `World#decorateBiome(...)` | Cacti, spires and the tree kinds each biome grows |
+| `World#collectEmitters(chunk, region)` | Lists terrain that glows, so the light pass can seed from it |
+| `findPortalOpening(x, y, z)` | Floods the air a frame encloses and checks it is sealed; any rectangle within the size limits, either plane |
+| `lightPortal(x, y, z)` | Fills a finished frame and records every cell in `state.portals` |
+| `setPortalDestination(cells, id)` / `clearPortalAt` / `extinguishAround` | Repoint a portal, forget a cell, put one out when its frame breaks |
+| `findArrivalSpot(destination)` | Where a destination puts you down; `underground` ones arrive in the highest sheltered pocket |
+| `buildReturnPortal(spot, id)` | Builds a way back at the arrival point, so you cannot strand yourself |
+| `travelTo(id)` / `updatePortalTravel(dt)` | Make the trip; run the stand-still timer from the loop |
+| `openPortalPicker(cells, id)` | The panel that asks a portal where it goes |
 
 ---
 

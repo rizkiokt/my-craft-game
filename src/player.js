@@ -192,12 +192,11 @@ export function handlePlayerDeath(cause = "") {
  * Puts the player down on solid ground at a place, loading the chunks there
  * first. Used by portals, and by scripted runs that need to be somewhere.
  */
-export function teleportTo(x, z) {
+export function teleportTo(x, z, y = null) {
   world.updateLoadedChunks(x, z);
-  const surface = getSurfaceData(x, z);
   state.player.x = x;
   state.player.z = z;
-  state.player.y = surface.y + 0.05;
+  state.player.y = y != null ? y + 0.05 : getSurfaceData(x, z).y + 0.05;
   state.player.vx = 0;
   state.player.vy = 0;
   state.player.vz = 0;

@@ -44,6 +44,7 @@ export const deathTitleBtn = document.getElementById("death-title-btn");
 export const splashLabel = document.getElementById("splash");
 export const seedInput = document.getElementById("seed-input");
 export const seedCurrent = document.getElementById("seed-current");
+export const portalList = document.getElementById("portal-list");
 export const worldList = document.getElementById("world-list");
 export const worldNameInput = document.getElementById("world-name");
 export const worldFileInput = document.getElementById("world-file");
@@ -58,4 +59,5 @@ export const screenElements = {
   options: document.getElementById("screen-options"),
   help: document.getElementById("screen-help"),
   worlds: document.getElementById("screen-worlds"),
+  portal: document.getElementById("screen-portal"),
 };

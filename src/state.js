@@ -21,6 +21,11 @@ export const state = {
   station: "inventory",
   chests: {},
   openChestKey: null,
+  /** Lit portal cells, keyed "x,y,z", each holding where it goes. */
+  portals: {},
+  portalTimer: 0,
+  portalCooldown: 0,
+  portalPicker: null,
   health: MAX_HEALTH,
   air: MAX_AIR,
   armor: { helmet: null, chestplate: null, leggings: null, boots: null },

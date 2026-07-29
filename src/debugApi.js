@@ -41,6 +41,8 @@ export function renderGameToText() {
           .filter(Boolean)
       : [],
     chestCount: Object.keys(state.chests).length,
+    portalCells: Object.keys(state.portals).length,
+    portalTimer: Number(state.portalTimer.toFixed(2)),
     lightAtHead: world.getLight(Math.floor(state.player.x), Math.floor(state.player.y + 1.5), Math.floor(state.player.z)),
     lightAtFeet: world.getLight(Math.floor(state.player.x), Math.floor(state.player.y), Math.floor(state.player.z)),
     fps: state.fps,
@@ -148,8 +150,8 @@ export function installDebugApi() {
     };
   };
   // Lets a scripted run stand somewhere far away without walking there.
-  window.debugTeleport = (x, z) => {
-    const spot = teleportTo(x, z);
+  window.debugTeleport = (x, z, y = null) => {
+    const spot = teleportTo(x, z, y);
     chunkMeshes.syncLoadedChunks();
     passiveMobs.syncLoadedChunks();
     return spot;

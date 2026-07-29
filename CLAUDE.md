@@ -34,8 +34,8 @@ Modules are layered; a module may only import from a layer below it. `src/ui/*` 
 | 1 | `settings.js`, `bindings.js`, `state.js`, `recipes.js` | Options, control scheme, mutable state, recipe tables |
 | 2 | `worldgen.js`, `textures.js`, `world.js`, `items.js`, `enchanting.js` | Terrain, atlas, voxel storage, item rules, XP |
 | 3 | `scene.js`, `icons.js`, `chunkMesh.js`, `sound.js`, `mobs.js`, `particles.js`, `playerModel.js` | Three.js resources and singletons |
-| 4 | `player.js`, `interaction.js`, `crafting.js`, `combat.js`, `drops.js`, `pointerLock.js`, `fullscreen.js`, `save.js` | Gameplay systems |
-| 5 | `ui/hud.js`, `ui/inventory.js`, `ui/screens.js`, `ui/controlsScreen.js`, `ui/options.js`, `ui/menus.js`, `ui/worlds.js` | Screens and overlays |
+| 4 | `player.js`, `interaction.js`, `crafting.js`, `combat.js`, `drops.js`, `portals.js`, `pointerLock.js`, `fullscreen.js`, `save.js` | Gameplay systems |
+| 5 | `ui/hud.js`, `ui/inventory.js`, `ui/screens.js`, `ui/controlsScreen.js`, `ui/options.js`, `ui/menus.js`, `ui/worlds.js`, `ui/portals.js` | Screens and overlays |
 | 6 | `actions.js`, `input.js`, `touch.js`, `loop.js`, `debugApi.js` | Input routing and the frame loop |
 
 **The import graph is acyclic — keep it that way.** Three places would otherwise close a loop and all use dependency inversion instead:
@@ -44,7 +44,7 @@ Modules are layered; a module may only import from a layer below it. `src/ui/*` 
 - `actions.js` cannot import `loop.js`, so `takeScreenshot()` sets `state.screenshotRequested` and `render()` performs the capture (the drawing buffer is not preserved, so it must happen in the same task as the draw).
 - `ui/options.js` cannot import `touch.js`, so it exposes `onTouchSettingChanged(handler)` and `main.js` registers `syncTouchControls`.
 
-DOM listeners are never attached at module scope. Each wiring module exports an `install*Handlers()` function that `main.js` calls once: `installMenuHandlers`, `installWorldsHandlers`, `installOptionsHandlers`, `installInputHandlers`, `installTouchHandlers`, `installDebugApi`.
+DOM listeners are never attached at module scope. Each wiring module exports an `install*Handlers()` function that `main.js` calls once: `installMenuHandlers`, `installWorldsHandlers`, `installPortalHandlers`, `installOptionsHandlers`, `installInputHandlers`, `installTouchHandlers`, `installDebugApi`.
 
 Because `state.player.y` needs the world to know where the ground is, `state.js` declares `y: 0` and `main.js` sets the real spawn height during boot.
 
@@ -104,7 +104,7 @@ stops the browser scrolling, zooming, and firing synthetic mouse events at `inpu
 
 ### Screens
 
-`showScreen(name)` owns the whole UI stack: `"playing"`, `"title"`, `"pause"`, `"controls"`, `"options"`, `"help"`, `"worlds"`. It drives `state.running`, toggles `#screen-*` elements, and clears held keys on leaving the world. The `SUB_SCREENS` set names the ones you back out of, so `openSubScreen()` remembers where you came in from even when hopping between them — add a new sub-screen there and to `handleEscape()`. Because Escape while pointer-locked never reaches `keydown`, `updatePointerState()` opens the pause menu whenever the lock is lost unexpectedly — `exitPointerLock()` sets `state.intentionalUnlock` for the deliberate cases.
+`showScreen(name)` owns the whole UI stack: `"playing"`, `"title"`, `"pause"`, `"controls"`, `"options"`, `"help"`, `"worlds"`, `"portal"`. It drives `state.running`, toggles `#screen-*` elements, and clears held keys on leaving the world. The `SUB_SCREENS` set names the ones you back out of, so `openSubScreen()` remembers where you came in from even when hopping between them — add a new sub-screen there and to `handleEscape()`. Because Escape while pointer-locked never reaches `keydown`, `updatePointerState()` opens the pause menu whenever the lock is lost unexpectedly — `exitPointerLock()` sets `state.intentionalUnlock` for the deliberate cases.
 
 The death screen is a separate overlay driven by `state.isDead`, not a screen.
 
@@ -177,12 +177,47 @@ not move between seeds.
 
 ### Biomes and structures
 
-Three distinct terrain zones are composed in `getHeightAt` and `getBlock`:
+Terrain zones are composed in `getHeightAt` and `getBlock`:
 - **Natural terrain** — Perlin-noise hills, caves, beaches, trees, ore veins
 - **City district** — deterministic grid near `x ≈ 18, z ≈ -14`; layout driven by `getCityParcel()` / `getSuburbParcel()` / `getStructureBlock()`
 - **Snow realm** — east of city near `x ≈ 112, z ≈ 66`; igloos, lodges, pine trees; driven by `getSnowParcel()`
+- **Biome regions** — the five in `BIOME_REGIONS`, driven by `getBiomeAt()` / `getBiomeTargetHeight()` / `getBiomeBlock()`
 
 Structure block selection for both settlements funnels through `getStructureBlock(wx, wy, wz, height)`.
+
+**Biomes are hand-placed rectangles, not noise.** Noise spread over the whole map would look
+more organic but would rewrite the terrain of every existing world, and would leave no fixed
+address for a portal to aim at. `getBiomeAt()` returns the region plus a strength that fades
+over `BIOME_EDGE` blocks at the border, so a desert runs out into meadow rather than stopping
+at a wall. Adding one is a `BIOME_REGIONS` entry plus a case in `getBiomeTargetHeight`,
+`getBiomeBlock` and `World#decorateBiome`.
+
+Two details are load-bearing:
+
+- **The Ember Deep's roof hangs a fixed distance below whatever the surface turned out to
+  be**, rather than at a fixed height. That seals the cavern by itself wherever its hill runs
+  out, instead of needing a special case at the border.
+- **The light pass used to seed only from player edits**, on the grounds that torches were the
+  only light source. Terrain that glows on its own broke that and the Ember Deep came out
+  pitch black. `World#collectEmitters()` lists a chunk's generated glow at generation time, so
+  `computeChunkLight()` still seeds from a short list rather than sweeping the chunk volume.
+  Any future biome that generates light needs `emissive: true` on its region.
+
+### Portals
+
+`src/portals.js` owns the whole mechanic; `src/ui/portals.js` is only the destination picker.
+
+Rather than matching a fixed shape, `findPortalOpening()` **floods the air pocket a frame
+encloses and checks everything around it is frame** — so any rectangle between
+`PORTAL_MIN_*` and `PORTAL_MAX_*` works, in either vertical plane, and a frame with a gap in
+it floods away and fails. Lighting records **every cell** in `state.portals` keyed `"x,y,z"`,
+so standing in one is a lookup rather than a search.
+
+Portals aim at named places in `TRAVEL_DESTINATIONS`, not at each other, because every biome
+already has a fixed address. Arriving always calls `buildReturnPortal()` pointing back the
+way you came, so you cannot strand yourself. A destination marked `underground` arrives in
+the highest sheltered pocket instead of on the surface, which is what puts you inside the
+Ember Deep rather than on the hill over it.
 
 ### Rendering
 
@@ -309,7 +344,7 @@ each item to its slot, defence points and tier colour. Reduction is 4% per point
 
 | Key | Constant | Contents |
 |---|---|---|
-| `mycraft-save-v2` | `SAVE_KEY` | The world you are playing: chunk edits, inventory, hotbar, player position, game mode, name |
+| `mycraft-save-v2` | `SAVE_KEY` | The world you are playing: chunk edits, inventory, hotbar, player position, game mode, name, portals |
 | `mycraft-world-<id>` | `WORLD_KEY_PREFIX` | A named save: the same payload, wrapped with its format and name |
 | `mycraft-worldinfo-<id>` | `WORLD_INFO_PREFIX` | Just enough to list that save — name, time, seed, mode, block count |
 | `mycraft-settings-v1` | `SETTINGS_KEY` | Options screen values |

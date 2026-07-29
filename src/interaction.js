@@ -10,12 +10,14 @@ import { clamp, floorVector } from "./math.js";
 import { CAT_COATS, passiveMobs } from "./mobs.js";
 import { npcs } from "./npcs.js";
 import { spawnHearts, spawnParticles } from "./particles.js";
+import { clearPortalAt, extinguishAround, lightPortal } from "./portals.js";
 import { applyPlayerToCamera, eyePosition, hasCollision, lookDirection } from "./player.js";
 import { scene } from "./scene.js";
 import { soundEngine } from "./sound.js";
 import { state } from "./state.js";
 import { showToast, updateHotbar } from "./ui/hud.js";
 import { openStation, updateInventoryPanel } from "./ui/inventory.js";
+import { openPortalPicker } from "./ui/portals.js";
 import { world } from "./world.js";
 
 /** Blocks that open a crafting station when used. */
@@ -244,6 +246,13 @@ export function interact(breaking, isPress = false) {
     }
     if (world.setBlock(state.target.block.x, state.target.block.y, state.target.block.z, BLOCKS.air)) {
       chunkMeshes.markDirtyAtWorld(state.target.block.x, state.target.block.z);
+      // Break the frame and the portal goes out with it, rather than being
+      // left hanging there still working.
+      if (brokenType === BLOCKS.portal_frame) {
+        extinguishAround(state.target.block.x, state.target.block.y, state.target.block.z);
+      } else if (brokenType === BLOCKS.portal) {
+        clearPortalAt(state.target.block.x, state.target.block.y, state.target.block.z);
+      }
       const dropId = getDropForBlock(brokenType);
       if (dropId != null && isCollectibleBlock(brokenType) && !isCreative()) {
         const amount = getDropCount(brokenType);
@@ -272,6 +281,28 @@ export function interact(breaking, isPress = false) {
     resetBreakState();
 
     // Right-clicking a station opens it; sneak to place a block against it.
+    // A finished frame lights when you touch it, then asks where it goes.
+    if (state.target.block.type === BLOCKS.portal_frame && !state.sneaking) {
+      if (isPress) {
+        state.usePressed = false;
+        const lit = lightPortal(state.target.block.x, state.target.block.y, state.target.block.z);
+        if (lit) {
+          soundEngine.ui(true);
+          openPortalPicker(lit.cells, lit.destinationId);
+        } else {
+          showToast("Build a frame 2 wide and 3 tall, then touch it");
+        }
+      }
+      return;
+    }
+    if (state.target.block.type === BLOCKS.portal && !state.sneaking) {
+      if (isPress) {
+        state.usePressed = false;
+        openPortalPicker([[state.target.block.x, state.target.block.y, state.target.block.z]]);
+      }
+      return;
+    }
+
     const station = STATION_BLOCKS[state.target.block.type];
     if (station && !state.sneaking) {
       const chestKey = station === "chest"

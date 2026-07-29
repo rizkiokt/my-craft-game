@@ -1862,3 +1862,39 @@ body.is-touch .item-name {
     width: 100%;
   }
 }
+
+/* ------------------------------------------------------------------ *
+ * Portal destination picker
+ * ------------------------------------------------------------------ */
+
+.portal-list {
+  display: grid;
+  gap: 8px;
+  max-height: 52vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.portal-option {
+  display: grid;
+  gap: 3px;
+  justify-items: start;
+  text-align: left;
+  padding: 10px 14px;
+}
+
+.portal-option strong {
+  font-size: 15px;
+}
+
+.portal-option span {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+  text-shadow: none;
+}
+
+/* Where this portal currently points. */
+.portal-option.is-active {
+  background: linear-gradient(180deg, #8a6ec8 0%, #6a4fae 48%, #5f45a1 50%, #4e3688 100%);
+}

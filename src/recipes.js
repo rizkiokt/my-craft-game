@@ -325,6 +325,18 @@ export const TABLE_RECIPES = [
     ingredients: { [ITEMS.diamond]: 3, [BLOCKS.bricks]: 4 },
     description: "Build a table to enchant your gear.",
   },
+  {
+    id: "portal_frame",
+    output: BLOCKS.portal_frame,
+    count: 6,
+    pattern: [
+      [BLOCKS.stone, BLOCKS.stone, BLOCKS.stone],
+      [BLOCKS.stone, ITEMS.iron_ingot, BLOCKS.stone],
+      [BLOCKS.stone, BLOCKS.stone, BLOCKS.stone],
+    ],
+    ingredients: { [BLOCKS.stone]: 8, [ITEMS.iron_ingot]: 1 },
+    description: "Frame blocks for a portal. Ten builds the smallest one.",
+  },
 ];
 
 export const FURNACE_RECIPES = [

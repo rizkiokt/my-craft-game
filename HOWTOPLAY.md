@@ -159,6 +159,42 @@ Your current seed is shown on the title screen and is saved with the world.
 
 ---
 
+## Biomes and Portals
+
+Five places sit around your world, each a day's walk from home in a different direction:
+
+| Place | Where | What is there |
+|---|---|---|
+| **Deep Forest** | west | Trees packed close, shady clearings, easy wood |
+| **Dune Sea** | north-east | Sand, cacti, and a green oasis with water in the middle |
+| **Murk Fen** | south | Shallow pools, mud and crooked wide-crowned trees |
+| **Red Canyon** | south-west | Layered red cliffs, deep gorges and standing stone spires |
+| **Ember Deep** | north-west | A cavern glowing under a stone hill: lava, glowstone, and the ancient debris netherite is made from |
+
+The **Snow Realm** east of the city and the **city district** itself are still where they
+always were.
+
+### Getting there
+
+Walking works. Portals are faster.
+
+1. **Craft Portal Frames** at a crafting table: eight stone around one iron ingot makes six.
+   You need ten for the smallest portal.
+2. **Build a frame** standing up, with a hole two blocks wide and three tall in the middle.
+   Corners are optional, just like Minecraft.
+3. **Right-click the frame** and it lights up, then asks where it should go.
+4. **Step in** and stand still for a moment.
+
+When you arrive, a portal home is built for you on the spot, so you can never strand
+yourself somewhere. Right-click any lit portal to send it somewhere else instead.
+
+Break a frame block and the portal goes out. Build it again to relight it.
+
+> The Ember Deep is under a hill, so its portal drops you inside the cavern rather than on
+> top. Mind the lava.
+
+---
+
 ## The World
 
 You spawn in a small city district. The world has three distinct zones:

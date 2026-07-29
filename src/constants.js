@@ -409,6 +409,8 @@ export const BIOME_REGIONS = [
     ceiling: 30,
     /** Its terrain glows, so chunks here list their own light sources. */
     emissive: true,
+    /** Arriving means arriving inside, not on the hill over the top of it. */
+    underground: true,
   },
 ];
 
@@ -427,6 +429,7 @@ export const TRAVEL_DESTINATIONS = [
     blurb: region.blurb,
     x: (region.minX + region.maxX) / 2,
     z: (region.minZ + region.maxZ) / 2,
+    underground: region.underground ?? false,
   })),
   {
     id: "snow",

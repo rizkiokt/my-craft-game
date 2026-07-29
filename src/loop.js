@@ -10,6 +10,7 @@ import { getTargetKey, resetBreakState, updateBreakVisuals, updateTarget } from 
 import { clamp } from "./math.js";
 import { passiveMobs } from "./mobs.js";
 import { npcs } from "./npcs.js";
+import { updatePortalTravel } from "./portals.js";
 import { spawnParticles, updateParticles } from "./particles.js";
 import { applyPlayerToCamera, getFootstepBlockType, handlePlayerDeath, movePlayerAxis, updateSafeAnchor } from "./player.js";
 import { saveGame } from "./save.js";
@@ -106,6 +107,7 @@ export function update(dt, shouldRender = true) {
 
     updateSafeAnchor(dt);
     updateVitals(dt);
+    updatePortalTravel(dt);
 
     if (isOutOfHealth()) {
       handlePlayerDeath(state.lastDamageCause || "injury");

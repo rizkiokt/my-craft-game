@@ -49,6 +49,7 @@ export function buildPayload() {
     xp: state.xp,
     health: state.health,
     chests: serializeChests(),
+    portals: state.portals,
     pets: passiveMobs.serializePets(),
     npcs: npcs.serialize(),
     armor: state.armor,
@@ -170,6 +171,9 @@ export function loadGame() {
     }
     if (payload.chests && typeof payload.chests === "object") {
       state.chests = payload.chests;
+    }
+    if (payload.portals && typeof payload.portals === "object") {
+      state.portals = payload.portals;
     }
     if (payload.armor && typeof payload.armor === "object") {
       Object.assign(state.armor, payload.armor);
