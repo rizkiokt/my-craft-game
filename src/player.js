@@ -357,6 +357,7 @@ export function applyPlayerToCamera() {
   camera.rotation.x = viewPitch;
   camera.rotation.z = sideTilt;
 
+  state.cameraDistance = 0;
   if (state.perspective === 0) {
     camera.position.set(
       eyePosition.x + bobX,
@@ -374,6 +375,8 @@ export function applyPlayerToCamera() {
       distance = Math.max(0.6, blocked.distance - 0.35);
     }
     camera.position.copy(eyePosition).addScaledVector(back, distance);
+    // A wall can squeeze the camera into the avatar; the model hides instead.
+    state.cameraDistance = distance;
   }
 
   const targetFov = settings.fov

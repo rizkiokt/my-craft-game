@@ -49,6 +49,11 @@ rebound from **Controls...** on the title screen or in the pause menu.
 Sneaking slows you down, lowers the camera, and stops you walking off a ledge.
 Sprinting widens the field of view and cancels when you release forward or start sneaking.
 
+**`F5` cycles the camera:** first person → over the shoulder → facing you. In first person
+you see the item in your hand; in the other two you see your character, wearing whatever
+armour you have on and carrying whatever is in your hotbar. If a wall crowds the camera,
+the view falls back to first person rather than pushing through your own head.
+
 ---
 
 ## Game Modes

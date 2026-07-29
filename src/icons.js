@@ -5,11 +5,13 @@ import { ARMOR_ITEMS, BLOCKS, ITEMS, PI } from "./constants.js";
 import { atlasInfo, getTileIndex } from "./textures.js";
 export const itemIcons = new Map();
 export const iconCanvases = new Map();
+/** Background-free variants, for meshes in the world rather than UI slots. */
+export const iconGlyphCanvases = new Map();
 export const iconTextures = new Map();
 
 export function getIconTexture(itemId) {
   if (!iconTextures.has(itemId)) {
-    const source = iconCanvases.get(itemId);
+    const source = iconGlyphCanvases.get(itemId) ?? iconCanvases.get(itemId);
     if (!source) {
       return null;
     }
@@ -64,13 +66,21 @@ export function createFlatIcon(background, accent, glyph) {
   icon.width = 48;
   icon.height = 48;
   const iconCtx = icon.getContext("2d");
-  iconCtx.fillStyle = background;
-  iconCtx.fillRect(8, 8, 32, 32);
-  iconCtx.strokeStyle = "rgba(255,255,255,0.12)";
-  iconCtx.strokeRect(8.5, 8.5, 31, 31);
+  if (background) {
+    iconCtx.fillStyle = background;
+    iconCtx.fillRect(8, 8, 32, 32);
+    iconCtx.strokeStyle = "rgba(255,255,255,0.12)";
+    iconCtx.strokeRect(8.5, 8.5, 31, 31);
+  }
   iconCtx.fillStyle = accent;
   glyph(iconCtx);
   return icon;
+}
+
+/** Registers a flat item icon plus its transparent twin for 3D use. */
+export function registerFlatIcon(itemId, accent, glyph) {
+  registerIcon(itemId, createFlatIcon("#2b3343", accent, glyph));
+  iconGlyphCanvases.set(itemId, createFlatIcon(null, accent, glyph));
 }
 
 export function createStickGlyph(ctxGlyph) {
@@ -105,17 +115,17 @@ for (const blockType of Object.values(BLOCKS)) {
     registerIcon(blockType, createItemIcon(blockType));
   }
 }
-registerIcon(ITEMS.stick, createFlatIcon("#2b3343", "#d1ab6a", createStickGlyph));
-registerIcon(ITEMS.coal, createFlatIcon("#2b3343", "#101217", createCoalGlyph));
-registerIcon(ITEMS.iron_ingot, createFlatIcon("#2b3343", "#d7dce4", (ctxGlyph) => {
+registerFlatIcon(ITEMS.stick, "#d1ab6a", createStickGlyph);
+registerFlatIcon(ITEMS.coal, "#101217", createCoalGlyph);
+registerFlatIcon(ITEMS.iron_ingot, "#d7dce4", (ctxGlyph) => {
   ctxGlyph.fillRect(14, 20, 20, 10);
   ctxGlyph.fillRect(16, 16, 16, 4);
-}));
-registerIcon(ITEMS.wood_pickaxe, createFlatIcon("#2b3343", "#9a7440", (ctxGlyph) => createPickaxeGlyph(ctxGlyph, "#caa061")));
-registerIcon(ITEMS.stone_pickaxe, createFlatIcon("#2b3343", "#8a949d", (ctxGlyph) => createPickaxeGlyph(ctxGlyph, "#c0c7cf")));
-registerIcon(ITEMS.iron_pickaxe, createFlatIcon("#2b3343", "#d7dce4", (ctxGlyph) => createPickaxeGlyph(ctxGlyph, "#e3e8ef")));
-registerIcon(ITEMS.diamond_pickaxe, createFlatIcon("#2b3343", "#5fe3d8", (ctxGlyph) => createPickaxeGlyph(ctxGlyph, "#63e6db")));
-registerIcon(ITEMS.netherite_pickaxe, createFlatIcon("#2b3343", "#6b5b58", (ctxGlyph) => createPickaxeGlyph(ctxGlyph, "#7d6a66")));
+});
+registerFlatIcon(ITEMS.wood_pickaxe, "#9a7440", (ctxGlyph) => createPickaxeGlyph(ctxGlyph, "#caa061"));
+registerFlatIcon(ITEMS.stone_pickaxe, "#8a949d", (ctxGlyph) => createPickaxeGlyph(ctxGlyph, "#c0c7cf"));
+registerFlatIcon(ITEMS.iron_pickaxe, "#d7dce4", (ctxGlyph) => createPickaxeGlyph(ctxGlyph, "#e3e8ef"));
+registerFlatIcon(ITEMS.diamond_pickaxe, "#5fe3d8", (ctxGlyph) => createPickaxeGlyph(ctxGlyph, "#63e6db"));
+registerFlatIcon(ITEMS.netherite_pickaxe, "#6b5b58", (ctxGlyph) => createPickaxeGlyph(ctxGlyph, "#7d6a66"));
 
 /** Cut gem silhouette used for diamonds. */
 function createGemGlyph(ctxGlyph) {
@@ -136,8 +146,8 @@ function createGemGlyph(ctxGlyph) {
   ctxGlyph.fill();
 }
 
-registerIcon(ITEMS.diamond, createFlatIcon("#2b3343", "#4fd8ec", createGemGlyph));
-registerIcon(ITEMS.netherite_scrap, createFlatIcon("#2b3343", "#8a6a52", (ctxGlyph) => {
+registerFlatIcon(ITEMS.diamond, "#4fd8ec", createGemGlyph);
+registerFlatIcon(ITEMS.netherite_scrap, "#8a6a52", (ctxGlyph) => {
   ctxGlyph.beginPath();
   ctxGlyph.moveTo(16, 18);
   ctxGlyph.lineTo(32, 14);
@@ -147,13 +157,13 @@ registerIcon(ITEMS.netherite_scrap, createFlatIcon("#2b3343", "#8a6a52", (ctxGly
   ctxGlyph.fill();
   ctxGlyph.fillStyle = "rgba(0,0,0,0.35)";
   ctxGlyph.fillRect(21, 21, 6, 6);
-}));
-registerIcon(ITEMS.netherite_ingot, createFlatIcon("#2b3343", "#6b5b58", (ctxGlyph) => {
+});
+registerFlatIcon(ITEMS.netherite_ingot, "#6b5b58", (ctxGlyph) => {
   ctxGlyph.fillRect(14, 20, 20, 10);
   ctxGlyph.fillRect(16, 16, 16, 4);
   ctxGlyph.fillStyle = "rgba(255,220,190,0.35)";
   ctxGlyph.fillRect(17, 17, 14, 2);
-}));
+});
 
 /* ------------------------------------------------------------------ *
  * Armour icons — one silhouette per slot, tinted per tier.
@@ -186,8 +196,8 @@ const ARMOR_GLYPHS = {
 
 for (const [itemId, info] of Object.entries(ARMOR_ITEMS)) {
   const tint = `#${info.color.toString(16).padStart(6, "0")}`;
-  registerIcon(Number(itemId), createFlatIcon("#2b3343", tint, (ctxGlyph) => {
+  registerFlatIcon(Number(itemId), tint, (ctxGlyph) => {
     ctxGlyph.fillStyle = tint;
     ARMOR_GLYPHS[info.slot](ctxGlyph);
-  }));
+  });
 }

@@ -58,7 +58,7 @@ Because `state.player.y` needs the world to know where the ground is, `state.js`
 | `state` | plain object | All mutable game state (player, screen, mode, inventory, etc.) |
 | `bindings` | plain object | action → input token map, persisted to `localStorage` |
 | `settings` | plain object | Sensitivity, FOV, volume, render distance, toggles |
-| `playerModel` | `THREE.Group` | Blocky avatar, only visible in the F5 third-person views |
+| `playerModel` | `THREE.Group` | Textured avatar with armour and held item, shown in the F5 third-person views |
 
 ### Game loop
 
@@ -132,6 +132,14 @@ apply Efficiency (break speed) and Fortune (extra ore drops).
 
 Offers are deterministic from `hash3(itemId, state.enchantSeed, slot)` so the panel does
 not reshuffle on every repaint; `rerollOffers()` bumps the seed after a successful enchant.
+
+### The player avatar
+
+`src/playerModel.js` builds the character from boxes with **one canvas texture per face** — BoxGeometry already exposes a material group per side, so the face, collar and shoes need no hand-authored UVs. Armour pieces are slightly larger boxes parented to the limb they cover, tinted from `ARMOR_ITEMS[itemId].color` and toggled per frame by `syncArmor()`.
+
+The held item is a cube with atlas UVs for blocks, or a flat quad using the item's icon. The same mesh factory feeds the first-person hand, which is a child of the camera — note `scene.add(camera)` is required for a camera's children to render at all.
+
+`applyPlayerToCamera()` records `state.cameraDistance`; the model hides below 1.3 so a wall squeezing the third-person camera never puts it inside the avatar.
 
 ### Health, damage and armour
 

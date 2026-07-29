@@ -153,6 +153,7 @@ export function interact(breaking) {
     return;
   }
   state.lastInteractionTime = state.elapsed;
+  state.armSwing = 1;
 
   if (breaking) {
     if (!canMineBlock(state.target.block.type)) {

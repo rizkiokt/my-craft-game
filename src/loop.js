@@ -64,6 +64,7 @@ export function update(dt, shouldRender = true) {
   state.viewBob = Math.max(0, state.viewBob - dt * 1.8);
   state.saveCooldown = Math.max(0, state.saveCooldown - dt);
   state.breakState.pulse = Math.max(0, state.breakState.pulse - dt * 4.2);
+  state.armSwing = Math.max(0, state.armSwing - dt * 4);
   world.updateLoadedChunks(state.player.x, state.player.z);
   chunkMeshes.syncLoadedChunks();
   passiveMobs.syncLoadedChunks();
