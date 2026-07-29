@@ -2,7 +2,7 @@
 
 import * as THREE from "../node_modules/three/build/three.module.js";
 import { chunkMeshes } from "./chunkMesh.js";
-import { BLOCKS, BLOCK_NAMES, INTERACTION_RANGE, MAX_BUILD_HEIGHT, MIN_WORLD_Y } from "./constants.js";
+import { BLOCKS, BLOCK_NAMES, INTERACTION_RANGE, MAX_BUILD_HEIGHT, MIN_WORLD_Y, PLAYER_HEIGHT, PLAYER_RADIUS } from "./constants.js";
 import { getLevel, getXpForBlock, grantXp } from "./enchanting.js";
 import { addItem, canMineBlock, consumeItem, getBreakDamage, getBreakHardness, getDropCount, getDropForBlock, getInteractionCooldown, getItemCount, getRequiredToolName, getSelectedItem, isCollectibleBlock, isCreative, isPlaceableItem } from "./items.js";
 import { chestKeyAt, emptyChestInto } from "./crafting.js";
@@ -94,11 +94,30 @@ export function updateBreakVisuals() {
   breakOverlayMaterial.opacity = 0.04 + fraction * 0.16 + state.breakState.pulse * 0.06;
 }
 
+/** True when the player's own box overlaps a block cell. */
+function playerOverlapsCell(x, y, z) {
+  const player = state.player;
+  return x + 1 > player.x - PLAYER_RADIUS && x < player.x + PLAYER_RADIUS
+    && y + 1 > player.y && y < player.y + PLAYER_HEIGHT
+    && z + 1 > player.z - PLAYER_RADIUS && z < player.z + PLAYER_RADIUS;
+}
+
+/**
+ * A block goes anywhere empty that is not inside you.
+ *
+ * This used to ask whether a *player* could stand in the target cell, which
+ * got it wrong twice over: it refused any spot with a block above it, so a
+ * gap under an overhang could not be filled and the top of a portal frame
+ * could not be closed, while never actually checking where you were standing.
+ */
 export function canPlaceBlock(x, y, z) {
   if (y < MIN_WORLD_Y || y > MAX_BUILD_HEIGHT) {
     return false;
   }
-  return !hasCollision(x + 0.5, y, z + 0.5);
+  if (world.isSolid(x, y, z)) {
+    return false;
+  }
+  return !playerOverlapsCell(x, y, z);
 }
 
 export function updateTarget() {
@@ -153,6 +172,18 @@ export function updateTarget() {
     blockCoords.z + 0.5,
   );
   updateBreakVisuals();
+}
+
+/** Lights the frame a block belongs to, if it is finished, and asks where to. */
+function tryLightPortal(x, y, z) {
+  const lit = lightPortal(x, y, z);
+  if (!lit) {
+    return false;
+  }
+  soundEngine.ui(true);
+  chunkMeshes.syncLoadedChunks();
+  openPortalPicker(lit.cells, lit.destinationId);
+  return true;
 }
 
 export function interact(breaking, isPress = false) {
@@ -281,16 +312,16 @@ export function interact(breaking, isPress = false) {
     resetBreakState();
 
     // Right-clicking a station opens it; sneak to place a block against it.
-    // A finished frame lights when you touch it, then asks where it goes.
-    if (state.target.block.type === BLOCKS.portal_frame && !state.sneaking) {
+    // Touching a frame with a free hand lights it. Holding a block still
+    // places, or the frame would be the one building material you cannot
+    // stack a second one on top of.
+    if (state.target.block.type === BLOCKS.portal_frame
+      && !state.sneaking
+      && !isPlaceableItem(getSelectedItem())) {
       if (isPress) {
         state.usePressed = false;
-        const lit = lightPortal(state.target.block.x, state.target.block.y, state.target.block.z);
-        if (lit) {
-          soundEngine.ui(true);
-          openPortalPicker(lit.cells, lit.destinationId);
-        } else {
-          showToast("Build a frame 2 wide and 3 tall, then touch it");
+        if (!tryLightPortal(state.target.block.x, state.target.block.y, state.target.block.z)) {
+          showToast("The frame needs a gap 2 wide and 3 tall");
         }
       }
       return;
@@ -332,6 +363,11 @@ export function interact(breaking, isPress = false) {
         );
         soundEngine.place(selectedItem);
         state.saveDirty = true;
+        // The block that completes a frame lights it, so nobody has to be
+        // told there is a separate step.
+        if (selectedItem === BLOCKS.portal_frame) {
+          tryLightPortal(state.target.place.x, state.target.place.y, state.target.place.z);
+        }
       }
     }
   }

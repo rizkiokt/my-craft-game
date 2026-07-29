@@ -213,6 +213,10 @@ encloses and checks everything around it is frame** — so any rectangle between
 it floods away and fails. Lighting records **every cell** in `state.portals` keyed `"x,y,z"`,
 so standing in one is a lookup rather than a search.
 
+**Placing a frame block that completes a ring lights it**, so there is no separate step to
+explain. Touching a frame only lights it when your hand is empty — otherwise it places, or
+the frame would be the one building material you could not stack a second one on top of.
+
 Portals aim at named places in `TRAVEL_DESTINATIONS`, not at each other, because every biome
 already has a fixed address. Arriving always calls `buildReturnPortal()` pointing back the
 way you came, so you cannot strand yourself. A destination marked `underground` arrives in
@@ -333,6 +337,14 @@ lava along with water, so nothing is ever placed standing on top of a pool.
 Worn pieces live in `state.armor` keyed by slot, and `ARMOR_ITEMS` in `constants.js` maps
 each item to its slot, defence points and tier colour. Reduction is 4% per point capped at
 80%, plus 2% per Protection level summed across the set.
+
+### Placing blocks
+
+`canPlaceBlock()` allows any empty cell that the player's own box does not overlap. It used
+to ask whether a *player could stand* in the target cell, which got it wrong twice over: it
+refused any spot with a block above it — so a gap under an overhang could not be filled, and
+the top row of a portal frame could not be closed — while never actually checking where the
+player was standing.
 
 ### Adding a new block type
 

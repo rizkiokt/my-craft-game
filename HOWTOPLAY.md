@@ -182,8 +182,11 @@ Walking works. Portals are faster.
    You need ten for the smallest portal.
 2. **Build a frame** standing up, with a hole two blocks wide and three tall in the middle.
    Corners are optional, just like Minecraft.
-3. **Right-click the frame** and it lights up, then asks where it should go.
+3. **It lights itself** the moment you place the block that finishes it, and asks where it
+   should go. If it does not light, there is a gap somewhere in the ring.
 4. **Step in** and stand still for a moment.
+
+Touch a finished portal, or its frame with an empty hand, to send it somewhere else.
 
 When you arrive, a portal home is built for you on the spot, so you can never strand
 yourself somewhere. Right-click any lit portal to send it somewhere else instead.

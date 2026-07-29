@@ -223,7 +223,7 @@ The code lives in `src/` as layered ES modules (see CLAUDE.md for the layering r
 | `movePlayerAxis(axis, amount)` | Slide collision — tries step-up on x/z if blocked. Sets `onGround` on blocked downward Y |
 | `tryStepUp(nextX, currentY, nextZ)` | Returns stepped-up Y if auto-step is possible, else `null` |
 | `applyPlayerToCamera()` | (Also in rendering) Maps player state → camera transform, bob, tilt, FOV |
-| `canPlaceBlock(x, y, z)` | Y bounds check + no collision at block center |
+| `canPlaceBlock(x, y, z)` | Any empty cell within the build limits that your own box does not overlap |
 | `hasGroundUnder(x, y, z)` | `true` if any footprint corner has a block beneath — powers sneak ledge protection |
 | `movePlayerToSpawn()` | Hard teleport to `DEFAULT_SPAWN` coordinates + ground height. Resets velocity |
 | `getStandableSurfaceY(bx, bz)` | Topmost non-air/water block in a column, honouring player edits (unlike `getHeightAt`) |
