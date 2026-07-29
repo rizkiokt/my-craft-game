@@ -151,6 +151,19 @@ apply Efficiency (break speed) and Fortune (extra ore drops).
 Offers are deterministic from `hash3(itemId, state.enchantSeed, slot)` so the panel does
 not reshuffle on every repaint; `rerollOffers()` bumps the seed after a successful enchant.
 
+### Friends (NPCs)
+
+`src/npcs.js` owns the roster of five characters. They reuse the player avatar through
+`createCharacterModel(palette)` and `animateCharacter()` from `playerModel.js`, so a change
+to the body shape or walk applies to everyone at once.
+
+Name tags and speech bubbles are canvas `THREE.Sprite`s parented to the character. **They
+set `sprite.raycast = () => {}`**: three.js sprite raycasting needs `raycaster.camera`, and
+ours is built from the player's eye with `raycaster.set()`, so an un-opted-out sprite throws.
+
+Picking order in `updateTarget()` is: nearest of block, mob and NPC wins the crosshair, with
+NPCs and mobs both clamped to the block distance so you cannot reach through a wall.
+
 ### Cats and pets
 
 `PassiveMobManager` keeps wild mobs in a per-chunk map that is disposed when the chunk

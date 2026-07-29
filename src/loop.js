@@ -9,6 +9,7 @@ import { handleInput } from "./input.js";
 import { getTargetKey, resetBreakState, updateBreakVisuals, updateTarget } from "./interaction.js";
 import { clamp } from "./math.js";
 import { passiveMobs } from "./mobs.js";
+import { npcs } from "./npcs.js";
 import { spawnParticles, updateParticles } from "./particles.js";
 import { applyPlayerToCamera, getFootstepBlockType, handlePlayerDeath, movePlayerAxis, updateSafeAnchor } from "./player.js";
 import { saveGame } from "./save.js";
@@ -117,6 +118,7 @@ export function update(dt, shouldRender = true) {
   updateParticles(dt);
   updateDrops(dt);
   passiveMobs.update(dt);
+  npcs.update(dt);
   updateTarget();
 
   if (state.breakState.progress > 0) {

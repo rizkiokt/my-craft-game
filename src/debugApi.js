@@ -7,6 +7,7 @@ import { getSelectedItem } from "./items.js";
 import { update } from "./loop.js";
 import { isInsideRect } from "./math.js";
 import { passiveMobs } from "./mobs.js";
+import { npcs } from "./npcs.js";
 import { FURNACE_RECIPES, HAND_RECIPES, TABLE_RECIPES } from "./recipes.js";
 import { soundEngine } from "./sound.js";
 import { state } from "./state.js";
@@ -38,6 +39,8 @@ export function renderGameToText() {
       : [],
     chestCount: Object.keys(state.chests).length,
     pets: passiveMobs.getPetCount(),
+    npcs: npcs.getNearby(),
+    npcTarget: state.npcTarget?.name ?? null,
     entityTarget: state.entityTarget
       ? `${state.entityTarget.kind}${state.entityTarget.tamed ? " (tamed" + (state.entityTarget.sitting ? ", sitting" : "") + ")" : ""}`
       : null,

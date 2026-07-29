@@ -56,6 +56,7 @@ export const state = {
   elapsed: 0,
   target: null,
   entityTarget: null,
+  npcTarget: null,
   usePressed: false,
   dragLook: false,
   dragAnchor: null,

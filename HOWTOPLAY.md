@@ -252,6 +252,21 @@ Armour does not protect against drowning or the void. Creative mode takes no dam
 
 ---
 
+## Friends
+
+Five characters live around spawn: **Alex, Sam, Robin, Kai and Mia**. They look like
+players, wander about doing their own thing, swing a pickaxe now and then, and chat when
+you are close enough to read them. Their names float above their heads.
+
+- **Right-click a friend** and they will come along with you.
+- **Right-click again** and they will stay put where they are.
+- Friends keep up when you sprint, and catch up on their own if you get far ahead.
+- Who is following whom is saved with your world.
+
+They are company, not competition — nobody in this game fights.
+
+---
+
 ## Cats
 
 Cats live out in the wild, in five coats: ginger, grey, black, white and tabby. Walk up to

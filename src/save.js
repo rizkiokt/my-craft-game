@@ -3,6 +3,7 @@
 import { HOTBAR_SIZE, PENDING_SEED_KEY, SAVE_KEY } from "./constants.js";
 import { getSelectedItem, isPlaceableItem } from "./items.js";
 import { passiveMobs } from "./mobs.js";
+import { npcs } from "./npcs.js";
 import { clamp, getWorldSeed, seedFromText, setWorldSeed } from "./math.js";
 import { settings } from "./settings.js";
 import { state } from "./state.js";
@@ -44,6 +45,7 @@ export function saveGame(force = false) {
       health: state.health,
       chests: serializeChests(),
       pets: passiveMobs.serializePets(),
+      npcs: npcs.serialize(),
       armor: state.armor,
       enchantments: state.enchantments,
       inventory: state.inventory,
@@ -64,6 +66,12 @@ export function saveGame(force = false) {
 }
 
 let loadedSave = false;
+let restoredNpcs = false;
+
+/** True when the save already contained the roster, so boot need not spawn it. */
+export function hasRestoredNpcs() {
+  return restoredNpcs;
+}
 
 /** Drops empty chests so the save does not grow with every one placed. */
 function serializeChests() {
@@ -125,6 +133,7 @@ export function loadGame() {
     }
     state.xp = Number.isFinite(payload.xp) ? payload.xp : state.xp;
     state.health = Number.isFinite(payload.health) ? payload.health : state.health;
+    restoredNpcs = npcs.restore(payload.npcs);
     if (Array.isArray(payload.pets)) {
       passiveMobs.restorePets(payload.pets);
     }

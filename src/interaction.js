@@ -8,6 +8,7 @@ import { addItem, canMineBlock, consumeItem, getBreakDamage, getBreakHardness, g
 import { chestKeyAt, emptyChestInto } from "./crafting.js";
 import { clamp, floorVector } from "./math.js";
 import { CAT_COATS, passiveMobs } from "./mobs.js";
+import { npcs } from "./npcs.js";
 import { spawnHearts, spawnParticles } from "./particles.js";
 import { applyPlayerToCamera, eyePosition, hasCollision, lookDirection } from "./player.js";
 import { scene } from "./scene.js";
@@ -106,9 +107,14 @@ export function updateTarget() {
   const intersections = raycaster.intersectObjects(chunkMeshes.getMeshes(), false);
   const hit = intersections[0];
 
-  // A creature standing in front of a block wins the crosshair.
-  const creature = passiveMobs.raycast(raycaster, Math.min(hit?.distance ?? Infinity, INTERACTION_RANGE));
-  state.entityTarget = creature?.entity ?? null;
+  // Anything standing in front of a block wins the crosshair.
+  const reach = Math.min(hit?.distance ?? Infinity, INTERACTION_RANGE);
+  const creature = passiveMobs.raycast(raycaster, reach);
+  const friend = npcs.raycast(raycaster, reach);
+  // Whichever of the two is nearer takes the crosshair.
+  const friendFirst = friend && (!creature || friend.distance <= creature.distance);
+  state.npcTarget = friendFirst ? friend.npc : null;
+  state.entityTarget = !friendFirst && creature ? creature.entity : null;
 
   if (!hit || !hit.face) {
     state.target = null;
@@ -149,6 +155,19 @@ export function updateTarget() {
 
 export function interact(breaking, isPress = false) {
   updateTarget();
+
+  // Someone under the crosshair is greeted before any block is considered.
+  const friend = state.npcTarget;
+  if (!breaking && friend) {
+    if (isPress) {
+      state.usePressed = false;
+      const following = npcs.greet(friend);
+      showToast(following ? `${friend.name} is coming with you` : `${friend.name} waits here`);
+      soundEngine.ui(following);
+      state.saveDirty = true;
+    }
+    return;
+  }
 
   // A creature under the crosshair is handled before any block, because one
   // standing against open sky has no block behind it to fall back on.

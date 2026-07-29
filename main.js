@@ -19,7 +19,8 @@ import { animationLoop, render } from "./src/loop.js";
 import { passiveMobs } from "./src/mobs.js";
 import { onUnexpectedUnlock } from "./src/pointerLock.js";
 import { ensureValidPlayerPosition } from "./src/player.js";
-import { loadGame, loadWorldSeed } from "./src/save.js";
+import { npcs } from "./src/npcs.js";
+import { hasRestoredNpcs, loadGame, loadWorldSeed } from "./src/save.js";
 import { resizeRenderer } from "./src/scene.js";
 import { loadBindings } from "./src/bindings.js";
 import { loadSettings } from "./src/settings.js";
@@ -60,6 +61,11 @@ if (!hadSave) {
   ) + 3.05;
 }
 ensureValidPlayerPosition();
+
+// A fresh world starts with the roster around spawn; a saved one restores them.
+if (!hasRestoredNpcs()) {
+  npcs.spawnRoster(DEFAULT_SPAWN.x, DEFAULT_SPAWN.z);
+}
 world.updateLoadedChunks(state.player.x, state.player.z);
 chunkMeshes.syncLoadedChunks();
 passiveMobs.syncLoadedChunks();

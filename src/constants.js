@@ -168,6 +168,9 @@ export const ARMOR_SLOT_LABELS = {
 
 /** How close a tamed cat trails you, and when it gives up and catches up. */
 export const CAT_CURIOUS_DISTANCE = 4.5;
+/** How closely a friend walks with you, and when they catch up. */
+export const NPC_FOLLOW_DISTANCE = 2.8;
+export const NPC_TELEPORT_DISTANCE = 24;
 export const PET_FOLLOW_DISTANCE = 2.4;
 export const PET_TELEPORT_DISTANCE = 18;
 
