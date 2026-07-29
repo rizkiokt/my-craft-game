@@ -1,6 +1,6 @@
 // The window hooks used for scripted testing.
 
-import { getArmorPoints } from "./combat.js";
+import { damagePlayer, getArmorPoints } from "./combat.js";
 import { BLOCK_NAMES, CITY_PLAN, FIXED_STEP, MAX_HEALTH, SNOW_REALM, SUBURB_PLAN } from "./constants.js";
 import { hotbar } from "./dom.js";
 import { getSelectedItem } from "./items.js";
@@ -44,6 +44,7 @@ export function renderGameToText() {
     pets: passiveMobs.getPetCount(),
     npcs: npcs.getNearby(),
     npcTarget: state.npcTarget?.name ?? null,
+    toast: state.uiMessageTimer > 0 ? state.uiMessage : null,
     entityTarget: state.entityTarget
       ? `${state.entityTarget.kind}${state.entityTarget.tamed ? " (tamed" + (state.entityTarget.sitting ? ", sitting" : "") + ")" : ""}`
       : null,
@@ -130,6 +131,21 @@ export function renderGameToText() {
 /** Attaches this module's DOM listeners. Called once from main.js. */
 export function installDebugApi() {
   window.render_game_to_text = renderGameToText;
+  // What, if anything, the friends currently think you need a hand with.
+  window.npcHelpNeed = () => {
+    const need = npcs.findNeed();
+    if (!need) {
+      return null;
+    }
+    return {
+      kind: need.kind,
+      site: need.site ?? null,
+      plan: need.plan?.length ?? 0,
+      changes: (need.plan ?? []).filter((s) => npcs.canChange(s.x, s.y, s.z, s.block)).length,
+    };
+  };
+  // Lets a scripted run reach states that would otherwise need a long fall.
+  window.debugDamage = (amount) => damagePlayer(amount, { ignoreArmor: true, cause: "testing" });
   window.advanceTime = (ms) => {
     const steps = Math.max(1, Math.round(ms / (FIXED_STEP * 1000)));
     state.suppressAnimationTick = true;

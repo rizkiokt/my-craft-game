@@ -187,12 +187,37 @@ not reshuffle on every repaint; `rerollOffers()` bumps the seed after a successf
 when a world is first created and then saved, so friends differ per world but stay
 themselves.
 
-Jobs are a small state machine: `startActivity()` picks build/mine/wander, builds a `plan`
-of block changes, and `workOnPlan()` walks to the site and applies one block per beat so you
-can watch it happen. **`siteIsFree()` refuses any site overlapping existing edits or sitting
-within 8 blocks of spawn**, which is what stops them digging through player builds. They reuse the player avatar through
-`createCharacterModel(palette)` and `animateCharacter()` from `playerModel.js`, so a change
-to the body shape or walk applies to everyone at once.
+Jobs are a small state machine: `startActivity()` picks follow/build/mine/wander and stores
+`npc.job = {kind, site, plan, step}`. `runPlan()` walks to the site and applies one block per
+beat so you can watch it happen; `workOnJob()` wraps it for jobs and `workOnHelp()` for
+favours, so building a hut and digging you out share the same code. They reuse the player
+avatar through `createCharacterModel(palette)` and `animateCharacter()` from
+`playerModel.js`, so a change to the body shape or walk applies to everyone at once.
+
+Two guards keep them from wrecking your work: **`siteIsFree()` refuses any job site
+overlapping existing edits or sitting within 8 blocks of spawn**, and **`canChange()` refuses
+to replace any non-air block you placed yourself**, so even a rescue tunnel cuts only through
+natural ground.
+
+`update()` runs `considerHelping()` on a timer. `findNeed()` returns the most urgent thing
+worth doing — rescue, food, light, gift — and the nearest friend off cooldown takes it;
+**only one helps at a time**, or you get a crowd. A favour is either "reach a spot and change
+some blocks" (`need.plan`) or "reach the player and hand something over". Two details matter:
+
+- The pit rescue carves a staircase **three blocks tall**. Each step is a full block up,
+  which needs a jump (`MAX_STEP_HEIGHT` only covers 0.6), and a jump needs the headroom or
+  you crack your head on the ceiling and never get up it.
+- `findPitRescue()` returns null when nothing in the plan would actually change, so a hole
+  you are still standing in does not get rescued over and over.
+
+`step()` retries sideways when the way is blocked, which is enough to round a hillside
+without real pathfinding; `workOnHelp()` still gives up after `HELP_STALL` seconds of getting
+no closer, because nobody else may step in while one of them is on the job.
+
+Following has two flavours sharing `npc.following`: asked (right-click) and `autoFollow`,
+which `startActivity()` rolls on its own and drops after `followTimer` runs out. **Only asked
+follows are serialised**, so a friend who tagged along for a minute is not still with you
+after a reload.
 
 Name tags and speech bubbles are canvas `THREE.Sprite`s parented to the character. **They
 set `sprite.raycast = () => {}`**: three.js sprite raycasting needs `raycaster.camera`, and

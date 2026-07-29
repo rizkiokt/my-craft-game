@@ -269,10 +269,28 @@ They get on with things rather than milling about:
 They only ever build or dig where nobody has already been, so they will not knock a hole
 in something you made.
 
+### Going about together
+
 - **Right-click a friend** and they will come along with you.
 - **Right-click again** and they will stay put where they are.
+- Sometimes one decides to tag along on their own, keeps you company for a minute or two,
+  then wanders back off to their own work.
 - Friends keep up when you sprint, and catch up on their own if you get far ahead.
-- Who is following whom is saved with your world.
+- Who you have *asked* to follow is saved with your world.
+
+### Lending a hand
+
+They keep half an eye on you, and the nearest one comes over when something is wrong:
+
+- **Dug yourself into a hole?** Somebody will carve a staircase down to you so you can walk
+  back out. Jump up each step.
+- **Badly hurt?** They will share some food and put a few hearts back.
+- **Out of torches or planks?** They will hand you some of theirs.
+- **Somewhere pitch dark,** with a friend right there beside you? They will set down a
+  torch.
+
+Only one helps at a time, and each of them takes a rest afterwards, so you never get mobbed.
+If they cannot reach you — across water, or down a cliff — they will say so and give up.
 
 They are company, not competition — nobody in this game fights.
 

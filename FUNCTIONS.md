@@ -17,6 +17,7 @@ The code lives in `src/` as layered ES modules (see CLAUDE.md for the layering r
 | Tool / Item | `src/items.js` |
 | Crafting / Inventory | `src/ui/inventory.js` |
 | Dropped items | `src/drops.js` |
+| Friends (NPCs) | `src/npcs.js` |
 | Save / Load | `src/save.js` |
 | UI / HUD | `src/ui/hud.js`, `src/ui/screens.js`, `src/ui/controlsScreen.js`, `src/ui/options.js`, `src/ui/menus.js` |
 | Input / Camera | `src/input.js`, `src/actions.js`, `src/pointerLock.js`, `src/fullscreen.js` |
@@ -301,6 +302,30 @@ The code lives in `src/` as layered ES modules (see CLAUDE.md for the layering r
 | `updateDrops(dt)` | Gravity, block collision, bob, and pickup within `DROP_PICKUP_RANGE` after `DROP_PICKUP_DELAY` |
 | `removeDrop(index)` / `clearDrops()` | Remove from scene and dispose the sprite material |
 | `getIconTexture(itemId)` | Lazily builds a `CanvasTexture` from the cached icon canvas |
+
+---
+
+## Friends (NPCs) — `class NpcManager`
+
+| Function | What it does |
+|---|---|
+| `randomPalette(random)` | Rolls skin/hair/shirt/trousers/shoes from the curated tables. Called once per character per world, then saved |
+| `spawnRoster(x, z)` / `spawn(entry)` | Place the five characters in a ring on solid ground |
+| `raycast(ray, maxDistance)` | Nearest friend under the crosshair, for right-clicking one |
+| `greet(npc)` / `stopFollowing(npc, line)` | Toggle following. Asking overrides a spontaneous tag-along |
+| `update(dt)` / `updateNpc(npc, dt)` | Per-frame: help first, then follow, then job, then wander |
+| `startActivity(npc)` | Rolls the next thing to do: tag along, build a hut, mine, or wander |
+| `findHutSite(npc)` / `planHut(site)` / `planMine(npc)` | Pick a plot and turn it into a list of block changes |
+| `siteIsFree(x, z, radius, baseY, height)` | Refuses a site overlapping existing edits or within 8 blocks of spawn |
+| `runPlan(npc, job, dt, beat)` | Walk to `job.site`, then apply one block per beat. Shared by jobs and favours |
+| `canChange(x, y, z, block)` / `applyStep(step)` | Apply a block change, never replacing a non-air block the player placed |
+| `considerHelping()` / `findNeed()` / `nearestHelper(need)` | Spot what you need a hand with and send the closest friend off cooldown |
+| `findPitRescue(px, feetY, pz)` | Plans a 3-high staircase out of a hole; null when nothing would actually change |
+| `findTorchSpot(px, feetY, pz)` | An empty cell beside you that a torch can stand in |
+| `beginHelp` / `workOnHelp` / `completeHelp` / `endHelp` | Run one favour: walk over, do it, rest afterwards |
+| `step(npc, dirX, dirZ, dt, speed)` | One move, retrying sideways when the way is blocked |
+| `serialize()` / `restore(saved)` | Persist name, palette, position, and asked-for following |
+| `getNearby(limit)` / `describeActivity(npc)` | Diagnostics for the debug overlay and scripted tests |
 
 ---
 
