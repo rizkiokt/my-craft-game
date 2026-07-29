@@ -217,11 +217,16 @@ export const MIN_LIGHT_FACTOR = 0.16;
 export const CHEST_SIZE = 27;
 
 export const MAX_HEALTH = 20;
-/**
- * The level at which the player has finished growing: twice the hearts and
- * twice the height of a level-0 body, interpolated the whole way there.
- */
+/** The level at which the player has finished growing to twice their height. */
 export const GROWTH_MAX_LEVEL = 100;
+
+/*
+ * Hearts climb faster than height, and further: one extra heart every two
+ * levels, so twenty by level 20, on up to a ceiling of fifty at level 80.
+ */
+export const BASE_HEARTS = MAX_HEALTH / 2;
+export const HEARTS_PER_LEVEL = 0.5;
+export const MAX_HEARTS = 50;
 export const MAX_AIR = 10;
 /** Falls shorter than this never hurt, as in Minecraft. */
 export const SAFE_FALL_DISTANCE = 3;

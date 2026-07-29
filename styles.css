@@ -273,7 +273,9 @@ body:not(.is-playing) .hud-layer {
 .toast {
   position: absolute;
   left: 50%;
-  bottom: 108px;
+  /* Set by updateHud from the real height of the vitals stack: fifty hearts
+     wrap onto three rows and would otherwise be written over. */
+  bottom: var(--hud-stack, 108px);
   transform: translateX(-50%);
   padding: 7px 16px;
   border-radius: 4px;

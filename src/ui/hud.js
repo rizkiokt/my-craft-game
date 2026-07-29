@@ -8,7 +8,7 @@ import { itemIcons } from "../icons.js";
 import { getItemCount, getSelectedItem, isCreative } from "../items.js";
 import { clamp, isInsideRect } from "../math.js";
 import { passiveMobs } from "../mobs.js";
-import { getGrowth, getMaxHealth } from "../growth.js";
+import { getGrowth, getMaxHearts, getMaxHealth } from "../growth.js";
 import { state } from "../state.js";
 import { world } from "../world.js";
 export function buildHotbar() {
@@ -132,7 +132,8 @@ function updateVitalsHud() {
   if (!survival) {
     return;
   }
-  renderPips(healthRow, "pip-heart", state.health / 2, getMaxHealth() / 2);
+  renderPips(healthRow, "pip-heart", state.health / 2, getMaxHearts());
+  syncHudStackHeight();
   damageFlashEl.style.opacity = String(Math.min(1, state.damageFlash));
 
   const armorPoints = getArmorPoints();
@@ -141,6 +142,28 @@ function updateVitalsHud() {
   // Bubbles only appear while your head is under water, as in Minecraft.
   const airPips = state.air >= MAX_AIR ? 0 : Math.ceil(state.air);
   renderPips(airRow, "pip-air", airPips, airPips);
+}
+
+/**
+ * Fifty hearts wrap onto three rows, which pushes the bottom of the HUD up
+ * into wherever the toast sits. The toast is told how tall the stack has
+ * become rather than guessing at a fixed offset.
+ */
+let lastHeartCount = -1;
+let lastViewportHeight = -1;
+
+function syncHudStackHeight() {
+  const hearts = getMaxHearts();
+  if (hearts === lastHeartCount && window.innerHeight === lastViewportHeight) {
+    return;
+  }
+  lastHeartCount = hearts;
+  lastViewportHeight = window.innerHeight;
+  // Measured rather than derived: how many hearts fit on a row depends on the
+  // pip size and the wrap width, and guessing at that goes stale.
+  const top = healthRow.getBoundingClientRect().top;
+  const fromBottom = Math.max(108, Math.round(window.innerHeight - top) + 10);
+  hudLayer.style.setProperty("--hud-stack", `${fromBottom}px`);
 }
 
 export function updateHud() {

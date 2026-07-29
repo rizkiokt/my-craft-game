@@ -401,11 +401,14 @@ first `pointerdown` anywhere — that is what lets the title screen have music a
 
 ### Growing with level
 
-`src/growth.js` derives **everything about the body** from one factor: 1 at level 0, rising
-linearly to 2 at `GROWTH_MAX_LEVEL` (100) and stopping. Hearts, height, radius, eye height, step
-height, reach and walk speed all come from there rather than reading the constants directly, so
-nothing can be left behind at the old size. It recomputes the level from `state.xp` instead of
-importing `enchanting.js`, which keeps it low enough in the stack for anything to use.
+`src/growth.js` derives **everything about the body** from the level, which it recomputes from
+`state.xp` rather than importing `enchanting.js` — that keeps it low enough in the stack for the
+physics, the mesher and the HUD to all use the same answer.
+
+**Two curves, deliberately not one.** `getGrowth()` runs 1 → 2 by `GROWTH_MAX_LEVEL` (100) and
+drives height, radius, eye height, step height, reach and walk speed. `getMaxHearts()` climbs
+faster and further — `BASE_HEARTS` (10) plus `HEARTS_PER_LEVEL` (0.5), so twenty hearts by level
+20, capped at `MAX_HEARTS` (50) at level 80.
 
 Walk speed scales by **√growth**, not growth: doubling it makes the world feel small, and
 leaving it alone makes a giant feel like they are wading.
@@ -413,7 +416,9 @@ leaving it alone makes a giant feel like they are wading.
 **The loop pushes the player up out of collision every frame.** Gaining a level in a two-block
 tunnel would otherwise wedge you inside the world with every direction blocked.
 
-The heart row wraps: twenty hearts is wider than the hotbar.
+The heart row wraps: fifty hearts is three rows deep. `syncHudStackHeight()` **measures** that
+row and publishes `--hud-stack`, which is where the toast anchors — how many pips fit on a row
+depends on the pip size and the wrap width, and guessing at it goes stale.
 
 ### Health, damage and armour
 

@@ -166,9 +166,13 @@ Your current seed is shown on the title screen and is saved with the world.
 
 ## Growing Up
 
-You start small and grow as you level up. By **level 100** you are twice the size you began:
-twice as tall, twice as wide, and **twenty hearts instead of ten**. Everything in between is
-gradual, so at level 50 you are half way there.
+You start small and grow as you level up, and the two go at different speeds.
+
+**Hearts come quickly.** You start with ten and gain one every two levels, so you have
+**twenty hearts by level 20** — and they keep coming, up to **fifty hearts at level 80**.
+
+**Height comes slowly.** By level 100 you are twice the size you began: twice as tall and twice
+as wide, gradually the whole way there.
 
 Being big has its perks — longer arms reach further, longer legs step over bigger ledges, and
 longer strides carry you a little faster. It has its awkward side too: a tunnel you dug as a

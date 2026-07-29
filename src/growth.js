@@ -1,14 +1,18 @@
-// How big the player is, which grows with their level.
+// How big the player is and how much they can take, both of which grow with
+// their level.
 //
-// Everything about the body is derived here rather than read from the
-// constants directly, so one factor moves hearts, height, reach and the avatar
-// together and nothing can be left behind at the old size.
+// Everything about the body is derived here rather than read from the constants
+// directly, so nothing can be left behind at the old size. Two curves, not one:
+// height doubles by level 100, while hearts climb faster and further, reaching
+// fifty by level 80.
 
 import {
+  BASE_HEARTS,
   CAMERA_HEIGHT,
   GROWTH_MAX_LEVEL,
+  HEARTS_PER_LEVEL,
+  MAX_HEARTS,
   INTERACTION_RANGE,
-  MAX_HEALTH,
   MAX_STEP_HEIGHT,
   MOVE_SPEED,
   PLAYER_HEIGHT,
@@ -19,18 +23,29 @@ import { clamp } from "./math.js";
 import { state } from "./state.js";
 
 /**
- * 1 at level 0, rising to 2 at `GROWTH_MAX_LEVEL` and stopping there. The level
- * is recomputed from XP rather than imported, so this can sit below
- * enchanting.js and be usable from anywhere.
+ * The level is recomputed from XP rather than imported from enchanting.js, so
+ * this module can sit below it and be usable from anywhere.
  */
-export function getGrowth() {
-  const level = Math.floor(state.xp / XP_PER_LEVEL);
-  return 1 + clamp(level / GROWTH_MAX_LEVEL, 0, 1);
+export function getPlayerLevel() {
+  return Math.floor(state.xp / XP_PER_LEVEL);
 }
 
-/** Hearts double over the same climb: 20 at level 0, 40 at level 100. */
+/** 1 at level 0, rising to 2 at `GROWTH_MAX_LEVEL` and stopping there. */
+export function getGrowth() {
+  return 1 + clamp(getPlayerLevel() / GROWTH_MAX_LEVEL, 0, 1);
+}
+
+/**
+ * Hearts on their own, quicker curve: ten to start, twenty by level 20, and on
+ * up to fifty. Deliberately not tied to `getGrowth()` — height tops out at
+ * level 100 and hearts at level 80.
+ */
+export function getMaxHearts() {
+  return clamp(BASE_HEARTS + getPlayerLevel() * HEARTS_PER_LEVEL, BASE_HEARTS, MAX_HEARTS);
+}
+
 export function getMaxHealth() {
-  return Math.round(MAX_HEALTH * getGrowth());
+  return Math.round(getMaxHearts() * 2);
 }
 
 export function getBodyHeight() {
