@@ -378,8 +378,12 @@ weight:
 - **A convolution reverb from procedurally generated decaying noise.** This is the single
   biggest difference between "synthesised" and "toy" — without it everything happens inside
   the listener's head.
-- **`VOICE` and a limiter.** Every voice is written at a working level and scaled in one place;
-  the old engine peaked around −40 dBFS, which is most of why it sounded thin.
+- **`VOICE` and a limiter.** Every effect voice is scaled in one place. Keep it restrained:
+  footsteps and pick strikes fire several times a second, and anything that reads as punchy on
+  its own becomes wearing fast — the first attempt at this was seven times louder and had to
+  come back down. `impact()` takes a `bright` factor for the same reason; dulling the top end is
+  what stops a repeated sound turning into a hiss. Music and the beds set their own levels and
+  are deliberately **not** scaled by `VOICE`, so effects can be rebalanced without touching them.
 
 The **ambient bed** is three looping filtered noise beds (wind, cave rumble, lava) built once
 and crossfaded, plus scheduled one-shots — birds by day, crickets at night, drips underground,

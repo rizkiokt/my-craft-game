@@ -16,11 +16,13 @@ import { clamp } from "./math.js";
 import { settings } from "./settings.js";
 
 /**
- * Every voice is written at a comfortable working level and scaled here, so
- * the whole engine gets louder or quieter in one place. The old engine peaked
- * around -40 dBFS, which is most of why it sounded thin.
+ * Every effect voice is scaled here, so the whole engine gets louder or
+ * quieter in one place. Deliberately restrained: footsteps and pick strikes
+ * fire several times a second, and anything that reads as punchy on its own
+ * becomes wearing very quickly. Music and the ambient beds set their own
+ * levels and are not affected by this.
  */
-const VOICE = 6;
+const VOICE = 2.4;
 
 /** Randomises pitch a little so repeated hits never sound mechanical. */
 function vary(amount = 0.06) {
@@ -323,14 +325,15 @@ export class SoundEngine {
    * One layered impact: the transient, the surface texture and the mass of the
    * thing. Used for footsteps, mining and placing, scaled differently each time.
    */
-  impact(material, { gain = 1, decay = 1, pitch = 1, wet = 0.5, time = 0 } = {}) {
+  impact(material, { gain = 1, decay = 1, pitch = 1, wet = 0.5, time = 0, bright = 1 } = {}) {
     const mat = MATERIALS[material] ?? MATERIALS.dirt;
     const length = mat.decay * decay;
     this.noise({
       gain: 0.05 * gain * mat.noise,
       decay: length,
       highpass: mat.high * vary(0.12),
-      lowpass: mat.low * vary(0.1),
+      // Dulling the top end is what stops a repeated sound turning into a hiss.
+      lowpass: mat.low * bright * vary(0.1),
       sweep: 0.45,
       time,
       wet,
@@ -351,11 +354,13 @@ export class SoundEngine {
    * ---------------------------------------------------------------- */
 
   footstep(block = BLOCKS.grass, sprinting = false) {
+    // The most frequent sound in the game, so soft and dull on purpose.
     this.impact(materialFor(block), {
-      gain: sprinting ? 0.6 : 0.42,
-      decay: sprinting ? 0.85 : 1,
+      gain: sprinting ? 0.26 : 0.19,
+      decay: sprinting ? 0.8 : 0.95,
       pitch: vary(0.1),
-      wet: 0.35,
+      bright: 0.42,
+      wet: 0.28,
     });
   }
 
@@ -366,7 +371,7 @@ export class SoundEngine {
 
   land(speed = 6) {
     const force = clamp(Math.abs(speed) / 14, 0.3, 1.4);
-    this.impact("dirt", { gain: 0.7 * force, decay: 1.3, pitch: 0.8, wet: 0.5 });
+    this.impact("dirt", { gain: 0.45 * force, decay: 1.25, pitch: 0.8, bright: 0.6, wet: 0.45 });
     if (force > 0.8) {
       this.pulse({ frequency: 70, type: "sine", gain: 0.05 * force, decay: 0.3, bend: 0.6, wet: 0.6 });
     }
@@ -375,10 +380,13 @@ export class SoundEngine {
   /** A pick strike. `finished` is the block finally giving way. */
   hit(block = BLOCKS.stone, finished = false) {
     this.impact(materialFor(block), {
-      gain: finished ? 1 : 0.4,
-      decay: finished ? 1.6 : 0.55,
+      // A strike lands many times before the block gives way, so only the
+      // giving way is allowed to be loud.
+      gain: finished ? 0.85 : 0.2,
+      decay: finished ? 1.5 : 0.5,
       pitch: finished ? 0.85 : vary(0.16),
-      wet: finished ? 0.7 : 0.3,
+      bright: finished ? 0.9 : 0.5,
+      wet: finished ? 0.6 : 0.25,
     });
     if (finished) {
       // Debris skittering away.
@@ -396,7 +404,7 @@ export class SoundEngine {
   }
 
   place(block = BLOCKS.stone) {
-    this.impact(materialFor(block), { gain: 0.7, decay: 1.1, pitch: 1.05, wet: 0.45 });
+    this.impact(materialFor(block), { gain: 0.4, decay: 1, pitch: 1.05, bright: 0.7, wet: 0.4 });
   }
 
   splash() {
@@ -414,24 +422,16 @@ export class SoundEngine {
     this.pulse({
       frequency: opening ? 520 : 400,
       type: "triangle",
-      gain: 0.035,
-      decay: 0.14,
+      gain: 0.022,
+      decay: 0.13,
       bend: opening ? 1.3 : 0.75,
-      wet: 0.4,
-    });
-    this.pulse({
-      frequency: (opening ? 780 : 600) * vary(0.02),
-      type: "sine",
-      gain: 0.02,
-      decay: 0.1,
-      time: 0.03,
-      wet: 0.4,
+      wet: 0.35,
     });
   }
 
   select() {
-    this.pulse({ frequency: 880 * vary(0.03), type: "sine", gain: 0.022, decay: 0.06, wet: 0.25 });
-    this.noise({ gain: 0.008, decay: 0.04, highpass: 3000, lowpass: 11000, wet: 0.2 });
+    // Fires on every scroll of the hotbar, so barely there.
+    this.pulse({ frequency: 760 * vary(0.03), type: "sine", gain: 0.01, decay: 0.05, wet: 0.2 });
   }
 
   craft() {
@@ -589,7 +589,7 @@ export class SoundEngine {
       this.pulse({
         frequency: base * (1 + (Math.random() - 0.5) * 0.4),
         type: "sine",
-        gain: 0.012,
+        gain: 0.03,
         attack: 0.01,
         decay: 0.09 + Math.random() * 0.07,
         bend: 1 + (Math.random() - 0.3) * 0.5,
@@ -603,7 +603,7 @@ export class SoundEngine {
     const base = 4200 * vary(0.08);
     for (let i = 0; i < 4; i++) {
       this.pulse({
-        frequency: base, type: "square", gain: 0.004, attack: 0.002,
+        frequency: base, type: "square", gain: 0.01, attack: 0.002,
         decay: 0.02, time: i * 0.045, wet: 0.8,
       });
     }
@@ -611,7 +611,7 @@ export class SoundEngine {
 
   drip() {
     this.pulse({
-      frequency: 900 * vary(0.3), type: "sine", gain: 0.02,
+      frequency: 900 * vary(0.3), type: "sine", gain: 0.05,
       decay: 0.3, bend: 0.35, wet: 1,
     });
   }
@@ -619,7 +619,7 @@ export class SoundEngine {
   crackle() {
     for (let i = 0; i < 3; i++) {
       this.noise({
-        gain: 0.014, decay: 0.06, highpass: 900 * vary(0.4), lowpass: 7000,
+        gain: 0.035, decay: 0.06, highpass: 900 * vary(0.4), lowpass: 7000,
         time: i * (0.03 + Math.random() * 0.06), wet: 0.9,
       });
     }
@@ -728,11 +728,11 @@ export class SoundEngine {
   chime() {
     const scale = [392, 440, 523.25, 587.33, 659.25, 783.99];
     const root = scale[Math.floor(Math.random() * scale.length)];
-    this.pulse({ frequency: root, type: "sine", gain: 0.014, attack: 0.02, decay: 1.6, wet: 1 });
+    this.pulse({ frequency: root, type: "sine", gain: 0.035, attack: 0.02, decay: 1.6, wet: 1 });
     if (Math.random() < 0.6) {
       this.pulse({
         frequency: scale[Math.floor(Math.random() * scale.length)],
-        type: "sine", gain: 0.01, attack: 0.02, decay: 1.9, time: 0.35, wet: 1,
+        type: "sine", gain: 0.025, attack: 0.02, decay: 1.9, time: 0.35, wet: 1,
       });
     }
   }
