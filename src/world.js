@@ -1,6 +1,6 @@
 // Voxel storage, terrain generation and block access.
 
-import { BIOME_REGIONS, BLOCKS, CHUNK_SIZE, CITY_PLAN, DEFAULT_RENDER_DISTANCE, DEFAULT_SPAWN, LIGHT_HEIGHT, LIGHT_MAX_Y, LIGHT_MIN_Y, MAX_BUILD_HEIGHT, MAX_LIGHT, MAX_RENDER_DISTANCE, MAX_WORLD_Y, MIN_RENDER_DISTANCE, MIN_WORLD_Y, SNOW_REALM, SUBURB_PLAN, TORCH_LIGHT, WATER_LEVEL } from "./constants.js";
+import { BLOCKS, CHUNK_SIZE, CITY_PLAN, DEFAULT_RENDER_DISTANCE, DEFAULT_SPAWN, LIGHT_HEIGHT, LIGHT_MAX_Y, LIGHT_MIN_Y, MAX_BUILD_HEIGHT, MAX_LIGHT, MAX_RENDER_DISTANCE, MAX_WORLD_Y, MIN_RENDER_DISTANCE, MIN_WORLD_Y, SNOW_REALM, SUBURB_PLAN, TORCH_LIGHT, WATER_LEVEL } from "./constants.js";
 
 /** Six-way neighbours used by the light flood fill. */
 const NEIGHBOUR_OFFSETS = [
@@ -94,7 +94,7 @@ export class World {
     if (biome) {
       return Math.round(lerp(
         naturalHeight,
-        getBiomeTargetHeight(biome.region, wx, wz),
+        getBiomeTargetHeight(biome, wx, wz),
         biome.blend,
       ));
     }
@@ -132,6 +132,9 @@ export class World {
       cacti: [],
       spires: [],
       emitters: [],
+      // The biome per column, worked out once: getGeneratedBlock runs per
+      // block and the site search is far too much to repeat that often.
+      biomes: new Array(CHUNK_SIZE * CHUNK_SIZE).fill(null),
       fauna: [],
       light: null,
       lightDirty: true,
@@ -146,9 +149,10 @@ export class World {
     if (chunkIntersectsRect(cx, cz, SNOW_REALM)) {
       chunk.maxBuildY = Math.max(chunk.maxBuildY, SNOW_REALM.baseHeight + 15);
     }
-    for (const region of BIOME_REGIONS) {
-      if (chunkIntersectsRect(cx, cz, region)) {
-        chunk.maxBuildY = Math.max(chunk.maxBuildY, (region.ceiling ?? region.baseHeight) + 12);
+
+    for (let lz = 0; lz < CHUNK_SIZE; lz++) {
+      for (let lx = 0; lx < CHUNK_SIZE; lx++) {
+        chunk.biomes[lz * CHUNK_SIZE + lx] = getBiomeAt(cx * CHUNK_SIZE + lx, cz * CHUNK_SIZE + lz);
       }
     }
 
@@ -184,7 +188,7 @@ export class World {
           }
         }
 
-        const biome = getBiomeAt(wx, wz);
+        const biome = chunk.biomes[index];
         const flatEnough =
           Math.abs(height - heights[index - 1]) <= 1 &&
           Math.abs(height - heights[index + 1]) <= 1 &&
@@ -192,7 +196,7 @@ export class World {
           Math.abs(height - heights[index + CHUNK_SIZE]) <= 1;
 
         if (biome && biome.blend > 0.4) {
-          this.decorateBiome(chunk, biome.region, wx, wz, height, flatEnough);
+          this.decorateBiome(chunk, biome, wx, wz, height, flatEnough);
         } else if (!isSandy && !settlementZone && !snowZone && height >= 10 && height <= 18) {
           if (flatEnough && hash3(wx, 17, wz) > 0.992) {
             const trunkHeight = 4 + Math.floor(hash3(wx, 29, wz) * 2);
@@ -257,10 +261,8 @@ export class World {
 
     // Terrain that lights itself has to be listed now: the light pass seeds
     // from this rather than sweeping the chunk volume.
-    for (const region of BIOME_REGIONS) {
-      if (region.emissive && chunkIntersectsRect(cx, cz, region)) {
-        this.collectEmitters(chunk, region);
-      }
+    if (chunk.biomes.some((biome) => biome?.region.emissive)) {
+      this.collectEmitters(chunk);
     }
 
     tryAddFauna("sheep", 61, 0.44, { allowSand: false, minHeight: 9, maxHeight: 18 });
@@ -341,19 +343,21 @@ export class World {
   }
 
   /** Lists the glowing blocks a biome generates, for the light pass to seed from. */
-  collectEmitters(chunk, region) {
-    const from = Math.max(LIGHT_MIN_Y, region.baseHeight - 4);
+  collectEmitters(chunk) {
     for (let lz = 0; lz < CHUNK_SIZE; lz++) {
       for (let lx = 0; lx < CHUNK_SIZE; lx++) {
-        const wx = chunk.cx * CHUNK_SIZE + lx;
-        const wz = chunk.cz * CHUNK_SIZE + lz;
-        if (!getBiomeAt(wx, wz)) {
+        const index = lz * CHUNK_SIZE + lx;
+        const biome = chunk.biomes[index];
+        if (!biome?.region.emissive) {
           continue;
         }
-        const height = chunk.heights[lz * CHUNK_SIZE + lx];
+        const wx = chunk.cx * CHUNK_SIZE + lx;
+        const wz = chunk.cz * CHUNK_SIZE + lz;
+        const height = chunk.heights[index];
+        const from = Math.max(LIGHT_MIN_Y, biome.region.baseHeight - 4);
         const to = Math.min(LIGHT_MAX_Y, height);
         for (let wy = from; wy <= to; wy++) {
-          const level = getLightEmission(getBiomeBlock(region, wx, wy, wz, height));
+          const level = getLightEmission(getBiomeBlock(biome, wx, wy, wz, height));
           if (level > 0) {
             chunk.emitters.push({ lx, y: wy, lz, level });
           }
@@ -366,7 +370,8 @@ export class World {
    * What grows in each biome. Kept apart from ensureChunk so the per-column
    * loop there stays readable.
    */
-  decorateBiome(chunk, region, wx, wz, height, flatEnough) {
+  decorateBiome(chunk, biome, wx, wz, height, flatEnough) {
+    const region = biome.region;
     if (region.id === "forest") {
       // Much denser than open country, and taller with it.
       if (flatEnough && height >= 9 && hash3(wx, 17, wz) > 0.955) {
@@ -378,7 +383,7 @@ export class World {
     }
 
     if (region.id === "desert") {
-      const oasis = getOasisDepth(region, wx, wz);
+      const oasis = getOasisDepth(biome, wx, wz);
       if (oasis > 0.55) {
         // Palms round the water hole.
         if (flatEnough && height > WATER_LEVEL && hash3(wx, 37, wz) > 0.965) {
@@ -426,7 +431,7 @@ export class World {
     const height = chunk.heights[lz * CHUNK_SIZE + lx];
     const sandy = chunk.sandy[lz * CHUNK_SIZE + lx] === 1;
     const snowZone = getSnowBlend(wx, wz) > 0;
-    const biome = getBiomeAt(wx, wz);
+    const biome = chunk.biomes[lz * CHUNK_SIZE + lx];
     const caveNoise =
       Math.abs(perlin2(wx / 21 + wy * 0.08, wz / 21)) +
       Math.abs(perlin2(wx / 25, wy / 9 + wz * 0.04));
@@ -518,7 +523,7 @@ export class World {
       return BLOCKS.air;
     }
     if (biome) {
-      const biomeBlock = getBiomeBlock(biome.region, wx, wy, wz, height);
+      const biomeBlock = getBiomeBlock(biome, wx, wy, wz, height);
       if (biomeBlock != null) {
         return biomeBlock;
       }

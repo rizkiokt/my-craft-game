@@ -161,18 +161,23 @@ Your current seed is shown on the title screen and is saved with the world.
 
 ## Biomes and Portals
 
-Five places sit around your world, each a day's walk from home in a different direction:
+The world is made of biomes that go on forever. Walk far enough in any direction and you will
+keep finding new ones, with ordinary meadow in between:
 
-| Place | Where | What is there |
-|---|---|---|
-| **Deep Forest** | west | Trees packed close, shady clearings, easy wood |
-| **Dune Sea** | north-east | Sand, cacti, and a green oasis with water in the middle |
-| **Murk Fen** | south | Shallow pools, mud and crooked wide-crowned trees |
-| **Red Canyon** | south-west | Layered red cliffs, deep gorges and standing stone spires |
-| **Ember Deep** | north-west | A cavern glowing under a stone hill: lava, glowstone, and the ancient debris netherite is made from |
+| Place | What is there |
+|---|---|
+| **Deep Forest** | Trees packed close, shady clearings, easy wood |
+| **Dune Sea** | Sand, cacti, and a green oasis with water in the middle |
+| **Murk Fen** | Shallow pools, mud and crooked wide-crowned trees |
+| **Red Canyon** | Layered red cliffs, deep gorges and standing stone spires |
+| **Ember Deep** | A cavern glowing under a stone hill: lava, glowstone, and the ancient debris netherite is made from |
 
-The **Snow Realm** east of the city and the **city district** itself are still where they
-always were.
+There is one of each within a short walk of spawn, in the same spots they have always been —
+forest to the west, desert to the north-east, fen to the south, canyon to the south-west and
+the Ember Deep to the north-west. Past those, they repeat forever in every direction.
+
+The **Snow Realm** east of the city and the **city district** itself are one-offs, and stay
+exactly where they are.
 
 ### Getting there
 
@@ -185,7 +190,9 @@ Walking works. Portals are faster.
    ground does not count, the ground is not part of it. Corners are optional, just like
    Minecraft. Bigger gaps work too, up to 4 wide and 5 tall.
 3. **It lights itself** the moment you place the block that finishes it, and asks where it
-   should go. If it does not light, there is a gap somewhere in the ring.
+   should go. Each biome in the list means *the nearest one to you*, so a portal built out in
+   the wilds takes you to whatever is closest from there. If it does not light, the message
+   will tell you what is wrong with the frame.
 4. **Step in** and stand still for a moment.
 
 Touch a finished portal, or its frame with an empty hand, to send it somewhere else.

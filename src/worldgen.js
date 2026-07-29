@@ -1,9 +1,12 @@
 // Biome blending plus city, suburb and snow-realm structures.
 
 import {
+  BIOME_ANCHORS,
+  BIOME_CELL,
   BIOME_EDGE,
-  BIOME_REGIONS,
+  BIOME_TYPES,
   BLOCKS,
+  MEADOW_WEIGHT,
   CITY_PLAN,
   SNOW_REALM,
   SUBURB_PLAN,
@@ -536,36 +539,160 @@ export function getStructureBlock(wx, wy, wz, height) {
 /** How thick the stone lid over the Ember Deep is, wherever its hill runs. */
 const EMBER_LID = 4;
 
-export function getBiomeAt(wx, wz) {
-  for (const region of BIOME_REGIONS) {
-    if (wx < region.minX || wx > region.maxX || wz < region.minZ || wz > region.maxZ) {
-      continue;
+const BIOME_BY_ID = new Map(BIOME_TYPES.map((type) => [type.id, type]));
+
+/** Total weight of the wheel, meadow included. */
+const TOTAL_WEIGHT = BIOME_TYPES.reduce((sum, type) => sum + type.weight, 0) + MEADOW_WEIGHT;
+
+/** What a grid cell grows. Null means ordinary meadow. */
+function cellType(cellX, cellZ) {
+  let roll = hash3(cellX * 0.37, 91, cellZ * 0.37) * TOTAL_WEIGHT;
+  for (const type of BIOME_TYPES) {
+    roll -= type.weight;
+    if (roll < 0) {
+      return type;
     }
-    const inset = Math.min(
-      wx - region.minX,
-      region.maxX - wx,
-      wz - region.minZ,
-      region.maxZ - wz,
-    );
-    const blend = clamp(inset / BIOME_EDGE, 0, 1) * region.strength;
-    return blend > 0 ? { region, blend } : null;
   }
   return null;
 }
 
-/** Distance 0..1 from the middle of a region, for features that sit in the centre. */
-function centreFalloff(region, wx, wz, radius) {
-  const cx = (region.minX + region.maxX) / 2;
-  const cz = (region.minZ + region.maxZ) / 2;
-  return clamp(1 - Math.hypot(wx - cx, wz - cz) / radius, 0, 1);
+/**
+ * A site inside each cell, nudged off centre so borders come out irregular
+ * rather than as a visible square grid.
+ */
+function cellSite(cellX, cellZ) {
+  const jitterX = hash3(cellX * 0.53, 11, cellZ * 0.53);
+  const jitterZ = hash3(cellX * 0.71, 23, cellZ * 0.71);
+  return {
+    x: (cellX + 0.15 + jitterX * 0.7) * BIOME_CELL,
+    z: (cellZ + 0.15 + jitterZ * 0.7) * BIOME_CELL,
+    type: cellType(cellX, cellZ),
+  };
+}
+
+/** The anchor region covering a point, if any: the original five never move. */
+function anchorAt(wx, wz) {
+  for (const anchor of BIOME_ANCHORS) {
+    if (wx >= anchor.minX && wx <= anchor.maxX && wz >= anchor.minZ && wz <= anchor.maxZ) {
+      return anchor;
+    }
+  }
+  return null;
+}
+
+/**
+ * The biome at a column and how strongly it applies. Nearest site wins; the
+ * strength fades towards whichever different-biome site is next nearest, so a
+ * desert runs out into meadow rather than stopping at a wall.
+ */
+export function getBiomeAt(wx, wz) {
+  // The city and the snow realm are landmarks and keep their own ground.
+  if (getSettlementBlend(wx, wz) > 0 || getSnowBlend(wx, wz) > 0) {
+    return null;
+  }
+
+  const anchor = anchorAt(wx, wz);
+  if (anchor) {
+    const region = BIOME_BY_ID.get(anchor.id);
+    const inset = Math.min(
+      wx - anchor.minX,
+      anchor.maxX - wx,
+      wz - anchor.minZ,
+      anchor.maxZ - wz,
+    );
+    return {
+      region,
+      blend: clamp(inset / BIOME_EDGE, 0, 1) * region.strength,
+      centerX: (anchor.minX + anchor.maxX) / 2,
+      centerZ: (anchor.minZ + anchor.maxZ) / 2,
+    };
+  }
+
+  const cellX = Math.floor(wx / BIOME_CELL);
+  const cellZ = Math.floor(wz / BIOME_CELL);
+  let nearest = null;
+  let nearestDistance = Infinity;
+  const sites = [];
+  for (let dz = -1; dz <= 1; dz++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      const site = cellSite(cellX + dx, cellZ + dz);
+      site.distance = Math.hypot(wx - site.x, wz - site.z);
+      sites.push(site);
+      if (site.distance < nearestDistance) {
+        nearestDistance = site.distance;
+        nearest = site;
+      }
+    }
+  }
+  if (!nearest?.type) {
+    return null;
+  }
+
+  // Fade towards the nearest site of a *different* biome, so two neighbouring
+  // patches of the same kind do not leave a seam down the middle.
+  let rivalDistance = Infinity;
+  for (const site of sites) {
+    if (site.type?.id !== nearest.type.id && site.distance < rivalDistance) {
+      rivalDistance = site.distance;
+    }
+  }
+  const margin = (rivalDistance - nearestDistance) * 0.5;
+  const blend = clamp(margin / BIOME_EDGE, 0, 1) * nearest.type.strength;
+  return blend > 0
+    ? { region: nearest.type, blend, centerX: nearest.x, centerZ: nearest.z }
+    : null;
+}
+
+/**
+ * The nearest patch of one biome to a point, searched outward over cells. The
+ * grid is coarse, so this stays cheap even a long way out.
+ */
+export function findNearestBiome(typeId, fromX, fromZ, maxRings = 40) {
+  const anchor = BIOME_ANCHORS.find((entry) => entry.id === typeId);
+  let best = anchor
+    ? { x: (anchor.minX + anchor.maxX) / 2, z: (anchor.minZ + anchor.maxZ) / 2 }
+    : null;
+  let bestDistance = best ? Math.hypot(best.x - fromX, best.z - fromZ) : Infinity;
+
+  const originX = Math.floor(fromX / BIOME_CELL);
+  const originZ = Math.floor(fromZ / BIOME_CELL);
+  for (let ring = 0; ring <= maxRings; ring++) {
+    for (let dz = -ring; dz <= ring; dz++) {
+      for (let dx = -ring; dx <= ring; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dz)) !== ring) {
+          continue;
+        }
+        if (cellType(originX + dx, originZ + dz)?.id !== typeId) {
+          continue;
+        }
+        const site = cellSite(originX + dx, originZ + dz);
+        const distance = Math.hypot(site.x - fromX, site.z - fromZ);
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          best = { x: site.x, z: site.z };
+        }
+      }
+    }
+    // One ring past the first hit is enough: anything further is further away.
+    if (best && ring * BIOME_CELL > bestDistance + BIOME_CELL) {
+      break;
+    }
+  }
+  return best;
+}
+
+/** Distance 0..1 from the middle of a patch, for features that sit in the centre. */
+function centreFalloff(biome, wx, wz, radius) {
+  return clamp(1 - Math.hypot(wx - biome.centerX, wz - biome.centerZ) / radius, 0, 1);
 }
 
 /** The oasis: a green dip with water in the middle of the dunes. */
-export function getOasisDepth(region, wx, wz) {
-  return centreFalloff(region, wx, wz, 22) ** 1.6;
+export function getOasisDepth(biome, wx, wz) {
+  return centreFalloff(biome, wx, wz, 22) ** 1.6;
 }
 
-export function getBiomeTargetHeight(region, wx, wz) {
+export function getBiomeTargetHeight(biome, wx, wz) {
+  const region = biome.region;
   switch (region.id) {
     case "forest": {
       const roll = perlin2(wx / 26 + 41, wz / 26 + 13) * 3.2;
@@ -575,7 +702,7 @@ export function getBiomeTargetHeight(region, wx, wz) {
       const dunes = perlin2(wx / 34 + 7, wz / 34 + 61) * 6.4
         + perlin2(wx / 12 + 5, wz / 12 + 29) * 2.6;
       // The oasis is a bowl, so it dips below the water table.
-      return region.baseHeight + dunes - getOasisDepth(region, wx, wz) * 6.5;
+      return region.baseHeight + dunes - getOasisDepth(biome, wx, wz) * 6.5;
     }
     case "swamp": {
       // Sitting right on the water table is what fills the hollows with
@@ -592,7 +719,7 @@ export function getBiomeTargetHeight(region, wx, wz) {
     case "ember": {
       // Seen from outside it is a rocky hill, domed towards the middle so it
       // is not a flat slab; the cavern is hollowed out under its lid.
-      const dome = centreFalloff(region, wx, wz, 46) ** 0.7;
+      const dome = centreFalloff(biome, wx, wz, 46) ** 0.7;
       return 19 + dome * 10 + perlin2(wx / 19 + 31, wz / 19 + 13) * 1.9;
     }
     default:
@@ -601,19 +728,19 @@ export function getBiomeTargetHeight(region, wx, wz) {
 }
 
 /** Where the floor of the Ember Deep's cavern sits under its lid. */
-export function getEmberFloor(region, wx, wz) {
-  return Math.round(region.baseHeight + perlin2(wx / 22 + 53, wz / 22 + 71) * 2.6);
+export function getEmberFloor(biome, wx, wz) {
+  return Math.round(biome.region.baseHeight + perlin2(wx / 22 + 53, wz / 22 + 71) * 2.6);
 }
 
 /**
  * The block a biome wants at this position, or null to fall through to the
  * ordinary rules. `height` is the surface of this column.
  */
-export function getBiomeBlock(region, wx, wy, wz, height) {
-  switch (region.id) {
+export function getBiomeBlock(biome, wx, wy, wz, height) {
+  switch (biome.region.id) {
     case "desert": {
       // The oasis keeps its grass, so the middle of the desert is green.
-      if (getOasisDepth(region, wx, wz) > 0.55) {
+      if (getOasisDepth(biome, wx, wz) > 0.55) {
         return null;
       }
       if (wy > height - 5) {
@@ -640,7 +767,7 @@ export function getBiomeBlock(region, wx, wy, wz, height) {
       return null;
     }
     case "ember":
-      return getEmberBlock(region, wx, wy, wz, height);
+      return getEmberBlock(biome, wx, wy, wz, height);
     default:
       return null;
   }
@@ -651,14 +778,14 @@ export function getBiomeBlock(region, wx, wy, wz, height) {
  * pools, a stone lid overhead, and glowstone clustered on the underside so
  * there is something to see by.
  */
-function getEmberBlock(region, wx, wy, wz, height) {
+function getEmberBlock(biome, wx, wy, wz, height) {
   if (wy > height) {
     return BLOCKS.air;
   }
   // The roof hangs a fixed distance under whatever the surface turned out to
   // be, so the cavern seals itself wherever the hill runs out.
   const ceiling = height - EMBER_LID;
-  const floor = getEmberFloor(region, wx, wz);
+  const floor = getEmberFloor(biome, wx, wz);
   if (wy > ceiling) {
     return BLOCKS.stone;
   }

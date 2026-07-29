@@ -364,52 +364,52 @@ export const DEFAULT_SPAWN = {
 /* ------------------------------------------------------------------ *
  * Biomes
  *
- * Hand-placed regions, like the city and the snow realm, rather than
- * noise spread over everything: each one has a fixed address a portal
- * can aim at, and worlds built before they existed keep their terrain.
- * They are laid out in a loose ring around spawn and never overlap.
+ * The map is divided into biome patches that carry on forever, picked
+ * by a jittered grid of sites rather than noise thresholds: nearest
+ * site wins, which gives irregular organic borders instead of stripes.
+ * A share of the sites are plain meadow, so ordinary country still
+ * separates one biome from the next.
+ *
+ * The five original hand-placed regions are kept as guaranteed
+ * instances, so worlds played before the map went endless still have
+ * their desert and their canyon exactly where they were.
  * ------------------------------------------------------------------ */
 
-/** Blocks over which a region fades into the surrounding land. */
-export const BIOME_EDGE = 12;
+/** Average width of a biome patch, in blocks. */
+export const BIOME_CELL = 128;
+/** Blocks over which one patch fades into its neighbour. */
+export const BIOME_EDGE = 14;
 
-export const BIOME_REGIONS = [
+export const BIOME_TYPES = [
   {
     id: "forest",
     name: "Deep Forest",
     blurb: "Close-packed trees and shady clearings",
-    minX: -112, maxX: -40, minZ: -36, maxZ: 36,
-    baseHeight: 12, strength: 0.8,
+    baseHeight: 12, strength: 0.8, weight: 3,
   },
   {
     id: "desert",
     name: "Dune Sea",
     blurb: "Sand, cacti and a green oasis",
-    minX: 56, maxX: 136, minZ: -136, maxZ: -56,
-    baseHeight: 11, strength: 0.92,
+    baseHeight: 11, strength: 0.92, weight: 3,
   },
   {
     id: "swamp",
     name: "Murk Fen",
     blurb: "Shallow pools, mud and crooked trees",
-    minX: -36, maxX: 44, minZ: 64, maxZ: 144,
-    baseHeight: 7, strength: 0.94,
+    baseHeight: 7, strength: 0.94, weight: 2,
   },
   {
     id: "canyon",
     name: "Red Canyon",
     blurb: "Banded cliffs and standing stone spires",
-    minX: -148, maxX: -68, minZ: 68, maxZ: 148,
-    baseHeight: 13, strength: 0.95,
+    baseHeight: 13, strength: 0.95, weight: 2,
   },
   {
     id: "ember",
     name: "Ember Deep",
-    blurb: "A glowing cavern roofed in stone, where netherite hides",
-    minX: -152, maxX: -80, minZ: -160, maxZ: -88,
-    baseHeight: 10, strength: 0.97,
-    /** Roofed over, which is what makes it read as another world. */
-    ceiling: 30,
+    blurb: "Glowing caverns roofed in stone, where netherite hides",
+    baseHeight: 10, strength: 0.97, weight: 1,
     /** Its terrain glows, so chunks here list their own light sources. */
     emissive: true,
     /** Arriving means arriving inside, not on the hill over the top of it. */
@@ -417,8 +417,27 @@ export const BIOME_REGIONS = [
   },
 ];
 
-/** Everywhere a portal can take you, including the places that predate biomes. */
-export const TRAVEL_DESTINATIONS = [
+/** How much of the map stays ordinary meadow between the biomes. */
+export const MEADOW_WEIGHT = 5;
+
+/**
+ * Where the original five sat. Kept so an existing world keeps the ground it
+ * had, and so there is always one of each within a walk of spawn.
+ */
+export const BIOME_ANCHORS = [
+  { id: "forest", minX: -112, maxX: -40, minZ: -36, maxZ: 36 },
+  { id: "desert", minX: 56, maxX: 136, minZ: -136, maxZ: -56 },
+  { id: "swamp", minX: -36, maxX: 44, minZ: 64, maxZ: 144 },
+  { id: "canyon", minX: -148, maxX: -68, minZ: 68, maxZ: 148 },
+  { id: "ember", minX: -152, maxX: -80, minZ: -160, maxZ: -88 },
+];
+
+/**
+ * Where a portal can take you. Biomes carry on forever, so those are found by
+ * searching for the nearest patch rather than by named coordinates; only the
+ * fixed landmarks have an address.
+ */
+export const FIXED_DESTINATIONS = [
   {
     id: "home",
     name: "Home Meadow",
@@ -426,14 +445,6 @@ export const TRAVEL_DESTINATIONS = [
     x: DEFAULT_SPAWN.x,
     z: DEFAULT_SPAWN.z,
   },
-  ...BIOME_REGIONS.map((region) => ({
-    id: region.id,
-    name: region.name,
-    blurb: region.blurb,
-    x: (region.minX + region.maxX) / 2,
-    z: (region.minZ + region.maxZ) / 2,
-    underground: region.underground ?? false,
-  })),
   {
     id: "snow",
     name: "Snow Realm",

@@ -1,8 +1,7 @@
 // The panel that asks a portal where it should go.
 
-import { TRAVEL_DESTINATIONS } from "../constants.js";
 import { portalList } from "../dom.js";
-import { getDestination, portalKey, setPortalDestination } from "../portals.js";
+import { getDestination, listDestinations, portalKey, setPortalDestination } from "../portals.js";
 import { state } from "../state.js";
 import { showToast } from "./hud.js";
 import { closeSubScreen, openSubScreen } from "./screens.js";
@@ -12,7 +11,7 @@ function distanceFromPlayer(place) {
 }
 
 function buildList(cells, current) {
-  const rows = TRAVEL_DESTINATIONS.map((place) => {
+  const rows = listDestinations().map((place) => {
     const row = document.createElement("button");
     row.type = "button";
     row.className = "portal-option mc-btn";

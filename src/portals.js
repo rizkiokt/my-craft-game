@@ -6,7 +6,9 @@
 
 import { chunkMeshes } from "./chunkMesh.js";
 import {
+  BIOME_TYPES,
   BLOCKS,
+  FIXED_DESTINATIONS,
   MIN_WORLD_Y,
   PORTAL_COOLDOWN,
   PORTAL_DELAY,
@@ -14,11 +16,11 @@ import {
   PORTAL_MAX_WIDTH,
   PORTAL_MIN_HEIGHT,
   PORTAL_MIN_WIDTH,
-  TRAVEL_DESTINATIONS,
 } from "./constants.js";
 import { teleportTo } from "./player.js";
 import { state } from "./state.js";
 import { world } from "./world.js";
+import { findNearestBiome } from "./worldgen.js";
 
 /** hud.js sits above this module, so the toast fields are written directly. */
 function toast(message) {
@@ -30,22 +32,46 @@ export function portalKey(x, y, z) {
   return `${x},${y},${z}`;
 }
 
-export function getDestination(id) {
-  return TRAVEL_DESTINATIONS.find((place) => place.id === id) ?? TRAVEL_DESTINATIONS[0];
+/**
+ * Everywhere you could go from a point: the fixed landmarks, plus the nearest
+ * patch of each biome. Biomes are endless now, so "the desert" means whichever
+ * one is closest to you rather than one particular spot on the map.
+ */
+export function listDestinations(fromX = state.player.x, fromZ = state.player.z) {
+  const places = FIXED_DESTINATIONS.map((place) => ({ ...place }));
+  for (const type of BIOME_TYPES) {
+    const spot = findNearestBiome(type.id, fromX, fromZ);
+    if (spot) {
+      places.push({
+        id: type.id,
+        name: type.name,
+        blurb: type.blurb,
+        x: spot.x,
+        z: spot.z,
+        underground: type.underground ?? false,
+      });
+    }
+  }
+  return places;
 }
 
-/** The named place closest to a point, for pointing a return portal home. */
+export function getDestination(id, fromX = state.player.x, fromZ = state.player.z) {
+  const places = listDestinations(fromX, fromZ);
+  return places.find((place) => place.id === id) ?? places[0];
+}
+
+/** The nearest place to a point, for pointing a return portal back the way you came. */
 export function nearestDestination(x, z) {
-  let best = TRAVEL_DESTINATIONS[0];
+  let best = null;
   let bestDistance = Infinity;
-  for (const place of TRAVEL_DESTINATIONS) {
+  for (const place of listDestinations(x, z)) {
     const distance = Math.hypot(place.x - x, place.z - z);
     if (distance < bestDistance) {
       best = place;
       bestDistance = distance;
     }
   }
-  return best;
+  return best ?? { id: "home", name: "Home Meadow", x: 0, z: 0 };
 }
 
 /* ------------------------------------------------------------------ *
@@ -163,8 +189,9 @@ export function describeFrameProblem(problem) {
 /** Somewhere worth going that is not right where you are standing. */
 function defaultDestination(x, z) {
   const here = nearestDestination(x, z);
-  const away = TRAVEL_DESTINATIONS.find((place) => place.id !== here.id);
-  return (here.id === "home" ? away : getDestination("home")) ?? away;
+  const places = listDestinations(x, z);
+  const away = places.find((place) => place.id !== here.id);
+  return (here.id === "home" ? away : places.find((place) => place.id === "home")) ?? away;
 }
 
 /**
@@ -351,6 +378,7 @@ function portalUnderPlayer() {
 }
 
 export function travelTo(destinationId) {
+  // Resolved from where you are standing, so "the desert" is the near one.
   const destination = getDestination(destinationId);
   const from = nearestDestination(state.player.x, state.player.z);
   const spot = findArrivalSpot(destination);

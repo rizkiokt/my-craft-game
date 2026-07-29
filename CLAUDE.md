@@ -185,14 +185,28 @@ Terrain zones are composed in `getHeightAt` and `getBlock`:
 
 Structure block selection for both settlements funnels through `getStructureBlock(wx, wy, wz, height)`.
 
-**Biomes are hand-placed rectangles, not noise.** Noise spread over the whole map would look
-more organic but would rewrite the terrain of every existing world, and would leave no fixed
-address for a portal to aim at. `getBiomeAt()` returns the region plus a strength that fades
-over `BIOME_EDGE` blocks at the border, so a desert runs out into meadow rather than stopping
-at a wall. Adding one is a `BIOME_REGIONS` entry plus a case in `getBiomeTargetHeight`,
-`getBiomeBlock` and `World#decorateBiome`.
+**Biomes carry on forever.** The map is divided into patches by a **jittered grid of sites**
+(`BIOME_CELL` apart) rather than by noise thresholds: nearest site wins, which gives irregular
+organic borders instead of stripes. `MEADOW_WEIGHT` keeps a share of the sites plain, so
+ordinary country still separates one biome from the next. The strength fades towards whichever
+*different* biome site is next nearest, so two neighbouring patches of the same kind do not
+leave a seam down the middle.
 
-Two details are load-bearing:
+`BIOME_ANCHORS` pins the original five hand-placed regions in place, so a world played before
+the map went endless keeps the ground it had, and there is always one of each within a walk of
+spawn. The city and the snow realm are excluded from biome selection entirely — they are
+landmarks and keep their own terrain.
+
+**`getBiomeAt()` is called per column, never per block.** `ensureChunk()` fills `chunk.biomes`
+once and `getGeneratedBlock()` reads that; repeating a nine-site search for every block in a
+chunk would be many times the cost of the terrain itself. Anything that sits in the middle of a
+patch (the desert's oasis, the Ember Deep's dome) measures from `biome.centerX/centerZ`, which
+is the patch's own site rather than a region rectangle.
+
+Adding a biome is a `BIOME_TYPES` entry plus a case in `getBiomeTargetHeight`, `getBiomeBlock`
+and `World#decorateBiome`.
+
+Two details are load-bearing:Two details are load-bearing:
 
 - **The Ember Deep's roof hangs a fixed distance below whatever the surface turned out to
   be**, rather than at a fixed height. That seals the cavern by itself wherever its hill runs
@@ -222,11 +236,13 @@ so standing in one is a lookup rather than a search.
 explain. Touching a frame only lights it when your hand is empty — otherwise it places, or
 the frame would be the one building material you could not stack a second one on top of.
 
-Portals aim at named places in `TRAVEL_DESTINATIONS`, not at each other, because every biome
-already has a fixed address. Arriving always calls `buildReturnPortal()` pointing back the
-way you came, so you cannot strand yourself. A destination marked `underground` arrives in
-the highest sheltered pocket instead of on the surface, which is what puts you inside the
-Ember Deep rather than on the hill over it.
+Portals aim at places, not at each other. `listDestinations()` returns the fixed landmarks
+(`FIXED_DESTINATIONS`) plus **the nearest patch of each biome**, found by `findNearestBiome()`
+searching outward over the coarse site grid — so "the desert" means whichever one is closest to
+you, resolved fresh each time the picker opens or a trip is taken. Arriving always calls
+`buildReturnPortal()` pointing back the way you came, so you cannot strand yourself. A
+destination marked `underground` arrives in the highest sheltered pocket instead of on the
+surface, which is what puts you inside the Ember Deep rather than on the hill over it.
 
 ### Rendering
 
