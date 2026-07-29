@@ -139,6 +139,8 @@ Structure block selection for both settlements funnels through `getStructureBloc
 
 Stations open from `interact(false)` in `src/interaction.js` via the `STATION_BLOCKS` map — right-click opens, sneak+right-click places against the block instead.
 
+Chests are a station too, but their slots live in `state.chests` keyed by `"x,y,z"` rather than in `state.craftGrid`, with `state.openChestKey` naming the open one. `clickSlot()` / `placeOneInSlot()` take the target array so the grid and a chest share the same cursor-stack behaviour. Breaking a chest calls `emptyChestInto()` so nothing is lost, and empty chests are dropped from the save.
+
 ### Enchanting and experience
 
 `src/enchanting.js` owns XP and enchantments. Because the bag is a plain

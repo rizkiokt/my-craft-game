@@ -30,6 +30,13 @@ export function renderGameToText() {
     perspective: ["first", "third-back", "third-front"][state.perspective],
     inventoryOpen: state.inventoryOpen,
     station: state.station,
+    openChestKey: state.openChestKey,
+    openChest: state.openChestKey && state.chests[state.openChestKey]
+      ? state.chests[state.openChestKey]
+          .map((slot) => slot ? `${BLOCK_NAMES[slot.itemId]} x${slot.count}` : null)
+          .filter(Boolean)
+      : [],
+    chestCount: Object.keys(state.chests).length,
     xp: state.xp,
     experienceLevel: getLevel(),
     health: state.health,

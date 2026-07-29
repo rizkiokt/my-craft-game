@@ -30,9 +30,13 @@ import {
   getGridSize,
   getSlotCount,
   getStation,
+  clickSlot,
+  getChestSlots,
+  isChest,
   isEnchant,
   isFurnace,
   placeOneInGrid,
+  placeOneInSlot,
   putCursorInBag,
   returnGridToBag,
   setStation,
@@ -239,14 +243,57 @@ function renderArmorStrip() {
   armorStrip.appendChild(total);
 }
 
+/** A chest replaces the crafting area with its own 27 slots. */
+function renderChest() {
+  const slots = getChestSlots();
+  craftGridEl.style.setProperty("--craft-cols", 9);
+  craftGridEl.replaceChildren();
+
+  for (let index = 0; index < slots.length; index++) {
+    const slot = slots[index];
+    const cell = makeSlot("craft-slot", slot?.itemId ?? null, slot?.count ?? 0);
+    cell.addEventListener("click", () => {
+      clickSlot(slots, index);
+      soundEngine.select();
+      state.saveDirty = true;
+      updateInventoryPanel();
+    });
+    cell.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      placeOneInSlot(slots, index);
+      soundEngine.select();
+      state.saveDirty = true;
+      updateInventoryPanel();
+    });
+    craftGridEl.appendChild(cell);
+  }
+
+  const used = slots.filter(Boolean).length;
+  craftResultEl.replaceChildren();
+  const note = document.createElement("p");
+  note.className = "chest-summary";
+  note.textContent = used === 0
+    ? "Empty — click an item in your bag, then click a slot"
+    : `${used} of ${slots.length} slots used`;
+  craftResultEl.appendChild(note);
+}
+
 function renderCraftArea() {
   const station = getStation();
   const furnace = isFurnace();
   craftTitle.textContent = station.label;
-  craftHint.classList.toggle("is-hidden", isEnchant());
+  craftHint.classList.toggle("is-hidden", isEnchant() || isChest());
   craftGridEl.classList.toggle("is-furnace", furnace);
+  craftGridEl.classList.toggle("is-chest", isChest());
+  // A chest has no result slot, so it stacks instead of using the arrow row.
+  craftArea.classList.toggle("is-chest", isChest());
   craftGridEl.style.setProperty("--craft-cols", furnace ? 1 : getGridSize());
   craftGridEl.replaceChildren();
+
+  if (isChest()) {
+    renderChest();
+    return;
+  }
 
   for (let index = 0; index < getSlotCount(); index++) {
     const slot = state.craftGrid[index];
@@ -269,11 +316,14 @@ function renderCraftArea() {
     craftGridEl.appendChild(cell);
   }
 
+  if (isChest()) {
+    renderChest();
+    return;
+  }
   if (isEnchant()) {
     renderEnchantOffers();
     return;
   }
-  craftGridEl.classList.remove("is-enchant");
 
   const recipe = findGridRecipe();
   craftResultEl.replaceChildren();
@@ -368,6 +418,10 @@ function renderRecipeBook() {
     return;
   }
 
+  if (isChest()) {
+    return;
+  }
+
   if (isCreative() && !isFurnace()) {
     const note = document.createElement("p");
     note.className = "screen-subtitle";
@@ -447,6 +501,7 @@ export function toggleInventory(forceOpen) {
     // Nothing is ever lost on close: the grid and cursor go back in the bag.
     returnGridToBag();
     setStation("inventory");
+    state.openChestKey = null;
     updateHotbar();
     if (state.running) {
       requestPointerLock();
@@ -455,8 +510,9 @@ export function toggleInventory(forceOpen) {
 }
 
 /** Right-clicking a crafting table or furnace opens it, as in Minecraft. */
-export function openStation(name) {
+export function openStation(name, chestKey = null) {
   setStation(name);
+  state.openChestKey = chestKey;
   if (state.inventoryOpen) {
     updateInventoryPanel();
     return;

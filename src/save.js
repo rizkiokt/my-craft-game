@@ -41,6 +41,7 @@ export function saveGame(force = false) {
       gameMode: state.gameMode,
       xp: state.xp,
       health: state.health,
+      chests: serializeChests(),
       armor: state.armor,
       enchantments: state.enchantments,
       inventory: state.inventory,
@@ -60,12 +61,23 @@ export function saveGame(force = false) {
   }
 }
 
+let loadedSave = false;
+
+/** Drops empty chests so the save does not grow with every one placed. */
+function serializeChests() {
+  const chests = {};
+  for (const [key, slots] of Object.entries(state.chests)) {
+    if (slots?.some(Boolean)) {
+      chests[key] = slots;
+    }
+  }
+  return chests;
+}
+
 /**
  * Reads just the seed and applies it. Must run before anything touches the
  * world, because chunks generate on first access.
  */
-let loadedSave = false;
-
 export function loadWorldSeed() {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
@@ -111,6 +123,9 @@ export function loadGame() {
     }
     state.xp = Number.isFinite(payload.xp) ? payload.xp : state.xp;
     state.health = Number.isFinite(payload.health) ? payload.health : state.health;
+    if (payload.chests && typeof payload.chests === "object") {
+      state.chests = payload.chests;
+    }
     if (payload.armor && typeof payload.armor === "object") {
       Object.assign(state.armor, payload.armor);
     }

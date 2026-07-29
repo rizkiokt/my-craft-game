@@ -198,6 +198,7 @@ Place a **Crafting Table** and right-click it:
 | Recipe | Ingredients | Output |
 |---|---|---|
 | Crafting Table | 4 Planks | 1 Crafting Table |
+| Chest | 8 Planks | 1 Chest |
 | Furnace | 8 Stone | 1 Furnace |
 | Wood Pickaxe | 3 Planks + 2 Sticks | 1 Wood Pickaxe |
 | Stone Pickaxe | 3 Stone + 2 Sticks | 1 Stone Pickaxe |
@@ -248,6 +249,17 @@ point cuts 4% of incoming damage, capped at 80%.
 | Netherite | 3 | 8 | 6 | 3 | 20 |
 
 Armour does not protect against drowning or the void. Creative mode takes no damage at all.
+
+---
+
+## Chests
+
+Craft a **Chest** from 8 Planks and place it, then right-click it for 27 slots of storage.
+Move things the same way you do in the crafting grid: click an item in your bag to pick it
+up, click a chest slot to drop it in, right-click for one at a time.
+
+Chests remember what is inside them, and **breaking a chest gives you everything back**
+rather than scattering it.
 
 ---
 

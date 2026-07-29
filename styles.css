@@ -1466,3 +1466,34 @@ input[type="range"]:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+
+/* A chest shows three rows of nine, so its slots run smaller. */
+.craft-grid.is-chest {
+  gap: 3px;
+}
+
+.craft-grid.is-chest .craft-slot {
+  width: 44px;
+  height: 44px;
+}
+
+.craft-grid.is-chest .craft-slot .slot-icon {
+  inset: 5px;
+}
+
+/* A chest has no result slot, so it stacks rather than using the arrow row. */
+.craft-area.is-chest {
+  flex-direction: column;
+  gap: 10px;
+}
+
+.craft-area.is-chest .craft-arrow {
+  display: none;
+}
+
+.chest-summary {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}

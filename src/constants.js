@@ -53,6 +53,7 @@ export const BLOCKS = {
   diamond_ore: 19,
   ancient_debris: 20,
   enchanting_table: 21,
+  chest: 22,
 };
 
 export const ITEMS = {
@@ -104,6 +105,7 @@ export const BLOCK_NAMES = {
   [BLOCKS.diamond_ore]: "Diamond Ore",
   [BLOCKS.ancient_debris]: "Ancient Debris",
   [BLOCKS.enchanting_table]: "Enchanting Table",
+  [BLOCKS.chest]: "Chest",
   [ITEMS.stick]: "Stick",
   [ITEMS.coal]: "Coal",
   [ITEMS.iron_ingot]: "Iron Ingot",
@@ -164,6 +166,9 @@ export const ARMOR_SLOT_LABELS = {
  * Health
  * ------------------------------------------------------------------ */
 
+/** Slots in a chest: three rows of nine, as in Minecraft. */
+export const CHEST_SIZE = 27;
+
 export const MAX_HEALTH = 20;
 export const MAX_AIR = 10;
 /** Falls shorter than this never hurt, as in Minecraft. */
@@ -195,6 +200,7 @@ export const PLACEABLE_BLOCKS = [
   BLOCKS.diamond_ore,
   BLOCKS.ancient_debris,
   BLOCKS.enchanting_table,
+  BLOCKS.chest,
 ];
 
 /** Everything the creative palette hands out, in build-menu order. */
@@ -219,6 +225,7 @@ export const CREATIVE_ITEMS = [
   BLOCKS.crafting_table,
   BLOCKS.furnace,
   BLOCKS.enchanting_table,
+  BLOCKS.chest,
   ITEMS.stick,
   ITEMS.coal,
   ITEMS.iron_ingot,

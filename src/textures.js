@@ -27,6 +27,7 @@ export function createTextureSet() {
     BLOCKS.diamond_ore,
     BLOCKS.ancient_debris,
     BLOCKS.enchanting_table,
+    BLOCKS.chest,
   ]) {
     textures[blockType] = {
       top: new Uint8Array(16 * 16 * 3),
@@ -299,6 +300,26 @@ export function createTextureSet() {
         52 + rock * 0.2,
       ]);
 
+      // Chest: planks with a dark band and a latch on the front.
+      const chestGrain = hash3(x * 0.6, y * 0.6, 55) * 16 - 8;
+      const band = y === 7 || y === 8;
+      const latch = x >= 6 && x <= 9 && y >= 6 && y <= 10;
+      paint(textures[BLOCKS.chest].top, x, y, [
+        (band ? 96 : 158) + chestGrain,
+        (band ? 66 : 108) + chestGrain * 0.7,
+        (band ? 38 : 60) + chestGrain * 0.4,
+      ]);
+      paint(textures[BLOCKS.chest].side, x, y, [
+        (latch ? 176 : band ? 88 : 146) + chestGrain,
+        (latch ? 148 : band ? 60 : 100) + chestGrain * 0.7,
+        (latch ? 70 : band ? 34 : 56) + chestGrain * 0.4,
+      ]);
+      paint(textures[BLOCKS.chest].bottom, x, y, [
+        126 + chestGrain,
+        86 + chestGrain * 0.7,
+        48 + chestGrain * 0.4,
+      ]);
+
       const tableNoise = hash3(x, y, 12) * 14 - 7;
       const gridLine = x % 4 === 0 || y % 4 === 0 ? 20 : 0;
       paint(textures[BLOCKS.crafting_table].top, x, y, [
@@ -451,6 +472,8 @@ export function createAtlasTexture() {
     textureSet[BLOCKS.ancient_debris].side,
     textureSet[BLOCKS.enchanting_table].top,
     textureSet[BLOCKS.enchanting_table].side,
+    textureSet[BLOCKS.chest].top,
+    textureSet[BLOCKS.chest].side,
   ];
 
   tileData.forEach((tile, index) => {
@@ -540,6 +563,9 @@ export function getTileIndex(blockType, faceKey) {
   }
   if (blockType === BLOCKS.enchanting_table) {
     return faceKey === "py" ? 27 : 28;
+  }
+  if (blockType === BLOCKS.chest) {
+    return faceKey === "py" || faceKey === "ny" ? 29 : 30;
   }
   return 24;
 }

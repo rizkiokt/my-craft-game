@@ -291,6 +291,18 @@ export const TABLE_RECIPES = [
     description: "Netherite boots for protection.",
   },
   {
+    id: "chest",
+    output: BLOCKS.chest,
+    count: 1,
+    pattern: [
+      [BLOCKS.planks, BLOCKS.planks, BLOCKS.planks],
+      [BLOCKS.planks, null, BLOCKS.planks],
+      [BLOCKS.planks, BLOCKS.planks, BLOCKS.planks],
+    ],
+    ingredients: { [BLOCKS.planks]: 8 },
+    description: "Somewhere to keep your things.",
+  },
+  {
     id: "enchanting_table",
     output: BLOCKS.enchanting_table,
     count: 1,

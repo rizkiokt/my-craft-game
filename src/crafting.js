@@ -5,7 +5,7 @@
 // anywhere in the grid, so a 2x2 recipe works in the top-left or bottom-right
 // of a crafting table alike.
 
-import { CREATIVE_STACK } from "./constants.js";
+import { CHEST_SIZE, CREATIVE_STACK } from "./constants.js";
 import { addItem, consumeItem, getItemCount, isCreative } from "./items.js";
 import { FURNACE_RECIPES, HAND_RECIPES, TABLE_RECIPES } from "./recipes.js";
 import { state } from "./state.js";
@@ -16,6 +16,7 @@ export const STATIONS = {
   table: { size: 3, label: "Crafting Table", recipes: [...HAND_RECIPES, ...TABLE_RECIPES] },
   furnace: { size: 0, label: "Furnace", recipes: FURNACE_RECIPES },
   enchant: { size: 0, label: "Enchanting Table", recipes: [] },
+  chest: { size: 0, label: "Chest", recipes: [] },
 };
 
 export function getStation() {
@@ -28,6 +29,43 @@ export function isFurnace() {
 
 export function isEnchant() {
   return state.station === "enchant";
+}
+
+export function isChest() {
+  return state.station === "chest";
+}
+
+/** Slots of the chest currently open, created on first use. */
+export function getChestSlots() {
+  const key = state.openChestKey;
+  if (key == null) {
+    return [];
+  }
+  if (!state.chests[key]) {
+    state.chests[key] = new Array(CHEST_SIZE).fill(null);
+  }
+  return state.chests[key];
+}
+
+export function chestKeyAt(x, y, z) {
+  return `${x},${y},${z}`;
+}
+
+/** Empties a chest into the bag; used when the block is broken. */
+export function emptyChestInto(key) {
+  const slots = state.chests[key];
+  if (!slots) {
+    return 0;
+  }
+  let moved = 0;
+  for (const slot of slots) {
+    if (slot) {
+      addItem(slot.itemId, slot.count);
+      moved += slot.count;
+    }
+  }
+  delete state.chests[key];
+  return moved;
 }
 
 export function getGridSize() {
@@ -243,38 +281,38 @@ export function putCursorInBag() {
   state.cursorStack = null;
 }
 
-/** Left-click a grid slot: drop the cursor in, or scoop the slot up. */
-export function clickGridSlot(index) {
-  const slot = state.craftGrid[index];
+/** Left-click a slot: drop the cursor in, or scoop the slot up. */
+export function clickSlot(slots, index) {
+  const slot = slots[index];
   const cursor = state.cursorStack;
 
   if (cursor) {
     if (!slot) {
-      state.craftGrid[index] = { ...cursor };
+      slots[index] = { ...cursor };
       state.cursorStack = null;
     } else if (slot.itemId === cursor.itemId) {
       slot.count += cursor.count;
       state.cursorStack = null;
     } else {
-      state.craftGrid[index] = { ...cursor };
+      slots[index] = { ...cursor };
       state.cursorStack = { ...slot };
     }
     return;
   }
   if (slot) {
     state.cursorStack = { ...slot };
-    state.craftGrid[index] = null;
+    slots[index] = null;
   }
 }
 
-/** Right-click a grid slot: place one, or pick one back up. */
-export function placeOneInGrid(index) {
-  const slot = state.craftGrid[index];
+/** Right-click a slot: place one, or pick one back up. */
+export function placeOneInSlot(slots, index) {
+  const slot = slots[index];
   const cursor = state.cursorStack;
 
   if (cursor) {
     if (!slot) {
-      state.craftGrid[index] = { itemId: cursor.itemId, count: 1 };
+      slots[index] = { itemId: cursor.itemId, count: 1 };
     } else if (slot.itemId === cursor.itemId) {
       slot.count += 1;
     } else {
@@ -290,9 +328,17 @@ export function placeOneInGrid(index) {
     state.cursorStack = { itemId: slot.itemId, count: 1 };
     slot.count -= 1;
     if (slot.count <= 0) {
-      state.craftGrid[index] = null;
+      slots[index] = null;
     }
   }
+}
+
+export function clickGridSlot(index) {
+  clickSlot(state.craftGrid, index);
+}
+
+export function placeOneInGrid(index) {
+  placeOneInSlot(state.craftGrid, index);
 }
 
 /**

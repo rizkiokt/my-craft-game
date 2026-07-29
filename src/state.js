@@ -17,6 +17,8 @@ export const state = {
   suppressAnimationTick: false,
   inventoryOpen: false,
   station: "inventory",
+  chests: {},
+  openChestKey: null,
   health: MAX_HEALTH,
   air: MAX_AIR,
   armor: { helmet: null, chestplate: null, leggings: null, boots: null },

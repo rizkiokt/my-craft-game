@@ -5,6 +5,7 @@ import { chunkMeshes } from "./chunkMesh.js";
 import { BLOCKS, BLOCK_NAMES, INTERACTION_RANGE, MAX_BUILD_HEIGHT, MIN_WORLD_Y } from "./constants.js";
 import { getLevel, getXpForBlock, grantXp } from "./enchanting.js";
 import { addItem, canMineBlock, consumeItem, getBreakDamage, getBreakHardness, getDropCount, getDropForBlock, getInteractionCooldown, getItemCount, getRequiredToolName, getSelectedItem, isCollectibleBlock, isCreative, isPlaceableItem } from "./items.js";
+import { chestKeyAt, emptyChestInto } from "./crafting.js";
 import { clamp, floorVector } from "./math.js";
 import { spawnParticles } from "./particles.js";
 import { applyPlayerToCamera, eyePosition, hasCollision, lookDirection } from "./player.js";
@@ -20,6 +21,7 @@ export const STATION_BLOCKS = {
   [BLOCKS.crafting_table]: "table",
   [BLOCKS.furnace]: "furnace",
   [BLOCKS.enchanting_table]: "enchant",
+  [BLOCKS.chest]: "chest",
 };
 export const highlightGeometry = new THREE.EdgesGeometry(new THREE.BoxGeometry(1.02, 1.02, 1.02));
 export const highlightMaterial = new THREE.LineBasicMaterial({
@@ -185,6 +187,14 @@ export function interact(breaking) {
       return;
     }
     const brokenType = state.target.block.type;
+    if (brokenType === BLOCKS.chest) {
+      const moved = emptyChestInto(
+        chestKeyAt(state.target.block.x, state.target.block.y, state.target.block.z),
+      );
+      if (moved > 0) {
+        showToast(`Recovered ${moved} item${moved === 1 ? "" : "s"} from the chest`);
+      }
+    }
     if (world.setBlock(state.target.block.x, state.target.block.y, state.target.block.z, BLOCKS.air)) {
       chunkMeshes.markDirtyAtWorld(state.target.block.x, state.target.block.z);
       const dropId = getDropForBlock(brokenType);
@@ -217,7 +227,10 @@ export function interact(breaking) {
     // Right-clicking a station opens it; sneak to place a block against it.
     const station = STATION_BLOCKS[state.target.block.type];
     if (station && !state.sneaking) {
-      openStation(station);
+      const chestKey = station === "chest"
+        ? chestKeyAt(state.target.block.x, state.target.block.y, state.target.block.z)
+        : null;
+      openStation(station, chestKey);
       return;
     }
 
