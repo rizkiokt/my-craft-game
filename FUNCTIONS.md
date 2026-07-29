@@ -20,7 +20,7 @@ The code lives in `src/` as layered ES modules (see CLAUDE.md for the layering r
 | Friends (NPCs) | `src/npcs.js` |
 | Save / Load | `src/save.js` |
 | UI / HUD | `src/ui/hud.js`, `src/ui/screens.js`, `src/ui/controlsScreen.js`, `src/ui/options.js`, `src/ui/menus.js` |
-| Input / Camera | `src/input.js`, `src/actions.js`, `src/pointerLock.js`, `src/fullscreen.js` |
+| Input / Camera | `src/input.js`, `src/actions.js`, `src/touch.js`, `src/pointerLock.js`, `src/fullscreen.js` |
 | Audio | `src/sound.js` |
 | Game loop | `src/loop.js`, `src/debugApi.js` |
 | Boot / wiring | `main.js` |
@@ -381,8 +381,11 @@ The code lives in `src/` as layered ES modules (see CLAUDE.md for the layering r
 | `dropHeldItem(wholeStack)` | Throws the held item into the world as a pickup-able drop |
 | `cyclePerspective()` / `toggleFlight()` / `toggleFullscreen()` / `takeScreenshot()` | F5 / double-jump / F11 / F2 |
 | `moveLook(deltaX, deltaY)` | Apply yaw/pitch delta scaled by sensitivity, honouring Invert Mouse; clamps pitch to `[−1.55, 1.55]` |
-| `requestPointerLock()` / `exitPointerLock()` | Acquire/release; the latter flags `intentionalUnlock` |
+| `requestPointerLock()` / `exitPointerLock()` | Acquire/release; the latter flags `intentionalUnlock`. Skipped entirely while the touch pad is up |
 | `updatePointerState()` | Syncs `state.pointerLocked` and **opens the pause menu on an unexpected unlock** (Esc while locked never fires `keydown`) |
+| `isTouchDevice()` / `touchControlsWanted()` | Device probe, then the `settings.touchControls` auto/on/off decision |
+| `syncTouchControls()` | Toggles the `is-touch` body class the stylesheet keys off, and drops anything held |
+| `installTouchHandlers()` | Wires `data-hold` / `data-press` buttons, the hotbar, and the canvas stick/look surfaces |
 
 ---
 

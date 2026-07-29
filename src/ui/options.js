@@ -18,6 +18,7 @@ export const optInvert = document.getElementById("opt-invert");
 export const optBobbing = document.getElementById("opt-bobbing");
 export const optAutosave = document.getElementById("opt-autosave");
 export const optFullscreen = document.getElementById("opt-fullscreen");
+export const optTouch = document.getElementById("opt-touch");
 export const valSensitivity = document.getElementById("val-sensitivity");
 export const valFov = document.getElementById("val-fov");
 export const valVolume = document.getElementById("val-volume");
@@ -46,7 +47,20 @@ export function syncOptionsScreen() {
   optBobbing.textContent = `View Bobbing: ${settings.viewBobbing ? "ON" : "OFF"}`;
   optAutosave.textContent = `Autosave: ${settings.autosave ? "ON" : "OFF"}`;
   optFullscreen.textContent = `Fullscreen: ${document.fullscreenElement ? "ON" : "OFF"}`;
+  optTouch.textContent = `Touch Controls: ${settings.touchControls.toUpperCase()}`;
 }
+
+/**
+ * touch.js sits above this module and cannot be imported from here, so
+ * main.js registers the thing that reacts to the setting changing.
+ */
+let touchHandler = () => {};
+
+export function onTouchSettingChanged(handler) {
+  touchHandler = handler;
+}
+
+const TOUCH_MODES = ["auto", "on", "off"];
 
 export function updateSetting(key, value) {
   settings[key] = value;
@@ -64,6 +78,11 @@ export function installOptionsHandlers() {
   optInvert.addEventListener("click", () => updateSetting("invertMouse", !settings.invertMouse));
   optBobbing.addEventListener("click", () => updateSetting("viewBobbing", !settings.viewBobbing));
   optAutosave.addEventListener("click", () => updateSetting("autosave", !settings.autosave));
+  optTouch.addEventListener("click", () => {
+    const next = (TOUCH_MODES.indexOf(settings.touchControls) + 1) % TOUCH_MODES.length;
+    updateSetting("touchControls", TOUCH_MODES[next]);
+    touchHandler();
+  });
   optFullscreen.addEventListener("click", () => {
     toggleFullscreen();
     window.setTimeout(syncOptionsScreen, 120);

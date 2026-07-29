@@ -36,14 +36,15 @@ Modules are layered; a module may only import from a layer below it. `src/ui/*` 
 | 3 | `scene.js`, `icons.js`, `chunkMesh.js`, `sound.js`, `mobs.js`, `particles.js`, `playerModel.js` | Three.js resources and singletons |
 | 4 | `player.js`, `interaction.js`, `crafting.js`, `combat.js`, `drops.js`, `pointerLock.js`, `fullscreen.js`, `save.js` | Gameplay systems |
 | 5 | `ui/hud.js`, `ui/inventory.js`, `ui/screens.js`, `ui/controlsScreen.js`, `ui/options.js`, `ui/menus.js` | Screens and overlays |
-| 6 | `actions.js`, `input.js`, `loop.js`, `debugApi.js` | Input routing and the frame loop |
+| 6 | `actions.js`, `input.js`, `touch.js`, `loop.js`, `debugApi.js` | Input routing and the frame loop |
 
-**The import graph is acyclic — keep it that way.** Two places would otherwise close a loop and both use dependency inversion instead:
+**The import graph is acyclic — keep it that way.** Three places would otherwise close a loop and all use dependency inversion instead:
 
 - `pointerLock.js` cannot import `ui/screens.js`, so it exposes `onUnexpectedUnlock(handler)` and `main.js` registers `openPauseMenu`.
 - `actions.js` cannot import `loop.js`, so `takeScreenshot()` sets `state.screenshotRequested` and `render()` performs the capture (the drawing buffer is not preserved, so it must happen in the same task as the draw).
+- `ui/options.js` cannot import `touch.js`, so it exposes `onTouchSettingChanged(handler)` and `main.js` registers `syncTouchControls`.
 
-DOM listeners are never attached at module scope. Each wiring module exports an `install*Handlers()` function that `main.js` calls once: `installMenuHandlers`, `installOptionsHandlers`, `installInputHandlers`, `installDebugApi`.
+DOM listeners are never attached at module scope. Each wiring module exports an `install*Handlers()` function that `main.js` calls once: `installMenuHandlers`, `installOptionsHandlers`, `installInputHandlers`, `installTouchHandlers`, `installDebugApi`.
 
 Because `state.player.y` needs the world to know where the ground is, `state.js` declares `y: 0` and `main.js` sets the real spawn height during boot.
 
@@ -74,6 +75,26 @@ middle, `"Mouse2"` right). `DEFAULT_BINDINGS` mirrors Minecraft Java Edition.
 - **Press state** — `keydown`/`mousedown` resolve the token through `actionsForToken()` and dispatch to `handleActionPress(action, event)`. Never poll for one-shot actions.
 - `canonicalToken()` maps Right Shift/Ctrl/Alt onto their left twin unless that twin is separately bound.
 - Adding a new action: add it to `DEFAULT_BINDINGS`, `BINDING_LABELS`, and a `BINDING_GROUPS` entry, then handle it in `handleActionPress` (one-shot) or `handleInput` (held).
+
+### Touch controls
+
+`src/touch.js` adds an on-screen pad without a second input path: **every control presses
+and releases the same token the keyboard would**, through `bindings[action]`, so rebinding,
+sprint latching and double-tap flight all keep working. Nothing in that module knows what an
+action does. A new button is one element with `data-hold` (held) or `data-press` (one-shot)
+naming the action.
+
+Visibility is a body class, not a JS branch: `syncTouchControls()` toggles `is-touch` and
+`styles.css` does the rest, keyed off the `is-playing` class `showScreen()` already sets.
+That is why `ui/options.js` (layer 5) can own the setting while `touch.js` (layer 6) owns
+the behaviour. `pointerLock.js` reads the same class to skip locking the pointer on a phone,
+where the request would only be rejected.
+
+The stick appears wherever the thumb lands in the left `STICK_ZONE` of the screen rather
+than sitting in a fixed corner. Canvas touch handlers all `preventDefault()`, which is what
+stops the browser scrolling, zooming, and firing synthetic mouse events at `input.js`.
+
+`settings.touchControls` is `"auto"` (on for any device reporting touch), `"on"` or `"off"`.
 
 ### Screens
 

@@ -10,6 +10,8 @@ export const DEFAULT_SETTINGS = {
   invertMouse: false,
   viewBobbing: true,
   autosave: true,
+  // "auto" shows the on-screen pad on anything with a touch screen.
+  touchControls: "auto",
 };
 
 export const settings = { ...DEFAULT_SETTINGS };

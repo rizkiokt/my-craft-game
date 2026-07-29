@@ -15,6 +15,7 @@ import { installDebugApi } from "./src/debugApi.js";
 import { chunkMeshes } from "./src/chunkMesh.js";
 import { DEFAULT_SPAWN } from "./src/constants.js";
 import { installInputHandlers } from "./src/input.js";
+import { installTouchHandlers, syncTouchControls } from "./src/touch.js";
 import { animationLoop, render } from "./src/loop.js";
 import { passiveMobs } from "./src/mobs.js";
 import { onUnexpectedUnlock } from "./src/pointerLock.js";
@@ -30,7 +31,12 @@ import { buildHotbar, updateHotbar } from "./src/ui/hud.js";
 import { updateInventoryPanel } from "./src/ui/inventory.js";
 import { buildControlsScreen, buildHelpControls } from "./src/ui/controlsScreen.js";
 import { installMenuHandlers } from "./src/ui/menus.js";
-import { applySettings, installOptionsHandlers, syncOptionsScreen } from "./src/ui/options.js";
+import {
+  applySettings,
+  installOptionsHandlers,
+  onTouchSettingChanged,
+  syncOptionsScreen,
+} from "./src/ui/options.js";
 import {
   applyTitleTexture,
   openPauseMenu,
@@ -78,13 +84,17 @@ syncOptionsScreen();
 syncModePicker();
 
 // Pointer lock cannot import the screen stack without a cycle, so the pause
-// menu is registered here instead.
+// menu is registered here instead. The Options screen sits below touch.js for
+// the same reason, so the on-screen pad is re-synced from here too.
 onUnexpectedUnlock(openPauseMenu);
+onTouchSettingChanged(syncTouchControls);
 
 installMenuHandlers();
 installOptionsHandlers();
 installInputHandlers();
+installTouchHandlers();
 installDebugApi();
+syncTouchControls();
 
 showScreen("title");
 render(0);

@@ -33,6 +33,9 @@ body {
   position: relative;
   width: 100vw;
   height: 100vh;
+  /* Mobile browsers count the address bar in 100vh, which cuts off the
+     hotbar. dvh tracks the bar as it slides away. */
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -1496,4 +1499,198 @@ input[type="range"]:focus-visible {
   font-size: 12px;
   color: var(--muted);
   text-align: center;
+}
+
+/* ------------------------------------------------------------------ *
+ * Touch controls
+ *
+ * Hidden entirely unless touch.js has put `is-touch` on the body, and only
+ * while a world is actually running. The pad follows the thumb rather than
+ * sitting in a fixed corner, so it works in either hand.
+ * ------------------------------------------------------------------ */
+
+.touch-layer {
+  position: absolute;
+  inset: 0;
+  display: none;
+  pointer-events: none;
+  z-index: 6;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+body.is-touch.is-playing .touch-layer {
+  display: block;
+}
+
+/* The bag and the pause menu are ordinary HTML; the pad would be in the way. */
+body.is-touch:has(#inventory-panel:not(.is-hidden)) .touch-layer,
+body.is-touch:has(#death-screen:not(.is-hidden)) .touch-layer {
+  display: none;
+}
+
+/* Stop the browser scrolling, zooming or selecting while you play. */
+body.is-touch canvas,
+body.is-touch .touch-layer {
+  touch-action: none;
+}
+
+.touch-btn {
+  pointer-events: auto;
+  min-width: 74px;
+  padding: 14px 10px;
+  border: 2px solid rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(16, 20, 28, 0.6);
+  color: #f2f4f8;
+  font: 600 14px/1 "Trebuchet MS", sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.touch-btn.is-down {
+  background: rgba(120, 190, 255, 0.42);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.touch-btn-sm {
+  min-width: 58px;
+  padding: 10px 8px;
+  font-size: 12px;
+}
+
+.touch-btn-lg {
+  min-width: 88px;
+  padding: 20px 10px;
+  border-radius: 999px;
+}
+
+/* Top left, because the mode banner already owns the right-hand corner. */
+.touch-topbar {
+  position: absolute;
+  top: calc(10px + env(safe-area-inset-top));
+  left: calc(10px + env(safe-area-inset-left));
+  display: flex;
+  gap: 8px;
+}
+
+/*
+ * Bottom right, under the thumb, laid out as
+ *   sneak  place
+ *   mine   jump
+ * and lifted clear of the hotbar stack in the middle of the screen.
+ */
+.touch-cluster {
+  position: absolute;
+  right: calc(12px + env(safe-area-inset-right));
+  bottom: calc(112px + env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 9px;
+  justify-items: end;
+  align-items: end;
+}
+
+.touch-stick {
+  position: absolute;
+  width: 132px;
+  height: 132px;
+  margin: -66px 0 0 -66px;
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  border-radius: 50%;
+  background: rgba(16, 20, 28, 0.34);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.touch-stick.is-active {
+  opacity: 1;
+}
+
+.touch-thumb {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 56px;
+  height: 56px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  background: rgba(210, 226, 245, 0.42);
+  transform: translate(-50%, -50%);
+}
+
+/*
+ * The hotbar becomes a control rather than a readout, but nine slots at the
+ * desktop size are wider than a phone, so they shrink to fit.
+ */
+body.is-touch .hotbar {
+  pointer-events: auto;
+}
+
+body.is-touch .hotbar-slot {
+  width: 34px;
+  height: 34px;
+}
+
+body.is-touch .hotbar-slot .slot-key {
+  display: none;
+}
+
+/* The title screen names whichever controls you are actually going to use. */
+.menu-hint-touch {
+  display: none;
+}
+
+body.is-touch .menu-hint-keys {
+  display: none;
+}
+
+body.is-touch .menu-hint-touch {
+  display: block;
+}
+
+/* The bottom right corner belongs to the buttons, so messages move clear. */
+body.is-touch .toast {
+  bottom: 224px;
+}
+
+/*
+ * .hotbar-wrap is transformed, so a fixed child would still be positioned
+ * against it. Lift the held-item name out of the stack relative to the wrap
+ * instead, clear of both the buttons and the toast.
+ */
+body.is-touch .item-name {
+  position: absolute;
+  bottom: 246px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+/* A phone held sideways has almost no height to spare. */
+@media (max-height: 520px) {
+  .touch-cluster {
+    bottom: calc(86px + env(safe-area-inset-bottom));
+    gap: 7px;
+  }
+
+  .touch-btn {
+    min-width: 62px;
+    padding: 10px 8px;
+    font-size: 12px;
+  }
+
+  .touch-btn-lg {
+    min-width: 72px;
+    padding: 15px 8px;
+  }
+
+  body.is-touch .toast {
+    bottom: 172px;
+  }
+
+  body.is-touch .item-name {
+    bottom: 190px;
+  }
 }

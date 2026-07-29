@@ -14,8 +14,20 @@ export function onUnexpectedUnlock(handler) {
   unexpectedUnlockHandler = handler;
 }
 
+/**
+ * Playing with the on-screen pad never wants the pointer captured, and asking
+ * for it on a phone only earns a rejection. touch.js owns the body class; this
+ * module sits below it and cannot import it.
+ */
+function usingTouchControls() {
+  return document.body.classList.contains("is-touch");
+}
+
 export function requestPointerLock() {
   if (state.inventoryOpen || !state.running || state.pointerLocked || state.isDead) {
+    return;
+  }
+  if (usingTouchControls()) {
     return;
   }
   if (!canvas.requestPointerLock) {

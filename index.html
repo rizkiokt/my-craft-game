@@ -33,6 +33,28 @@
         </div>
       </div>
 
+      <!-- ---------------------------------------------------------------- -->
+      <!-- Touch controls (phones and tablets)                               -->
+      <!-- ---------------------------------------------------------------- -->
+      <div id="touch-layer" class="touch-layer">
+        <div id="touch-stick" class="touch-stick" aria-hidden="true">
+          <div id="touch-thumb" class="touch-thumb"></div>
+        </div>
+
+        <div class="touch-topbar">
+          <button class="touch-btn touch-btn-sm" data-press="inventory" type="button">Bag</button>
+          <button class="touch-btn touch-btn-sm" data-press="perspective" type="button">View</button>
+          <button class="touch-btn touch-btn-sm" data-menu="pause" type="button">Menu</button>
+        </div>
+
+        <div class="touch-cluster">
+          <button class="touch-btn" data-hold="sneak" type="button">Sneak</button>
+          <button class="touch-btn" data-hold="use" type="button">Place</button>
+          <button class="touch-btn" data-hold="attack" type="button">Mine</button>
+          <button class="touch-btn touch-btn-lg" data-hold="jump" type="button">Jump</button>
+        </div>
+      </div>
+
       <div id="debug-overlay" class="debug-overlay is-hidden" aria-hidden="true">
         <pre id="debug-left" class="debug-block"></pre>
         <pre id="debug-right" class="debug-block debug-right"></pre>
@@ -135,10 +157,14 @@
             </label>
           </div>
 
-          <p class="menu-hint">
+          <p class="menu-hint menu-hint-keys">
             Move with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> &middot; break with
             <kbd>Left Click</kbd> &middot; place with <kbd>Right Click</kbd> &middot;
             see yourself with <kbd>F5</kbd> &middot; pause with <kbd>Esc</kbd>
+          </p>
+          <p class="menu-hint menu-hint-touch">
+            Drag the left of the screen to walk, the right to look &middot;
+            the buttons handle the rest
           </p>
         </div>
         <div class="corner corner-left">MyCraft &mdash; voxel sandbox</div>
@@ -218,6 +244,9 @@
             <div class="option-row option-row-toggles">
               <button id="opt-autosave" class="mc-btn" type="button">Autosave: ON</button>
               <button id="opt-fullscreen" class="mc-btn" type="button">Fullscreen: OFF</button>
+            </div>
+            <div class="option-row option-row-toggles">
+              <button id="opt-touch" class="mc-btn" type="button">Touch Controls: AUTO</button>
             </div>
           </div>
           <div class="btn-row btn-row-end">

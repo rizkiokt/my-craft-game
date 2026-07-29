@@ -56,6 +56,28 @@ the view falls back to first person rather than pushing through your own head.
 
 ---
 
+## Playing on a Phone or Tablet
+
+On anything with a touch screen the on-screen controls appear by themselves, and the game
+never asks to capture your pointer.
+
+- **Left half of the screen** — put your thumb down anywhere and a stick appears under it.
+  Push to walk; push it right to the edge to run.
+- **Right half** — drag to look around.
+- **Jump**, **Mine** (hold to break), **Place** and **Sneak** sit in the bottom-right corner
+  under your other thumb.
+- **Bag**, **View** and **Menu** are along the top-left.
+- **Tap a hotbar slot** to change what you are holding.
+
+Everything else — the menus, crafting, chests — is ordinary tapping.
+
+Turn the pad on or off yourself with **Touch Controls** in Options: **AUTO** follows the
+device, **ON** forces it (handy on a touchscreen laptop), **OFF** hides it entirely.
+
+Landscape gives you more of the world to look at; the layout adapts to either way up.
+
+---
+
 ## Game Modes
 
 ### Survival
@@ -84,6 +106,7 @@ Open **Options...** from the title screen or the pause menu:
 - **Master Volume**
 - **Render Distance** — 1 to 5 chunks
 - **Invert Mouse**, **View Bobbing**, **Autosave**, **Fullscreen**
+- **Touch Controls** — AUTO / ON / OFF
 
 Settings and key bindings persist in `localStorage` alongside your world save.
 
