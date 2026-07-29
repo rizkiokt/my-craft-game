@@ -799,17 +799,9 @@ input[type="range"]:focus-visible {
   margin-top: 18px;
 }
 
-/* Creative has no recipes, so the palette takes the whole card. */
-.inventory-body.is-creative {
-  grid-template-columns: 1fr;
-}
-
-.inventory-body.is-creative .inventory-section-wide {
-  display: none;
-}
-
+/* Creative shows the whole palette, so give it a denser grid. */
 .inventory-body.is-creative .inventory-grid {
-  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
 }
 
 .inventory-section {
@@ -889,9 +881,139 @@ input[type="range"]:focus-visible {
   opacity: 0.4;
 }
 
+/* ---- crafting grid ------------------------------------------------ */
+
+.craft-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 16px;
+  margin-bottom: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.24);
+}
+
+.craft-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--craft-cols, 2), 54px);
+  gap: 4px;
+}
+
+.craft-slot {
+  position: relative;
+  width: 54px;
+  height: 54px;
+  padding: 0;
+  border: 2px solid rgba(0, 0, 0, 0.5);
+  border-radius: 4px;
+  background: var(--slot);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.07);
+  cursor: pointer;
+  transition: border-color 0.1s ease;
+}
+
+.craft-slot:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.craft-slot .slot-icon {
+  position: absolute;
+  inset: 7px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  image-rendering: pixelated;
+}
+
+.craft-slot .slot-count {
+  position: absolute;
+  right: 3px;
+  bottom: 1px;
+  font-size: 12px;
+  font-weight: 700;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.9);
+}
+
+/* The furnace stacks input over fuel instead of using a square grid. */
+.craft-grid.is-furnace .craft-slot[data-role="fuel"] {
+  border-color: rgba(255, 170, 90, 0.45);
+}
+
+.craft-arrow {
+  font-size: 26px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.craft-result-slot {
+  width: 64px;
+  height: 64px;
+  border-color: rgba(255, 226, 143, 0.6);
+  background: rgba(46, 38, 16, 0.7);
+}
+
+.craft-result-slot:disabled {
+  opacity: 0.4;
+  cursor: default;
+  border-color: rgba(0, 0, 0, 0.5);
+  background: var(--slot);
+}
+
+.craft-result-slot .slot-icon {
+  inset: 8px;
+}
+
+.craft-hint {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+  line-height: 1.8;
+}
+
+.craft-hint kbd {
+  font-size: 11px;
+}
+
+/* The stack "held" by the mouse while arranging a recipe. */
+.cursor-stack {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 44px;
+  height: 44px;
+  pointer-events: none;
+  z-index: 20;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.6));
+}
+
+.cursor-stack.is-hidden {
+  display: none;
+}
+
+.cursor-stack .slot-icon {
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  image-rendering: pixelated;
+}
+
+.cursor-stack .slot-count {
+  position: absolute;
+  right: -2px;
+  bottom: -4px;
+  font-size: 13px;
+  font-weight: 700;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.95);
+}
+
 .recipe-list {
   display: grid;
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
 }
 
 .recipe-group h4 {
@@ -904,13 +1026,23 @@ input[type="range"]:focus-visible {
 
 .recipe-card {
   display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: 12px;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
   align-items: center;
-  padding: 12px;
+  padding: 8px 10px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
   background: rgba(16, 22, 31, 0.85);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.12s ease, transform 0.08s ease;
+}
+
+.recipe-card:hover:not(:disabled) {
+  border-color: var(--accent);
+  transform: translateY(-1px);
 }
 
 .recipe-info strong,
@@ -958,32 +1090,17 @@ input[type="range"]:focus-visible {
   gap: 10px;
 }
 
-.recipe-output {
-  text-align: center;
-}
-
 .recipe-output .slot-icon {
   width: 34px;
   height: 34px;
-  margin: 0 auto 3px;
   background-repeat: no-repeat;
   background-position: center;
   background-size: contain;
   image-rendering: pixelated;
 }
 
-.recipe-output span {
-  display: block;
-  font-size: 11px;
-  color: var(--muted);
-}
-
 .recipe-card.is-disabled {
-  opacity: 0.55;
-}
-
-.recipe-card.is-disabled .mc-btn {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 

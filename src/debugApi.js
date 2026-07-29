@@ -9,6 +9,7 @@ import { passiveMobs } from "./mobs.js";
 import { FURNACE_RECIPES, HAND_RECIPES, TABLE_RECIPES } from "./recipes.js";
 import { soundEngine } from "./sound.js";
 import { state } from "./state.js";
+import { findGridRecipe } from "./crafting.js";
 import { canCraft, canSmelt } from "./ui/inventory.js";
 import { world } from "./world.js";
 import { getCityCenter, getSnowCenter } from "./worldgen.js";
@@ -26,6 +27,15 @@ export function renderGameToText() {
     sprinting: state.sprinting,
     perspective: ["first", "third-back", "third-front"][state.perspective],
     inventoryOpen: state.inventoryOpen,
+    station: state.station,
+    craftGrid: state.craftGrid.map((slot) => slot ? `${BLOCK_NAMES[slot.itemId]} x${slot.count}` : null),
+    craftResult: (() => {
+      const recipe = findGridRecipe();
+      return recipe ? `${BLOCK_NAMES[recipe.output]} x${recipe.count}` : null;
+    })(),
+    cursorStack: state.cursorStack
+      ? `${BLOCK_NAMES[state.cursorStack.itemId]} x${state.cursorStack.count}`
+      : null,
     coords_note: "Origin near spawn. x east-west, y up, z north-south. Player position is feet center.",
     player: {
       x: Number(player.x.toFixed(2)),

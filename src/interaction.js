@@ -11,8 +11,14 @@ import { scene } from "./scene.js";
 import { soundEngine } from "./sound.js";
 import { state } from "./state.js";
 import { showToast, updateHotbar } from "./ui/hud.js";
-import { updateInventoryPanel } from "./ui/inventory.js";
+import { openStation, updateInventoryPanel } from "./ui/inventory.js";
 import { world } from "./world.js";
+
+/** Blocks that open a crafting station when used. */
+export const STATION_BLOCKS = {
+  [BLOCKS.crafting_table]: "table",
+  [BLOCKS.furnace]: "furnace",
+};
 export const highlightGeometry = new THREE.EdgesGeometry(new THREE.BoxGeometry(1.02, 1.02, 1.02));
 export const highlightMaterial = new THREE.LineBasicMaterial({
   color: 0xffe899,
@@ -197,6 +203,14 @@ export function interact(breaking) {
     resetBreakState();
   } else {
     resetBreakState();
+
+    // Right-clicking a station opens it; sneak to place a block against it.
+    const station = STATION_BLOCKS[state.target.block.type];
+    if (station && !state.sneaking) {
+      openStation(station);
+      return;
+    }
+
     const selectedItem = getSelectedItem();
     if (!isPlaceableItem(selectedItem)) {
       return;

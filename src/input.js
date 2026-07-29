@@ -14,6 +14,7 @@ import { soundEngine } from "./sound.js";
 import { state } from "./state.js";
 import { handleBindingCapture } from "./ui/controlsScreen.js";
 import { showToast } from "./ui/hud.js";
+import { moveCursorStack } from "./ui/inventory.js";
 import { syncOptionsScreen } from "./ui/options.js";
 /* ------------------------------------------------------------------ *
  * Per-frame input polling
@@ -215,7 +216,11 @@ export function installInputHandlers() {
   });
 
   window.addEventListener("mousemove", (event) => {
-    if (!state.running || state.inventoryOpen || state.isDead) {
+    if (state.inventoryOpen) {
+      moveCursorStack(event.clientX, event.clientY);
+      return;
+    }
+    if (!state.running || state.isDead) {
       return;
     }
     if (state.pointerLocked) {

@@ -132,7 +132,34 @@ on the ground; walk over a dropped item to pick it back up.
 
 ## Crafting
 
-Crafting is done from the inventory panel (`E`). Recipes unlock depending on what you have access to:
+Crafting uses a real grid, like Minecraft:
+
+- **`E`** opens your inventory with a **2×2** grid — enough for planks, sticks and a crafting table.
+- **Right-click a placed Crafting Table** to open the full **3×3** grid.
+- **Right-click a placed Furnace** to open its input + fuel slots.
+- **Sneak** (`Left Shift`) while right-clicking if you want to place a block against a station instead of opening it.
+
+Moving items around:
+
+| Action | Result |
+|---|---|
+| Click a bag item | Equip it to your active hotbar slot |
+| Right-click a bag item | Pick one up onto the cursor |
+| Shift-click a bag item | Pick the whole stack up onto the cursor |
+| Click a grid slot | Drop the cursor stack in, or scoop the slot up |
+| Right-click a grid slot | Place one item, or take one back |
+| Click the result | Take one craft |
+| Shift-click the result | Craft as many as the grid allows |
+
+Shape matters, and — as in Minecraft — a pattern can sit anywhere in the grid: a pickaxe
+laid out in the bottom-right of a 3×3 table works exactly like one in the top-left.
+
+**Better than Minecraft:** the recipe list below the grid is a working recipe book. Click
+any recipe and it lays itself out from your bag automatically. Recipes you cannot afford
+are greyed out. Nothing is ever lost — closing the panel returns everything in the grid
+and on the cursor to your bag.
+
+Recipes unlock depending on which station you opened:
 
 ### Always available (Hand Crafting)
 
@@ -143,7 +170,7 @@ Crafting is done from the inventory panel (`E`). Recipes unlock depending on wha
 
 ### Crafting Table recipes
 
-Place a **Crafting Table** block and look at it, then open inventory (`E`) to unlock these:
+Place a **Crafting Table** and right-click it:
 
 | Recipe | Ingredients | Output |
 |---|---|---|
@@ -155,7 +182,7 @@ Place a **Crafting Table** block and look at it, then open inventory (`E`) to un
 
 ### Furnace recipes
 
-Place a **Furnace** block and look at it, then open inventory (`E`) to smelt:
+Place a **Furnace** and right-click it, then load the input and fuel slots:
 
 | Recipe | Ingredients | Output |
 |---|---|---|

@@ -1,19 +1,85 @@
-// Inventory grid, recipe cards and crafting actions.
+// Inventory panel: bag, crafting grid, result slot and the recipe book.
 
 import { keyHint } from "../bindings.js";
 import { BLOCKS, BLOCK_NAMES, CREATIVE_ITEMS, ITEMS, PLACEABLE_BLOCKS } from "../constants.js";
-import { inventoryBody, inventoryEyebrow, inventoryGrid, inventoryGridHint, inventoryGridTitle, inventoryPanel, inventoryRecipeHint, recipeList } from "../dom.js";
+import {
+  craftArea,
+  craftGridEl,
+  craftResultEl,
+  craftTitle,
+  cursorStackEl,
+  inventoryBody,
+  inventoryEyebrow,
+  inventoryGrid,
+  inventoryGridHint,
+  inventoryGridTitle,
+  inventoryPanel,
+  inventoryRecipeHint,
+  inventoryStation,
+  recipeList,
+} from "../dom.js";
+import {
+  autoFillRecipe,
+  canAfford,
+  clickGridSlot,
+  findGridRecipe,
+  getCraftableCount,
+  getGridSize,
+  getSlotCount,
+  getStation,
+  isFurnace,
+  placeOneInGrid,
+  putCursorInBag,
+  returnGridToBag,
+  setStation,
+  takeFromBag,
+  takeResult,
+} from "../crafting.js";
 import { itemIcons } from "../icons.js";
 import { getItemCount, getSelectedItem, isCreative, isPlaceableItem } from "../items.js";
 import { exitPointerLock, requestPointerLock } from "../pointerLock.js";
-import { FURNACE_RECIPES, HAND_RECIPES, TABLE_RECIPES } from "../recipes.js";
 import { soundEngine } from "../sound.js";
 import { state } from "../state.js";
 import { announceHeldItem, showToast, updateHotbar } from "./hud.js";
-export function createInventorySlot(itemId, count, selected) {
+
+/** Kept for the scripted-testing snapshot in debugApi.js. */
+export function canCraft(recipe) {
+  return Object.entries(recipe.ingredients).every(
+    ([itemId, needed]) => getItemCount(Number(itemId)) >= needed,
+  );
+}
+
+export function canSmelt(recipe) {
+  return getItemCount(recipe.input) >= recipe.inputCount
+    && getItemCount(recipe.fuel) >= recipe.fuelCount;
+}
+
+function setSlotIcon(element, itemId) {
+  const icon = element.querySelector(".slot-icon");
+  if (icon) {
+    icon.style.backgroundImage = itemId == null ? "none" : `url("${itemIcons.get(itemId)}")`;
+  }
+}
+
+function makeSlot(className, itemId, count, { showCount = true } = {}) {
   const slot = document.createElement("button");
   slot.type = "button";
-  slot.className = "inventory-slot";
+  slot.className = className;
+  if (itemId == null) {
+    slot.classList.add("is-blank");
+  }
+  slot.innerHTML =
+    `<div class="slot-icon"></div>` +
+    `<span class="slot-count">${showCount && count > 1 ? count : ""}</span>`;
+  setSlotIcon(slot, itemId);
+  if (itemId != null) {
+    slot.title = BLOCK_NAMES[itemId];
+  }
+  return slot;
+}
+
+export function createInventorySlot(itemId, count, selected) {
+  const slot = makeSlot("inventory-slot", itemId, count, { showCount: !isCreative() });
   slot.dataset.item = String(itemId);
   slot.title = `${BLOCK_NAMES[itemId]}${isCreative() ? "" : ` — ${count} in bag`}`;
   if (selected) {
@@ -23,156 +89,39 @@ export function createInventorySlot(itemId, count, selected) {
     slot.classList.add("is-empty");
     slot.disabled = true;
   }
-  slot.innerHTML =
-    `<div class="slot-icon"></div>` +
-    `<span class="slot-count">${isCreative() ? "" : count}</span>`;
-  slot.querySelector(".slot-icon").style.backgroundImage = `url("${itemIcons.get(itemId)}")`;
   return slot;
 }
 
-export function canCraft(recipe) {
-  return Object.entries(recipe.ingredients).every(([blockType, needed]) => (state.inventory[Number(blockType)] ?? 0) >= needed);
-}
+/* ------------------------------------------------------------------ *
+ * Cursor stack — the items "held" by the mouse, as in Minecraft
+ * ------------------------------------------------------------------ */
 
-export function canSmelt(recipe) {
-  return (state.inventory[recipe.input] ?? 0) >= recipe.inputCount &&
-    (state.inventory[recipe.fuel] ?? 0) >= recipe.fuelCount;
-}
-
-export function craftRecipe(recipeId, collection) {
-  const recipe = collection.find((entry) => entry.id === recipeId);
-  if (!recipe || !canCraft(recipe)) {
+function renderCursor() {
+  const stack = state.cursorStack;
+  cursorStackEl.classList.toggle("is-hidden", !stack);
+  if (!stack) {
     return;
   }
-  for (const [blockType, needed] of Object.entries(recipe.ingredients)) {
-    state.inventory[Number(blockType)] -= needed;
+  setSlotIcon(cursorStackEl, stack.itemId);
+  const label = cursorStackEl.querySelector(".slot-count");
+  if (label) {
+    label.textContent = stack.count > 1 ? String(stack.count) : "";
   }
-  state.inventory[recipe.output] = (state.inventory[recipe.output] ?? 0) + recipe.count;
-  setActiveItem(recipe.output);
-  state.uiMessage = `Crafted ${recipe.count} ${BLOCK_NAMES[recipe.output]}`;
-  state.uiMessageTimer = 1.4;
-  soundEngine.craft();
-  state.saveDirty = true;
-  updateInventoryPanel();
-  updateHotbar();
 }
 
-export function smeltRecipe(recipeId) {
-  const recipe = FURNACE_RECIPES.find((entry) => entry.id === recipeId);
-  if (!recipe || !canSmelt(recipe)) {
-    return;
-  }
-  state.inventory[recipe.input] -= recipe.inputCount;
-  state.inventory[recipe.fuel] -= recipe.fuelCount;
-  state.inventory[recipe.output] = (state.inventory[recipe.output] ?? 0) + recipe.count;
-  setActiveItem(recipe.output);
-  state.uiMessage = `Smelted ${recipe.count} ${BLOCK_NAMES[recipe.output]}`;
-  state.uiMessageTimer = 1.4;
-  soundEngine.craft();
-  state.saveDirty = true;
-  updateInventoryPanel();
-  updateHotbar();
+export function moveCursorStack(x, y) {
+  cursorStackEl.style.transform = `translate(${x + 12}px, ${y + 12}px)`;
 }
 
-export function getAccessibleStations() {
-  const result = {
-    table: false,
-    furnace: false,
-  };
-  if (!state.target) {
-    return result;
-  }
-  if (state.target.distance > 5.5) {
-    return result;
-  }
-  if (state.target.block.type === BLOCKS.crafting_table) {
-    result.table = true;
-  }
-  if (state.target.block.type === BLOCKS.furnace) {
-    result.furnace = true;
-  }
-  return result;
-}
+/* ------------------------------------------------------------------ *
+ * Panel rendering
+ * ------------------------------------------------------------------ */
 
-export function createPatternGrid(pattern) {
-  const grid = document.createElement("div");
-  grid.className = "recipe-pattern";
-  grid.style.gridTemplateColumns = `repeat(${pattern[0].length}, 42px)`;
-  for (const row of pattern) {
-    for (const cell of row) {
-      const recipeCell = document.createElement("div");
-      recipeCell.className = "recipe-cell";
-      if (cell !== null) {
-        recipeCell.innerHTML = `<div class="slot-icon"></div>`;
-        recipeCell.querySelector(".slot-icon").style.backgroundImage = `url("${itemIcons.get(cell)}")`;
-      }
-      grid.appendChild(recipeCell);
-    }
-  }
-  return grid;
-}
-
-export function buildRecipeSection(title, subtitle, recipes, type) {
-  const wrapper = document.createElement("section");
-  wrapper.className = "inventory-section inventory-section-wide";
-  wrapper.innerHTML = `<div class="section-title"><h3>${title}</h3><span>${subtitle}</span></div>`;
-  const list = document.createElement("div");
-  list.className = "recipe-list";
-
-  for (const recipe of recipes) {
-    const enabled = type === "smelt" ? canSmelt(recipe) : canCraft(recipe);
-    const card = document.createElement("div");
-    card.className = `recipe-card${enabled ? "" : " is-disabled"}`;
-
-    const info = document.createElement("div");
-    info.className = "recipe-info";
-    const ingredients = type === "smelt"
-      ? `${recipe.inputCount} ${BLOCK_NAMES[recipe.input]} + ${recipe.fuelCount} ${BLOCK_NAMES[recipe.fuel]}`
-      : Object.entries(recipe.ingredients)
-          .map(([itemId, needed]) => `${needed} ${BLOCK_NAMES[Number(itemId)]}`)
-          .join(" + ");
-    info.innerHTML = `<strong>${BLOCK_NAMES[recipe.output]} x${recipe.count}</strong><span>${recipe.description} ${ingredients}</span>`;
-
-    const pattern = type === "smelt"
-      ? createPatternGrid([
-          [recipe.input, recipe.fuel],
-          [null, null],
-        ])
-      : createPatternGrid(recipe.pattern);
-
-    const craftWrap = document.createElement("div");
-    craftWrap.className = "recipe-craft";
-    craftWrap.innerHTML =
-      `<div class="recipe-output"><div class="slot-icon"></div><span>x${recipe.count}</span></div>` +
-      `<button class="mc-btn mc-btn-sm recipe-button" type="button"${enabled ? "" : " disabled"}>${type === "smelt" ? "Smelt" : "Craft"}</button>`;
-    craftWrap.querySelector(".slot-icon").style.backgroundImage = `url("${itemIcons.get(recipe.output)}")`;
-    craftWrap.querySelector(".recipe-button").addEventListener("click", () => {
-      if (type === "smelt") {
-        smeltRecipe(recipe.id);
-      } else {
-        craftRecipe(recipe.id, recipes);
-      }
-    });
-
-    card.append(info, pattern, craftWrap);
-    list.appendChild(card);
-  }
-  wrapper.appendChild(list);
-  return wrapper;
-}
-
-export function updateInventoryPanel() {
+function renderBag() {
   const creative = isCreative();
-  inventoryBody.classList.toggle("is-creative", creative);
-  inventoryEyebrow.textContent = creative ? "Creative Inventory" : "Survival Inventory";
-  inventoryGridTitle.textContent = creative ? "All Blocks & Items" : "Backpack";
-  inventoryGridHint.textContent = creative
-    ? "Unlimited supply — click to hold"
-    : "Click an item to hold it";
-  inventoryRecipeHint.textContent = `Press ${keyHint("inventory")} to close`;
-
   inventoryGrid.replaceChildren();
-  const allItems = creative
+
+  const items = creative
     ? CREATIVE_ITEMS
     : [...new Set([
         ...PLACEABLE_BLOCKS,
@@ -183,11 +132,19 @@ export function updateInventoryPanel() {
         ITEMS.stone_pickaxe,
       ])];
 
-  allItems.forEach((itemId) => {
+  for (const itemId of items) {
     const count = getItemCount(itemId);
     const slot = createInventorySlot(itemId, count, itemId === getSelectedItem());
-    slot.addEventListener("click", () => {
+    slot.addEventListener("click", (event) => {
       if (count <= 0) {
+        return;
+      }
+      // Holding a stack means you are building a recipe, not equipping.
+      if (state.cursorStack || event.shiftKey) {
+        putCursorInBag();
+        state.cursorStack = takeFromBag(itemId, event.shiftKey ? Infinity : Infinity);
+        soundEngine.select();
+        updateInventoryPanel();
         return;
       }
       state.hotbarSlots[state.activeSlot] = itemId;
@@ -195,26 +152,152 @@ export function updateInventoryPanel() {
       updateInventoryPanel();
       updateHotbar();
     });
+    slot.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      if (count <= 0) {
+        return;
+      }
+      // Right-click pulls a single item out, for laying recipes precisely.
+      if (state.cursorStack && state.cursorStack.itemId !== itemId) {
+        putCursorInBag();
+      }
+      const one = takeFromBag(itemId, 1);
+      if (!one) {
+        return;
+      }
+      if (state.cursorStack) {
+        state.cursorStack.count += one.count;
+      } else {
+        state.cursorStack = one;
+      }
+      soundEngine.select();
+      updateInventoryPanel();
+    });
     inventoryGrid.appendChild(slot);
-  });
-
-  recipeList.replaceChildren();
-  if (creative) {
-    const note = document.createElement("p");
-    note.className = "screen-subtitle";
-    note.textContent = "Crafting is not needed in creative — every item is already unlocked.";
-    recipeList.appendChild(note);
-    return;
-  }
-  recipeList.appendChild(buildRecipeSection("Hand Crafting", "Always available", HAND_RECIPES, "craft"));
-  const stations = getAccessibleStations();
-  if (stations.table) {
-    recipeList.appendChild(buildRecipeSection("Crafting Table", "Look at a placed table to unlock", TABLE_RECIPES, "craft"));
-  }
-  if (stations.furnace) {
-    recipeList.appendChild(buildRecipeSection("Furnace", "Look at a placed furnace to smelt", FURNACE_RECIPES, "smelt"));
   }
 }
+
+function renderCraftArea() {
+  const station = getStation();
+  const furnace = isFurnace();
+  craftTitle.textContent = station.label;
+  craftGridEl.classList.toggle("is-furnace", furnace);
+  craftGridEl.style.setProperty("--craft-cols", furnace ? 1 : getGridSize());
+  craftGridEl.replaceChildren();
+
+  for (let index = 0; index < getSlotCount(); index++) {
+    const slot = state.craftGrid[index];
+    const cell = makeSlot("craft-slot", slot?.itemId ?? null, slot?.count ?? 0);
+    if (furnace) {
+      cell.dataset.role = index === 0 ? "input" : "fuel";
+      cell.title = index === 0 ? "Input" : "Fuel";
+    }
+    cell.addEventListener("click", () => {
+      clickGridSlot(index);
+      soundEngine.select();
+      updateInventoryPanel();
+    });
+    cell.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      placeOneInGrid(index);
+      soundEngine.select();
+      updateInventoryPanel();
+    });
+    craftGridEl.appendChild(cell);
+  }
+
+  const recipe = findGridRecipe();
+  craftResultEl.replaceChildren();
+  const result = makeSlot(
+    "craft-slot craft-result-slot",
+    recipe ? recipe.output : null,
+    recipe ? recipe.count : 0,
+  );
+  result.disabled = !recipe;
+  if (recipe) {
+    const times = getCraftableCount(recipe);
+    result.title = `${BLOCK_NAMES[recipe.output]} x${recipe.count} — click to take, shift-click for all ${times}`;
+    result.addEventListener("click", (event) => {
+      const taken = takeResult({ all: event.shiftKey });
+      if (!taken) {
+        return;
+      }
+      soundEngine.craft();
+      showToast(`${isFurnace() ? "Smelted" : "Crafted"} ${taken.total} ${BLOCK_NAMES[taken.recipe.output]}`);
+      state.saveDirty = true;
+      updateInventoryPanel();
+      updateHotbar();
+    });
+  }
+  craftResultEl.appendChild(result);
+}
+
+function renderRecipeBook() {
+  const station = getStation();
+  recipeList.replaceChildren();
+
+  if (isCreative() && !isFurnace()) {
+    const note = document.createElement("p");
+    note.className = "screen-subtitle";
+    note.textContent = "Every item is already unlocked in creative — the grid still works if you want it.";
+    recipeList.appendChild(note);
+  }
+
+  for (const recipe of station.recipes) {
+    const affordable = canAfford(recipe);
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = `recipe-card${affordable ? "" : " is-disabled"}`;
+    card.disabled = !affordable;
+
+    const info = document.createElement("div");
+    info.className = "recipe-info";
+    const ingredients = isFurnace()
+      ? `${recipe.inputCount} ${BLOCK_NAMES[recipe.input]} + ${recipe.fuelCount} ${BLOCK_NAMES[recipe.fuel]}`
+      : Object.entries(recipe.ingredients)
+          .map(([itemId, needed]) => `${needed} ${BLOCK_NAMES[Number(itemId)]}`)
+          .join(" + ");
+    info.innerHTML =
+      `<strong>${BLOCK_NAMES[recipe.output]} x${recipe.count}</strong><span>${ingredients}</span>`;
+
+    const output = document.createElement("div");
+    output.className = "recipe-output";
+    output.innerHTML = `<div class="slot-icon"></div>`;
+    setSlotIcon(output, recipe.output);
+
+    card.append(output, info);
+    card.addEventListener("click", () => {
+      if (autoFillRecipe(recipe)) {
+        soundEngine.select();
+      } else {
+        showToast(`Not enough materials for ${BLOCK_NAMES[recipe.output]}`);
+      }
+      updateInventoryPanel();
+    });
+    recipeList.appendChild(card);
+  }
+}
+
+export function updateInventoryPanel() {
+  const creative = isCreative();
+  inventoryBody.classList.toggle("is-creative", creative);
+  inventoryEyebrow.textContent = creative ? "Creative Inventory" : "Survival Inventory";
+  inventoryStation.textContent = getStation().label;
+  inventoryGridTitle.textContent = creative ? "All Blocks & Items" : "Backpack";
+  inventoryGridHint.textContent = creative
+    ? "Click to hold · right-click for one"
+    : "Click to equip · right-click for one";
+  inventoryRecipeHint.textContent = `Press ${keyHint("inventory")} to close`;
+
+  renderBag();
+  renderCraftArea();
+  renderRecipeBook();
+  renderCursor();
+}
+
+/* ------------------------------------------------------------------ *
+ * Opening and closing
+ * ------------------------------------------------------------------ */
 
 export function toggleInventory(forceOpen) {
   const nextValue = typeof forceOpen === "boolean" ? forceOpen : !state.inventoryOpen;
@@ -227,9 +310,25 @@ export function toggleInventory(forceOpen) {
   if (nextValue) {
     exitPointerLock();
     updateInventoryPanel();
-  } else if (state.running) {
-    requestPointerLock();
+  } else {
+    // Nothing is ever lost on close: the grid and cursor go back in the bag.
+    returnGridToBag();
+    setStation("inventory");
+    updateHotbar();
+    if (state.running) {
+      requestPointerLock();
+    }
   }
+}
+
+/** Right-clicking a crafting table or furnace opens it, as in Minecraft. */
+export function openStation(name) {
+  setStation(name);
+  if (state.inventoryOpen) {
+    updateInventoryPanel();
+    return;
+  }
+  toggleInventory(true);
 }
 
 export function setActiveItem(itemId) {

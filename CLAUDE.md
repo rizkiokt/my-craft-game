@@ -34,7 +34,7 @@ Modules are layered; a module may only import from a layer below it. `src/ui/*` 
 | 1 | `settings.js`, `bindings.js`, `state.js`, `recipes.js` | Options, control scheme, mutable state, recipe tables |
 | 2 | `worldgen.js`, `textures.js`, `world.js`, `items.js` | Terrain, atlas, voxel storage, item rules |
 | 3 | `scene.js`, `icons.js`, `chunkMesh.js`, `sound.js`, `mobs.js`, `particles.js`, `playerModel.js` | Three.js resources and singletons |
-| 4 | `player.js`, `interaction.js`, `drops.js`, `pointerLock.js`, `fullscreen.js`, `save.js` | Gameplay systems |
+| 4 | `player.js`, `interaction.js`, `crafting.js`, `drops.js`, `pointerLock.js`, `fullscreen.js`, `save.js` | Gameplay systems |
 | 5 | `ui/hud.js`, `ui/inventory.js`, `ui/screens.js`, `ui/controlsScreen.js`, `ui/options.js`, `ui/menus.js` | Screens and overlays |
 | 6 | `actions.js`, `input.js`, `loop.js`, `debugApi.js` | Input routing and the frame loop |
 
@@ -114,6 +114,14 @@ Structure block selection for both settlements funnels through `getStructureBloc
 ### Rendering
 
 `ChunkMeshManager` rebuilds face-culled geometry for dirty chunks using a single shared `MeshLambertMaterial` and a procedurally generated texture atlas (`getTileCanvas` → canvas-drawn per-block tile → `DataTexture`). `getTileIndex(blockType, faceKey)` maps block faces to atlas tiles. Adding a new block type requires entries there and in `getBlockColor()` (used for particles).
+
+### Crafting
+
+`src/crafting.js` owns grid state and recipe matching; `src/ui/inventory.js` only renders it. Recipes are **shaped**: `trimPattern()` crops both the laid-out grid and the recipe's `pattern` to their bounding boxes and compares, so a pattern matches anywhere in the grid.
+
+`state.station` (`"inventory"` | `"table"` | `"furnace"`) selects the grid size and recipe set via the `STATIONS` table. `state.craftGrid` holds `{itemId, count}` slots taken *out* of the bag, and `state.cursorStack` is the stack held by the mouse. `returnGridToBag()` runs on close so nothing is ever lost.
+
+Stations open from `interact(false)` in `src/interaction.js` via the `STATION_BLOCKS` map — right-click opens, sneak+right-click places against the block instead.
 
 ### Adding a new block type
 
