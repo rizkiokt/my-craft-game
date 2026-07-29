@@ -1,7 +1,16 @@
 // Face-culled chunk geometry built from dirty chunks.
 
 import * as THREE from "../node_modules/three/build/three.module.js";
-import { BLOCKS, CHUNK_SIZE, FACE_DEFS, MIN_WORLD_Y } from "./constants.js";
+import { BLOCKS, CHUNK_SIZE, FACE_DEFS, MAX_LIGHT, MIN_LIGHT_FACTOR, MIN_WORLD_Y } from "./constants.js";
+
+/** A torch is a thin post standing in the middle of its cell. */
+const TORCH_WIDTH = 0.16;
+const TORCH_HEIGHT = 0.62;
+
+/** Maps a 0-15 light level onto a vertex tint. */
+function lightToBrightness(level) {
+  return MIN_LIGHT_FACTOR + (1 - MIN_LIGHT_FACTOR) * (level / MAX_LIGHT);
+}
 import { scene } from "./scene.js";
 import { atlasInfo, atlasUv, getTileIndex } from "./textures.js";
 import { world } from "./world.js";
@@ -23,6 +32,10 @@ export class ChunkMeshManager {
     const cx = Math.floor(wx / CHUNK_SIZE);
     const cz = Math.floor(wz / CHUNK_SIZE);
     this.markDirtyChunk(cx, cz);
+    // A torch lights well past its own chunk, so neighbours are redrawn too.
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      this.markDirtyChunk(cx + dx, cz + dz);
+    }
     if (((wx % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE === 0) {
       this.markDirtyChunk(cx - 1, cz);
     }
@@ -85,9 +98,42 @@ export class ChunkMeshManager {
     const positions = [];
     const normals = [];
     const uvs = [];
+    const colors = [];
     const indices = [];
     let vertexOffset = 0;
     const maxY = this.world.getChunkMaxY(cx, cz);
+    // Light must be current before any face samples it.
+    this.world.ensureLight(cx, cz);
+
+    /** Pushes one quad with a flat brightness taken from the light volume. */
+    const pushQuad = (corners, normal, tileIndex, brightness, origin, scale) => {
+      const quadUvs = [
+        atlasUv(this.atlasInfo.columns, this.atlasInfo.rows, tileIndex, 0, 0),
+        atlasUv(this.atlasInfo.columns, this.atlasInfo.rows, tileIndex, 0, 1),
+        atlasUv(this.atlasInfo.columns, this.atlasInfo.rows, tileIndex, 1, 1),
+        atlasUv(this.atlasInfo.columns, this.atlasInfo.rows, tileIndex, 1, 0),
+      ];
+      for (let i = 0; i < 4; i++) {
+        const corner = corners[i];
+        positions.push(
+          origin[0] + (corner[0] - 0.5) * scale[0] + 0.5,
+          origin[1] + corner[1] * scale[1],
+          origin[2] + (corner[2] - 0.5) * scale[2] + 0.5,
+        );
+        normals.push(normal[0], normal[1], normal[2]);
+        uvs.push(quadUvs[i][0], quadUvs[i][1]);
+        colors.push(brightness, brightness, brightness);
+      }
+      indices.push(
+        vertexOffset,
+        vertexOffset + 1,
+        vertexOffset + 2,
+        vertexOffset,
+        vertexOffset + 2,
+        vertexOffset + 3,
+      );
+      vertexOffset += 4;
+    };
 
     for (let y = MIN_WORLD_Y; y <= maxY; y++) {
       for (let z = 0; z < CHUNK_SIZE; z++) {
@@ -99,6 +145,25 @@ export class ChunkMeshManager {
             continue;
           }
 
+          // A torch is a slim post rather than a full cube.
+          if (blockType === BLOCKS.torch) {
+            const lit = lightToBrightness(MAX_LIGHT);
+            for (const face of FACE_DEFS) {
+              if (face.key === "ny") {
+                continue;
+              }
+              pushQuad(
+                face.corners,
+                face.normal,
+                getTileIndex(blockType, face.key),
+                lit,
+                [wx, y, wz],
+                [TORCH_WIDTH, TORCH_HEIGHT, TORCH_WIDTH],
+              );
+            }
+            continue;
+          }
+
           for (const face of FACE_DEFS) {
             const nx = face.normal[0];
             const ny = face.normal[1];
@@ -107,30 +172,16 @@ export class ChunkMeshManager {
               continue;
             }
 
-            const tileIndex = getTileIndex(blockType, face.key);
-            const quadUvs = [
-              atlasUv(this.atlasInfo.columns, this.atlasInfo.rows, tileIndex, 0, 0),
-              atlasUv(this.atlasInfo.columns, this.atlasInfo.rows, tileIndex, 0, 1),
-              atlasUv(this.atlasInfo.columns, this.atlasInfo.rows, tileIndex, 1, 1),
-              atlasUv(this.atlasInfo.columns, this.atlasInfo.rows, tileIndex, 1, 0),
-            ];
-
-            for (let i = 0; i < 4; i++) {
-              const corner = face.corners[i];
-              positions.push(wx + corner[0], y + corner[1], wz + corner[2]);
-              normals.push(nx, ny, nz);
-              uvs.push(quadUvs[i][0], quadUvs[i][1]);
-            }
-
-            indices.push(
-              vertexOffset,
-              vertexOffset + 1,
-              vertexOffset + 2,
-              vertexOffset,
-              vertexOffset + 2,
-              vertexOffset + 3,
+            // A face is lit by whatever is in the open cell it looks into.
+            const brightness = lightToBrightness(this.world.getLight(wx + nx, y + ny, wz + nz));
+            pushQuad(
+              face.corners,
+              face.normal,
+              getTileIndex(blockType, face.key),
+              brightness,
+              [wx, y, wz],
+              [1, 1, 1],
             );
-            vertexOffset += 4;
           }
         }
       }
@@ -144,6 +195,7 @@ export class ChunkMeshManager {
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
     geometry.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
     geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
     geometry.setIndex(indices);
     geometry.computeBoundingSphere();
     return geometry;
@@ -156,5 +208,7 @@ export class ChunkMeshManager {
 
 export const worldMaterial = new THREE.MeshLambertMaterial({
   map: atlasInfo.texture,
+  // Per-vertex brightness carries the block light baked by the mesher.
+  vertexColors: true,
 });
 export const chunkMeshes = new ChunkMeshManager(world, scene, worldMaterial, atlasInfo);

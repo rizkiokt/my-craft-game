@@ -102,6 +102,36 @@ directly; touching the ground clears the flag.
 
 **Coordinate system:** origin near spawn; x = east-west, y = up, z = north-south. Chunks are 16 × 16 columns. Load/unload radii live on the `World` instance (`world.loadRadius` / `world.unloadRadius`) and are driven by the Render Distance option via `world.setRenderDistance()`; default is 2.
 
+### Lighting
+
+`src/world.js` stores one 0-15 light value per cell in `chunk.light`, covering
+`LIGHT_MIN_Y..LIGHT_MAX_Y`. Sky light and torch light share the value: day and night are
+already handled by the scene's sun, so the mesher only needs "how lit is this spot".
+
+`computeChunkLight()` runs in three parts, and the order matters for speed:
+
+1. **Sky pass** — walk each column down from the chunk top until something opaque stops the
+   light, recording where it stopped. Everything below stays 0, so there is no need to look
+   further down.
+2. **Emitter pass** — light sources are only ever player-placed torches, so it scans
+   `chunk.edits` rather than the chunk volume.
+3. **Flood fill** — a BFS losing one level per block. Only daylight cells that sit next to a
+   *darker* column are queued; seeding every open-air cell above the terrain is what made an
+   early version three times slower for no visual difference.
+
+Faces are lit by sampling the open cell they look into, baked into a vertex `color`
+attribute, so `worldMaterial` has `vertexColors: true`. `MIN_LIGHT_FACTOR` keeps unlit
+blocks visible rather than pure black.
+
+`setBlock()` calls `invalidateLight()`, which dirties the 3x3 chunk neighbourhood, and
+`markDirtyAtWorld()` re-meshes the four orthogonal neighbours too, because a torch lights
+well past its own chunk. `getLight()` on a chunk that has not been lit yet estimates from
+the terrain height — a flat fallback would either bleed bright stripes into caves or paint
+dark seams across open ground.
+
+Torches are drawn by the chunk mesher as a slim post rather than a cube, and `isSolid()`
+excludes them so you can walk through.
+
 ### World seeds
 
 `src/math.js` owns the seed. `setWorldSeed(seed)` reshuffles the Perlin permutation with a

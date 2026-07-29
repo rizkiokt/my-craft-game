@@ -28,6 +28,7 @@ export function createTextureSet() {
     BLOCKS.ancient_debris,
     BLOCKS.enchanting_table,
     BLOCKS.chest,
+    BLOCKS.torch,
   ]) {
     textures[blockType] = {
       top: new Uint8Array(16 * 16 * 3),
@@ -320,6 +321,17 @@ export function createTextureSet() {
         48 + chestGrain * 0.4,
       ]);
 
+      // Torch: pale wood with a glowing head at the top.
+      const flame = y < 5;
+      const ember = y >= 5 && y < 7;
+      paint(textures[BLOCKS.torch].side, x, y, [
+        flame ? 255 : ember ? 240 : 150 + rock * 0.3,
+        flame ? 226 : ember ? 160 : 110 + rock * 0.25,
+        flame ? 120 : ember ? 60 : 68 + rock * 0.2,
+      ]);
+      paint(textures[BLOCKS.torch].top, x, y, [255, 232, 150]);
+      paint(textures[BLOCKS.torch].bottom, x, y, [120, 88, 56]);
+
       const tableNoise = hash3(x, y, 12) * 14 - 7;
       const gridLine = x % 4 === 0 || y % 4 === 0 ? 20 : 0;
       paint(textures[BLOCKS.crafting_table].top, x, y, [
@@ -474,6 +486,8 @@ export function createAtlasTexture() {
     textureSet[BLOCKS.enchanting_table].side,
     textureSet[BLOCKS.chest].top,
     textureSet[BLOCKS.chest].side,
+    textureSet[BLOCKS.torch].side,
+    textureSet[BLOCKS.torch].top,
   ];
 
   tileData.forEach((tile, index) => {
@@ -566,6 +580,9 @@ export function getTileIndex(blockType, faceKey) {
   }
   if (blockType === BLOCKS.chest) {
     return faceKey === "py" || faceKey === "ny" ? 29 : 30;
+  }
+  if (blockType === BLOCKS.torch) {
+    return faceKey === "py" ? 32 : 31;
   }
   return 24;
 }

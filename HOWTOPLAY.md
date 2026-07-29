@@ -190,6 +190,7 @@ Recipes unlock depending on which station you opened:
 |---|---|---|
 | Planks | 1 Wood or Pine Wood | 4 Planks |
 | Sticks | 2 Planks | 4 Sticks |
+| Torches | 1 Coal + 1 Stick | 4 Torches |
 
 ### Crafting Table recipes
 
@@ -279,6 +280,20 @@ one and it will **stop and look at you** instead of wandering off.
 - Cats are saved with your world, collar, coat, sitting and all.
 
 Nothing in this game fights, and cats are no exception — they are company, not a weapon.
+
+---
+
+## Light & Torches
+
+Caves and sealed rooms are genuinely dark now. Sunlight reaches down open shafts and in
+through cave mouths, fading as it goes, and everything under a roof starts pitch black.
+
+Craft **Torches** from 1 Coal + 1 Stick — you get 4 — and place them like any block. A
+torch lights its own square brightly and fades one step per block, so a line of them lights
+a tunnel. They are not solid, so you can walk straight through one.
+
+Torches are the reason to bring coal down a mine, and the practical way to find your way
+back out.
 
 ---
 

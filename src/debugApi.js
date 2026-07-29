@@ -38,6 +38,9 @@ export function renderGameToText() {
           .filter(Boolean)
       : [],
     chestCount: Object.keys(state.chests).length,
+    lightAtHead: world.getLight(Math.floor(state.player.x), Math.floor(state.player.y + 1.5), Math.floor(state.player.z)),
+    lightAtFeet: world.getLight(Math.floor(state.player.x), Math.floor(state.player.y), Math.floor(state.player.z)),
+    fps: state.fps,
     pets: passiveMobs.getPetCount(),
     npcs: npcs.getNearby(),
     npcTarget: state.npcTarget?.name ?? null,

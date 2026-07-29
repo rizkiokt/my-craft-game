@@ -25,6 +25,17 @@ export const HAND_RECIPES = [
     description: "Saw a pine log into planks.",
   },
   {
+    id: "torch",
+    output: BLOCKS.torch,
+    count: 4,
+    pattern: [
+      [ITEMS.coal, null],
+      [ITEMS.stick, null],
+    ],
+    ingredients: { [ITEMS.coal]: 1, [ITEMS.stick]: 1 },
+    description: "Light for the dark places.",
+  },
+  {
     id: "sticks",
     output: ITEMS.stick,
     count: 4,

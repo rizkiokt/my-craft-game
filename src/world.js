@@ -1,8 +1,35 @@
 // Voxel storage, terrain generation and block access.
 
-import { BLOCKS, CHUNK_SIZE, CITY_PLAN, DEFAULT_RENDER_DISTANCE, DEFAULT_SPAWN, MAX_BUILD_HEIGHT, MAX_RENDER_DISTANCE, MAX_WORLD_Y, MIN_RENDER_DISTANCE, MIN_WORLD_Y, SNOW_REALM, SUBURB_PLAN, WATER_LEVEL } from "./constants.js";
+import { BLOCKS, CHUNK_SIZE, CITY_PLAN, DEFAULT_RENDER_DISTANCE, DEFAULT_SPAWN, LIGHT_HEIGHT, LIGHT_MAX_Y, LIGHT_MIN_Y, MAX_BUILD_HEIGHT, MAX_LIGHT, MAX_RENDER_DISTANCE, MAX_WORLD_Y, MIN_RENDER_DISTANCE, MIN_WORLD_Y, SNOW_REALM, SUBURB_PLAN, TORCH_LIGHT, WATER_LEVEL } from "./constants.js";
+
+/** Six-way neighbours used by the light flood fill. */
+const NEIGHBOUR_OFFSETS = [
+  [1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1],
+];
 import { chunkIntersectsRect, clamp, hash3, lerp, perlin2 } from "./math.js";
 import { getCityParcel, getCityTargetHeight, getSettlementBlend, getSnowBlend, getSnowParcel, getSnowTargetHeight, getStructureBlock } from "./worldgen.js";
+/* ------------------------------------------------------------------ *
+ * Lighting helpers
+ * ------------------------------------------------------------------ */
+
+/** Blocks you can see through do not stop light. */
+export function blocksLight(blockType) {
+  return blockType !== BLOCKS.air
+    && blockType !== BLOCKS.torch
+    && blockType !== BLOCKS.glass
+    && blockType !== BLOCKS.water
+    && blockType !== BLOCKS.leaves
+    && blockType !== BLOCKS.pine_leaves;
+}
+
+export function getLightEmission(blockType) {
+  return blockType === BLOCKS.torch ? TORCH_LIGHT : 0;
+}
+
+function lightIndex(lx, wy, lz) {
+  return ((wy - LIGHT_MIN_Y) * CHUNK_SIZE + lz) * CHUNK_SIZE + lx;
+}
+
 export class World {
   constructor() {
     this.chunks = new Map();
@@ -66,6 +93,8 @@ export class World {
       trees: [],
       frostTrees: [],
       fauna: [],
+      light: null,
+      lightDirty: true,
     };
 
     if (chunkIntersectsRect(cx, cz, CITY_PLAN)) {
@@ -354,6 +383,189 @@ export class World {
     return BLOCKS.stone;
   }
 
+  /* ---------------------------------------------------------------- *
+   * Light
+   *
+   * Sky light and torch light share one 0-15 value per cell. Day and night
+   * are already handled by the scene's sun, so a single "how lit is this
+   * spot" number is all the mesher needs.
+   * ---------------------------------------------------------------- */
+
+  getLight(wx, wy, wz) {
+    if (wy < LIGHT_MIN_Y) {
+      return 0;
+    }
+    if (wy > LIGHT_MAX_Y) {
+      return MAX_LIGHT;
+    }
+    const cx = Math.floor(wx / CHUNK_SIZE);
+    const cz = Math.floor(wz / CHUNK_SIZE);
+    const chunk = this.chunks.get(this.getChunkKey(cx, cz));
+    if (!chunk?.light) {
+      // Estimate for a chunk that has not been lit yet: daylight above the
+      // surface, dark below. Returning a flat value here would either bleed
+      // bright stripes into caves or paint dark seams across open ground.
+      return wy > this.getHeightAt(wx, wz) ? MAX_LIGHT : 0;
+    }
+    const lx = ((wx % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+    const lz = ((wz % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+    return chunk.light[lightIndex(lx, wy, lz)];
+  }
+
+  /** Marks a column and its neighbours for relighting after an edit. */
+  invalidateLight(wx, wz) {
+    const cx = Math.floor(wx / CHUNK_SIZE);
+    const cz = Math.floor(wz / CHUNK_SIZE);
+    for (let dz = -1; dz <= 1; dz++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const chunk = this.chunks.get(this.getChunkKey(cx + dx, cz + dz));
+        if (chunk) {
+          chunk.lightDirty = true;
+        }
+      }
+    }
+  }
+
+  ensureLight(cx, cz) {
+    const chunk = this.ensureChunk(cx, cz);
+    if (chunk.light && !chunk.lightDirty) {
+      return chunk;
+    }
+    this.computeChunkLight(cx, cz);
+    return chunk;
+  }
+
+  /**
+   * Floods light through one chunk: sky from above, torches from inside, and
+   * whatever already reaches in from neighbours that have been lit.
+   */
+  computeChunkLight(cx, cz) {
+    const chunk = this.ensureChunk(cx, cz);
+    const light = chunk.light ?? (chunk.light = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE * LIGHT_HEIGHT));
+    light.fill(0);
+
+    const top = Math.min(LIGHT_MAX_Y, Math.max(chunk.maxBuildY + 1, chunk.maxHeight + 1));
+    const queue = [];
+
+    // Sky pass: walk each column down from the top until something stops the
+    // light. Everything below stays dark, so there is no need to look further.
+    const skyFloor = new Int16Array(CHUNK_SIZE * CHUNK_SIZE);
+    for (let lz = 0; lz < CHUNK_SIZE; lz++) {
+      for (let lx = 0; lx < CHUNK_SIZE; lx++) {
+        const wx = cx * CHUNK_SIZE + lx;
+        const wz = cz * CHUNK_SIZE + lz;
+        let wy = top;
+        for (; wy >= LIGHT_MIN_Y; wy--) {
+          if (blocksLight(this.getBlock(wx, wy, wz))) {
+            break;
+          }
+          light[lightIndex(lx, wy, lz)] = MAX_LIGHT;
+        }
+        skyFloor[lz * CHUNK_SIZE + lx] = wy + 1;
+      }
+    }
+
+    // Only daylight cells sitting next to something darker need to spread.
+    // Open sky above the terrain is uniformly lit and would just churn the
+    // queue, which is what made this expensive.
+    for (let lz = 0; lz < CHUNK_SIZE; lz++) {
+      for (let lx = 0; lx < CHUNK_SIZE; lx++) {
+        const floor = skyFloor[lz * CHUNK_SIZE + lx];
+        const neighbourFloors = [
+          lx > 0 ? skyFloor[lz * CHUNK_SIZE + lx - 1] : LIGHT_MIN_Y,
+          lx < CHUNK_SIZE - 1 ? skyFloor[lz * CHUNK_SIZE + lx + 1] : LIGHT_MIN_Y,
+          lz > 0 ? skyFloor[(lz - 1) * CHUNK_SIZE + lx] : LIGHT_MIN_Y,
+          lz < CHUNK_SIZE - 1 ? skyFloor[(lz + 1) * CHUNK_SIZE + lx] : LIGHT_MIN_Y,
+        ];
+        const highestNeighbour = Math.max(...neighbourFloors);
+        const wx = cx * CHUNK_SIZE + lx;
+        const wz = cz * CHUNK_SIZE + lz;
+        // The lowest lit cell always spreads; above that, only up to where a
+        // neighbouring column's floor is higher than ours.
+        const ceiling = Math.min(top, Math.max(floor, highestNeighbour));
+        for (let wy = floor; wy <= ceiling; wy++) {
+          queue.push(lightIndex(lx, wy, lz), wx, wy, wz);
+        }
+      }
+    }
+
+    // Emitters only ever come from player edits, so the edit map is the whole
+    // search space rather than the chunk volume.
+    for (const [editKey, blockType] of chunk.edits) {
+      const emission = getLightEmission(blockType);
+      if (emission <= 0) {
+        continue;
+      }
+      const [lx, wy, lz] = editKey.split(",").map(Number);
+      if (wy < LIGHT_MIN_Y || wy > LIGHT_MAX_Y) {
+        continue;
+      }
+      const index = lightIndex(lx, wy, lz);
+      if (emission > light[index]) {
+        light[index] = emission;
+        queue.push(index, cx * CHUNK_SIZE + lx, wy, cz * CHUNK_SIZE + lz);
+      }
+    }
+
+    // Pull light in from neighbours that have already been computed.
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const neighbour = this.chunks.get(this.getChunkKey(cx + dx, cz + dz));
+      if (!neighbour?.light) {
+        continue;
+      }
+      for (let step = 0; step < CHUNK_SIZE; step++) {
+        const lx = dx === 1 ? CHUNK_SIZE - 1 : dx === -1 ? 0 : step;
+        const lz = dz === 1 ? CHUNK_SIZE - 1 : dz === -1 ? 0 : step;
+        const wx = cx * CHUNK_SIZE + lx;
+        const wz = cz * CHUNK_SIZE + lz;
+        for (let wy = LIGHT_MIN_Y; wy <= top; wy++) {
+          const incoming = this.getLight(wx + dx, wy, wz + dz) - 1;
+          const index = lightIndex(lx, wy, lz);
+          if (incoming > light[index] && !blocksLight(this.getBlock(wx, wy, wz))) {
+            light[index] = incoming;
+            queue.push(index, wx, wy, wz);
+          }
+        }
+      }
+    }
+
+    // Breadth-first spread, losing one level per block.
+    const minX = cx * CHUNK_SIZE;
+    const minZ = cz * CHUNK_SIZE;
+    for (let head = 0; head < queue.length; head += 4) {
+      const level = light[queue[head]];
+      if (level <= 1) {
+        continue;
+      }
+      const wx = queue[head + 1];
+      const wy = queue[head + 2];
+      const wz = queue[head + 3];
+
+      for (const [dx, dy, dz] of NEIGHBOUR_OFFSETS) {
+        const nx = wx + dx;
+        const ny = wy + dy;
+        const nz = wz + dz;
+        if (ny < LIGHT_MIN_Y || ny > LIGHT_MAX_Y) {
+          continue;
+        }
+        const lx = nx - minX;
+        const lz = nz - minZ;
+        if (lx < 0 || lx >= CHUNK_SIZE || lz < 0 || lz >= CHUNK_SIZE) {
+          continue;
+        }
+        const index = lightIndex(lx, ny, lz);
+        if (light[index] >= level - 1 || blocksLight(this.getBlock(nx, ny, nz))) {
+          continue;
+        }
+        light[index] = level - 1;
+        queue.push(index, nx, ny, nz);
+      }
+    }
+
+    chunk.lightDirty = false;
+    return chunk;
+  }
+
   getEditKey(lx, wy, lz) {
     return `${lx},${wy},${lz}`;
   }
@@ -396,12 +608,15 @@ export class World {
 
     chunk.maxHeight = Math.max(chunk.maxHeight, wy);
     chunk.maxBuildY = Math.max(chunk.maxBuildY, wy);
+    this.invalidateLight(wx, wz);
     return true;
   }
 
   isSolid(wx, wy, wz) {
     const blockType = this.getBlock(wx, wy, wz);
-    return blockType !== BLOCKS.air && blockType !== BLOCKS.water;
+    return blockType !== BLOCKS.air
+      && blockType !== BLOCKS.water
+      && blockType !== BLOCKS.torch;
   }
 
   getChunkMaxY(cx, cz) {

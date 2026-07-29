@@ -54,6 +54,7 @@ export const BLOCKS = {
   ancient_debris: 20,
   enchanting_table: 21,
   chest: 22,
+  torch: 23,
 };
 
 export const ITEMS = {
@@ -106,6 +107,7 @@ export const BLOCK_NAMES = {
   [BLOCKS.ancient_debris]: "Ancient Debris",
   [BLOCKS.enchanting_table]: "Enchanting Table",
   [BLOCKS.chest]: "Chest",
+  [BLOCKS.torch]: "Torch",
   [ITEMS.stick]: "Stick",
   [ITEMS.coal]: "Coal",
   [ITEMS.iron_ingot]: "Iron Ingot",
@@ -174,6 +176,19 @@ export const NPC_TELEPORT_DISTANCE = 24;
 export const PET_FOLLOW_DISTANCE = 2.4;
 export const PET_TELEPORT_DISTANCE = 18;
 
+/* ------------------------------------------------------------------ *
+ * Lighting
+ * ------------------------------------------------------------------ */
+
+export const MAX_LIGHT = 15;
+export const TORCH_LIGHT = 14;
+/** Vertical span the light volume covers, matching the build limits. */
+export const LIGHT_MIN_Y = MIN_WORLD_Y;
+export const LIGHT_MAX_Y = MAX_BUILD_HEIGHT + 1;
+export const LIGHT_HEIGHT = LIGHT_MAX_Y - LIGHT_MIN_Y + 1;
+/** How dark an unlit block gets; never fully black, so caves stay playable. */
+export const MIN_LIGHT_FACTOR = 0.16;
+
 /** Slots in a chest: three rows of nine, as in Minecraft. */
 export const CHEST_SIZE = 27;
 
@@ -209,6 +224,7 @@ export const PLACEABLE_BLOCKS = [
   BLOCKS.ancient_debris,
   BLOCKS.enchanting_table,
   BLOCKS.chest,
+  BLOCKS.torch,
 ];
 
 /** Everything the creative palette hands out, in build-menu order. */
@@ -234,6 +250,7 @@ export const CREATIVE_ITEMS = [
   BLOCKS.furnace,
   BLOCKS.enchanting_table,
   BLOCKS.chest,
+  BLOCKS.torch,
   ITEMS.stick,
   ITEMS.coal,
   ITEMS.iron_ingot,
