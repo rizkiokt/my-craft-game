@@ -6,6 +6,8 @@ export const state = {
   screen: "title",
   screenReturn: "title",
   gameMode: "survival",
+  /** Shown on the Worlds screen and used as the default name when saving. */
+  worldName: "My World",
   running: false,
   isDead: false,
   lastSafePosX: DEFAULT_SPAWN.x,

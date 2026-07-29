@@ -18,7 +18,7 @@ The code lives in `src/` as layered ES modules (see CLAUDE.md for the layering r
 | Crafting / Inventory | `src/ui/inventory.js` |
 | Dropped items | `src/drops.js` |
 | Friends (NPCs) | `src/npcs.js` |
-| Save / Load | `src/save.js` |
+| Save / Load | `src/save.js`, `src/ui/worlds.js` |
 | UI / HUD | `src/ui/hud.js`, `src/ui/screens.js`, `src/ui/controlsScreen.js`, `src/ui/options.js`, `src/ui/menus.js` |
 | Input / Camera | `src/input.js`, `src/actions.js`, `src/touch.js`, `src/pointerLock.js`, `src/fullscreen.js` |
 | Audio | `src/sound.js` |
@@ -336,8 +336,18 @@ The code lives in `src/` as layered ES modules (see CLAUDE.md for the layering r
 |---|---|
 | `serializeWorldEdits()` | Serialize `chunk.edits` maps to a plain object keyed by chunk key |
 | `hydrateWorldEdits(savedChunks)` | Reapply saved edits back into chunk objects |
-| `saveGame(force)` | Write gameMode, inventory, hotbar, player, dayTime, worldEdits under `SAVE_KEY`. Skipped when the Autosave option is off unless `force` |
+| `buildPayload()` | The one description of a saved world, shared by autosave, named slots and exported files |
+| `saveGame(force)` | Write `buildPayload()` under `SAVE_KEY`. Skipped when the Autosave option is off unless `force` |
+| `blockSaves()` | Stops the unload autosave from overwriting a save just replaced ahead of a deliberate reload |
 | `loadGame()` | Read and apply the save; handles missing/corrupt data gracefully |
+| `listWorlds()` | Named saves, newest first, read from the small info keys rather than the payloads |
+| `saveWorldAs(name)` | Copy the world you are playing into a named slot, overwriting a name that already exists |
+| `loadWorld(id)` | Put a saved world into `SAVE_KEY` and block further saves; the caller reloads |
+| `deleteWorld(id)` | Remove a slot's payload and info |
+| `exportWorldText(id)` | JSON for one saved world, or for the world you are playing when `id` is null |
+| `importWorldText(text)` | Validate an exported file and store it as a new slot |
+| `cleanWorldName(name)` / `worldFileName(name)` | Trim and cap a name; turn it into a download filename |
+| `refreshWorldList()` / `openWorldsScreen()` | Rebuild and show the Worlds screen |
 | `loadSettings()` / `saveSettings()` | Options persistence under `SETTINGS_KEY` |
 | `loadBindings()` / `saveBindings()` | Key-binding persistence under `BINDINGS_KEY` |
 

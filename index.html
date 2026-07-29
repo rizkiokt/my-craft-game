@@ -192,8 +192,9 @@
             </div>
             <div class="btn-row">
               <button id="btn-help" class="mc-btn" type="button">How to Play</button>
-              <button id="btn-reset" class="mc-btn mc-btn-danger" type="button">New World</button>
+              <button id="btn-worlds" class="mc-btn" type="button">Worlds...</button>
             </div>
+            <button id="btn-reset" class="mc-btn mc-btn-wide mc-btn-danger" type="button">New World</button>
             <label class="seed-row">
               <span>World seed <b id="seed-current">0</b></span>
               <input id="seed-input" type="text" maxlength="24" placeholder="leave blank for the classic world" />
@@ -235,8 +236,36 @@
             <button id="btn-unstuck" class="mc-btn mc-btn-wide" type="button">
               Stuck? Teleport to Safe Ground
             </button>
+            <button id="btn-pause-worlds" class="mc-btn mc-btn-wide" type="button">Worlds...</button>
             <button id="btn-quit" class="mc-btn mc-btn-wide" type="button">Save and Quit to Title</button>
           </div>
+        </div>
+      </div>
+
+      <!-- ---------------------------------------------------------------- -->
+      <!-- Worlds: named saves plus export/import                            -->
+      <!-- ---------------------------------------------------------------- -->
+      <div id="screen-worlds" class="screen screen-blur is-hidden">
+        <div class="screen-panel screen-panel-wide">
+          <h2 class="screen-title-text">Worlds</h2>
+          <p class="screen-subtitle">
+            Saved worlds live in this browser. Export one to a file to keep it safe, move it
+            to another device, or share it &mdash; nothing here is uploaded anywhere.
+          </p>
+
+          <div class="world-save-row">
+            <input id="world-name" type="text" maxlength="28" placeholder="Name this world" />
+            <button id="btn-world-save" class="mc-btn mc-btn-primary" type="button">Save Current World</button>
+          </div>
+
+          <div id="world-list" class="world-list"></div>
+
+          <div class="btn-row-end world-buttons">
+            <button id="btn-world-import" class="mc-btn" type="button">Import from File...</button>
+            <button id="btn-world-export" class="mc-btn" type="button">Export Current World</button>
+            <button id="btn-worlds-back" class="mc-btn mc-btn-primary" type="button">Done</button>
+          </div>
+          <input id="world-file" type="file" accept="application/json,.json" hidden />
         </div>
       </div>
 

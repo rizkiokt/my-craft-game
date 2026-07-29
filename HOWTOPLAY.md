@@ -116,6 +116,36 @@ Settings and key bindings persist in `localStorage` alongside your world save.
 
 ---
 
+## Saving and Loading Worlds
+
+The world you are playing saves itself as you go — every time you change a block and every
+few seconds besides — so closing the tab never loses anything.
+
+Open **Worlds...** from the title screen or the pause menu to keep more than one:
+
+- **Name it and press Save Current World** to keep a copy under that name. Saving again with
+  the same name overwrites that copy, so you can use it as a checkpoint.
+- **Load** brings a saved world back. It asks twice, because it replaces whatever you are
+  playing, and the game reloads to rebuild the world from its seed.
+- **Delete** throws one away. It asks twice too.
+
+### Keeping worlds safe, and moving them about
+
+Saved worlds live inside this browser. Clearing your browsing data would take them with it,
+and they do not follow you to another device or another browser. So:
+
+- **Export** writes a world to a `.json` file in your downloads. That file is the whole
+  world — keep it as a backup, put it on another computer, or send it to a friend.
+- **Import from File...** reads one back in, and it turns up in the list ready to load.
+
+None of this goes near a server. The game is a handful of files on GitHub Pages; saving,
+loading and exporting all happen inside the page, on your own machine.
+
+> If the browser says it is out of storage, export a world to a file and delete it from the
+> list — that frees the space up again.
+
+---
+
 ## World Seeds
 
 Type a seed on the title screen and press **New World** to generate a different world.

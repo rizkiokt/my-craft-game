@@ -24,6 +24,7 @@ export function renderGameToText() {
     title: "MyCraft",
     mode: state.mode,
     screen: state.screen,
+    worldName: state.worldName,
     gameMode: state.gameMode,
     flying: state.flying,
     sneaking: state.sneaking,

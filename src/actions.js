@@ -158,6 +158,7 @@ export function handleEscape() {
     case "controls":
     case "options":
     case "help":
+    case "worlds":
       closeSubScreen();
       break;
     default:

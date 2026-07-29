@@ -6,7 +6,7 @@ import { deathScreen, deathTitleBtn, inventoryClose, pauseModeBtn, respawnBtn, s
 import { getWorldSeed } from "../math.js";
 import { isCreative } from "../items.js";
 import { respawnPlayer } from "../player.js";
-import { saveGame, stagePendingSeed } from "../save.js";
+import { blockSaves, saveGame, stagePendingSeed } from "../save.js";
 import { state } from "../state.js";
 import { buildControlsScreen, buildHelpControls } from "./controlsScreen.js";
 import { showToast } from "./hud.js";
@@ -74,6 +74,9 @@ export function installMenuHandlers() {
     }
     // The seed is applied on the next load, before any chunk generates.
     stagePendingSeed(seedInput.value);
+    // Without this the unload autosave writes the old world straight back,
+    // taking its seed with it, and nothing appears to happen.
+    blockSaves();
     try {
       localStorage.removeItem(SAVE_KEY);
     } catch {

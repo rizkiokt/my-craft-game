@@ -44,6 +44,9 @@ export const deathTitleBtn = document.getElementById("death-title-btn");
 export const splashLabel = document.getElementById("splash");
 export const seedInput = document.getElementById("seed-input");
 export const seedCurrent = document.getElementById("seed-current");
+export const worldList = document.getElementById("world-list");
+export const worldNameInput = document.getElementById("world-name");
+export const worldFileInput = document.getElementById("world-file");
 export const controlsList = document.getElementById("controls-list");
 export const helpControls = document.getElementById("help-controls");
 export const pauseModeBtn = document.getElementById("btn-pause-mode");
@@ -54,4 +57,5 @@ export const screenElements = {
   controls: document.getElementById("screen-controls"),
   options: document.getElementById("screen-options"),
   help: document.getElementById("screen-help"),
+  worlds: document.getElementById("screen-worlds"),
 };

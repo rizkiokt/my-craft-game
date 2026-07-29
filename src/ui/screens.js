@@ -55,10 +55,12 @@ export function showScreen(name) {
   updateModeBanner();
 }
 
+/** Screens you back out of, rather than places you can be. */
+export const SUB_SCREENS = new Set(["controls", "options", "help", "worlds"]);
+
 export function openSubScreen(name) {
-  state.screenReturn = state.screen === "controls" || state.screen === "options" || state.screen === "help"
-    ? state.screenReturn
-    : state.screen;
+  // Hopping between sub-screens must not lose where you came in from.
+  state.screenReturn = SUB_SCREENS.has(state.screen) ? state.screenReturn : state.screen;
   showScreen(name);
 }
 

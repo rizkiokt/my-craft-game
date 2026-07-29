@@ -283,6 +283,18 @@ export const SAVE_KEY = "mycraft-save-v2";
 export const SETTINGS_KEY = "mycraft-settings-v1";
 export const BINDINGS_KEY = "mycraft-controls-v1";
 export const PENDING_SEED_KEY = "mycraft-pending-seed";
+
+/**
+ * Named save slots. The bulky payload and the little bit needed to list it are
+ * separate keys, so opening the Worlds screen does not parse every megabyte of
+ * every world just to print its name.
+ */
+export const WORLD_KEY_PREFIX = "mycraft-world-";
+export const WORLD_INFO_PREFIX = "mycraft-worldinfo-";
+/** Stamped into exported files so an unrelated .json is rejected politely. */
+export const SAVE_FORMAT = "mycraft-world";
+export const SAVE_FORMAT_VERSION = 1;
+export const MAX_WORLD_NAME = 28;
 export const CITY_PLAN = {
   minX: -8,
   maxX: 44,

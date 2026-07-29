@@ -35,7 +35,7 @@ Modules are layered; a module may only import from a layer below it. `src/ui/*` 
 | 2 | `worldgen.js`, `textures.js`, `world.js`, `items.js`, `enchanting.js` | Terrain, atlas, voxel storage, item rules, XP |
 | 3 | `scene.js`, `icons.js`, `chunkMesh.js`, `sound.js`, `mobs.js`, `particles.js`, `playerModel.js` | Three.js resources and singletons |
 | 4 | `player.js`, `interaction.js`, `crafting.js`, `combat.js`, `drops.js`, `pointerLock.js`, `fullscreen.js`, `save.js` | Gameplay systems |
-| 5 | `ui/hud.js`, `ui/inventory.js`, `ui/screens.js`, `ui/controlsScreen.js`, `ui/options.js`, `ui/menus.js` | Screens and overlays |
+| 5 | `ui/hud.js`, `ui/inventory.js`, `ui/screens.js`, `ui/controlsScreen.js`, `ui/options.js`, `ui/menus.js`, `ui/worlds.js` | Screens and overlays |
 | 6 | `actions.js`, `input.js`, `touch.js`, `loop.js`, `debugApi.js` | Input routing and the frame loop |
 
 **The import graph is acyclic — keep it that way.** Three places would otherwise close a loop and all use dependency inversion instead:
@@ -44,7 +44,7 @@ Modules are layered; a module may only import from a layer below it. `src/ui/*` 
 - `actions.js` cannot import `loop.js`, so `takeScreenshot()` sets `state.screenshotRequested` and `render()` performs the capture (the drawing buffer is not preserved, so it must happen in the same task as the draw).
 - `ui/options.js` cannot import `touch.js`, so it exposes `onTouchSettingChanged(handler)` and `main.js` registers `syncTouchControls`.
 
-DOM listeners are never attached at module scope. Each wiring module exports an `install*Handlers()` function that `main.js` calls once: `installMenuHandlers`, `installOptionsHandlers`, `installInputHandlers`, `installTouchHandlers`, `installDebugApi`.
+DOM listeners are never attached at module scope. Each wiring module exports an `install*Handlers()` function that `main.js` calls once: `installMenuHandlers`, `installWorldsHandlers`, `installOptionsHandlers`, `installInputHandlers`, `installTouchHandlers`, `installDebugApi`.
 
 Because `state.player.y` needs the world to know where the ground is, `state.js` declares `y: 0` and `main.js` sets the real spawn height during boot.
 
@@ -104,7 +104,7 @@ stops the browser scrolling, zooming, and firing synthetic mouse events at `inpu
 
 ### Screens
 
-`showScreen(name)` owns the whole UI stack: `"playing"`, `"title"`, `"pause"`, `"controls"`, `"options"`, `"help"`. It drives `state.running`, toggles `#screen-*` elements, and clears held keys on leaving the world. Because Escape while pointer-locked never reaches `keydown`, `updatePointerState()` opens the pause menu whenever the lock is lost unexpectedly — `exitPointerLock()` sets `state.intentionalUnlock` for the deliberate cases.
+`showScreen(name)` owns the whole UI stack: `"playing"`, `"title"`, `"pause"`, `"controls"`, `"options"`, `"help"`, `"worlds"`. It drives `state.running`, toggles `#screen-*` elements, and clears held keys on leaving the world. The `SUB_SCREENS` set names the ones you back out of, so `openSubScreen()` remembers where you came in from even when hopping between them — add a new sub-screen there and to `handleEscape()`. Because Escape while pointer-locked never reaches `keydown`, `updatePointerState()` opens the pause menu whenever the lock is lost unexpectedly — `exitPointerLock()` sets `state.intentionalUnlock` for the deliberate cases.
 
 The death screen is a separate overlay driven by `state.isDead`, not a screen.
 
@@ -305,15 +305,36 @@ each item to its slot, defence points and tier colour. Reduction is 4% per point
 
 ### Save / load
 
-Three independent `localStorage` keys:
+`localStorage` keys:
 
 | Key | Constant | Contents |
 |---|---|---|
-| `mycraft-save-v2` | `SAVE_KEY` | Chunk edits, inventory, hotbar, player position, game mode |
+| `mycraft-save-v2` | `SAVE_KEY` | The world you are playing: chunk edits, inventory, hotbar, player position, game mode, name |
+| `mycraft-world-<id>` | `WORLD_KEY_PREFIX` | A named save: the same payload, wrapped with its format and name |
+| `mycraft-worldinfo-<id>` | `WORLD_INFO_PREFIX` | Just enough to list that save — name, time, seed, mode, block count |
 | `mycraft-settings-v1` | `SETTINGS_KEY` | Options screen values |
 | `mycraft-controls-v1` | `BINDINGS_KEY` | Key bindings |
 
 Auto-save fires on block edits (with cooldown) and every 8 seconds of elapsed time; `saveGame(true)` forces a write even when the Autosave option is off (used by "Save and Quit" and `beforeunload`).
+
+`buildPayload()` is the single description of a saved world, shared by the autosave, the named
+slots and the exported file, so none of them can drift apart.
+
+**Named worlds** (`src/save.js` + `src/ui/worlds.js`) are all browser storage and files on the
+player's own machine, which is what lets them work on a static host with nothing behind it.
+Three details are load-bearing:
+
+- **Loading replaces `SAVE_KEY` and reloads the page.** The seed decides what every chunk
+  generates and is only applied at boot, exactly as a newly typed seed is.
+- **`blockSaves()` must be called before any such reload**, or the `beforeunload` autosave
+  writes the old world straight back over the one just put in place. This is what made "New
+  World" silently do nothing when a seed was typed.
+- Info and payload are **separate keys** so listing worlds does not parse every megabyte of
+  every save just to print its name.
+
+Exported files are wrapped as `{format: "mycraft-world", version, name, savedAt, data}`;
+`importWorldText()` checks the format so an unrelated `.json` is refused rather than
+half-loaded, and refuses a `version` newer than it understands.
 
 ### UI
 
