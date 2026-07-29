@@ -151,6 +151,24 @@ apply Efficiency (break speed) and Fortune (extra ore drops).
 Offers are deterministic from `hash3(itemId, state.enchantSeed, slot)` so the panel does
 not reshuffle on every repaint; `rerollOffers()` bumps the seed after a successful enchant.
 
+### Cats and pets
+
+`PassiveMobManager` keeps wild mobs in a per-chunk map that is disposed when the chunk
+unloads. **Tamed cats move out of that map into `this.pets`**, which is never chunk-disposed,
+so a pet can follow you anywhere; they are saved via `serializePets()` / `restorePets()`.
+
+Entity picking is separate from block picking: `passiveMobs.raycast(ray, maxDistance)` walks
+up from the hit mesh to the group carrying `userData.entity`. Cats include an invisible
+`catHitPad` box because the model itself is too small to click reliably.
+
+Two ordering rules in `interact()` matter:
+
+- The creature branch runs **before** the `!state.target` bail, because a cat standing
+  against open sky has no block behind it to fall back on.
+- It only fires when `isPress` is true. Right-click is polled while held, so without the
+  edge the sit toggle would flip on and off many times per click. `state.usePressed` is set
+  on the press, cleared when the interaction lands, and reset when the button is released.
+
 ### The player avatar
 
 `src/playerModel.js` builds the character from boxes with **one canvas texture per face** — BoxGeometry already exposes a material group per side, so the face, collar and shoes need no hand-authored UVs. Armour pieces are slightly larger boxes parented to the limb they cover, tinted from `ARMOR_ITEMS[itemId].color` and toggled per frame by `syncArmor()`.

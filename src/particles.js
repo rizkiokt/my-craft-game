@@ -61,8 +61,8 @@ export function getBlockColor(blockType) {
   }
 }
 
-export function spawnParticles(x, y, z, blockType, count, impulseY = 2.4) {
-  const [baseColor, accentColor] = getBlockColor(blockType);
+export function spawnParticles(x, y, z, blockType, count, impulseY = 2.4, colors = null) {
+  const [baseColor, accentColor] = colors ?? getBlockColor(blockType);
   for (let i = 0; i < particles.length && count > 0; i++) {
     const particle = particles[i];
     if (particle.active) {
@@ -87,6 +87,11 @@ export function spawnParticles(x, y, z, blockType, count, impulseY = 2.4) {
     count--;
   }
   particleMesh.instanceColor.needsUpdate = true;
+}
+
+/** Pink puff shown when a cat decides it likes you. */
+export function spawnHearts(x, y, z, count = 8) {
+  spawnParticles(x, y, z, 0, count, 1.6, [0xff77aa, 0xffc2d8]);
 }
 
 export function updateParticles(dt) {

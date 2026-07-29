@@ -37,6 +37,10 @@ export function renderGameToText() {
           .filter(Boolean)
       : [],
     chestCount: Object.keys(state.chests).length,
+    pets: passiveMobs.getPetCount(),
+    entityTarget: state.entityTarget
+      ? `${state.entityTarget.kind}${state.entityTarget.tamed ? " (tamed" + (state.entityTarget.sitting ? ", sitting" : "") + ")" : ""}`
+      : null,
     xp: state.xp,
     experienceLevel: getLevel(),
     health: state.health,

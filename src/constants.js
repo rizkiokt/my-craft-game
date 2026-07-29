@@ -166,6 +166,11 @@ export const ARMOR_SLOT_LABELS = {
  * Health
  * ------------------------------------------------------------------ */
 
+/** How close a tamed cat trails you, and when it gives up and catches up. */
+export const CAT_CURIOUS_DISTANCE = 4.5;
+export const PET_FOLLOW_DISTANCE = 2.4;
+export const PET_TELEPORT_DISTANCE = 18;
+
 /** Slots in a chest: three rows of nine, as in Minecraft. */
 export const CHEST_SIZE = 27;
 

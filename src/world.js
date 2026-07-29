@@ -179,6 +179,7 @@ export class World {
     tryAddFauna("sheep", 61, 0.44, { allowSand: false, minHeight: 9, maxHeight: 18 });
     tryAddFauna("sheep", 71, 0.68, { allowSand: false, minHeight: 9, maxHeight: 18 });
     tryAddFauna("villager", 81, 0.84, { allowSand: false, minHeight: 10, maxHeight: 16 });
+    tryAddFauna("cat", 91, 0.58, { allowSand: false, minHeight: 9, maxHeight: 20 });
 
     for (let z = 1; z < CHUNK_SIZE - 1; z++) {
       for (let x = 1; x < CHUNK_SIZE - 1; x++) {

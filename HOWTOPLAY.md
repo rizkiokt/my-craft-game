@@ -252,6 +252,21 @@ Armour does not protect against drowning or the void. Creative mode takes no dam
 
 ---
 
+## Cats
+
+Cats live out in the wild, in five coats: ginger, grey, black, white and tabby. Walk up to
+one and it will **stop and look at you** instead of wandering off.
+
+- **Right-click a cat** to make friends with it. Hearts puff up and it puts on a red collar.
+- Your cat then **follows you everywhere** — across chunks, and it catches up on its own if
+  you get too far ahead, so it can never be lost.
+- **Right-click your cat again** to tell it to sit and wait, and once more to bring it along.
+- Cats are saved with your world, collar, coat, sitting and all.
+
+Nothing in this game fights, and cats are no exception — they are company, not a weapon.
+
+---
+
 ## Chests
 
 Craft a **Chest** from 8 Planks and place it, then right-click it for 27 slots of storage.

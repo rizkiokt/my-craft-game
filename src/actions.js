@@ -209,6 +209,11 @@ export function handleActionPress(action, event) {
         pickBlock();
       }
       return;
+    case "use":
+      // Marks the press edge so held right-click cannot re-trigger one-shot
+      // interactions such as telling a cat to sit.
+      state.usePressed = true;
+      return;
     case "jump":
       if (!inWorld) {
         return;

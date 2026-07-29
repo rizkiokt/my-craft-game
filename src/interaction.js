@@ -7,7 +7,8 @@ import { getLevel, getXpForBlock, grantXp } from "./enchanting.js";
 import { addItem, canMineBlock, consumeItem, getBreakDamage, getBreakHardness, getDropCount, getDropForBlock, getInteractionCooldown, getItemCount, getRequiredToolName, getSelectedItem, isCollectibleBlock, isCreative, isPlaceableItem } from "./items.js";
 import { chestKeyAt, emptyChestInto } from "./crafting.js";
 import { clamp, floorVector } from "./math.js";
-import { spawnParticles } from "./particles.js";
+import { CAT_COATS, passiveMobs } from "./mobs.js";
+import { spawnHearts, spawnParticles } from "./particles.js";
 import { applyPlayerToCamera, eyePosition, hasCollision, lookDirection } from "./player.js";
 import { scene } from "./scene.js";
 import { soundEngine } from "./sound.js";
@@ -105,6 +106,10 @@ export function updateTarget() {
   const intersections = raycaster.intersectObjects(chunkMeshes.getMeshes(), false);
   const hit = intersections[0];
 
+  // A creature standing in front of a block wins the crosshair.
+  const creature = passiveMobs.raycast(raycaster, Math.min(hit?.distance ?? Infinity, INTERACTION_RANGE));
+  state.entityTarget = creature?.entity ?? null;
+
   if (!hit || !hit.face) {
     state.target = null;
     targetHighlight.visible = false;
@@ -142,8 +147,31 @@ export function updateTarget() {
   updateBreakVisuals();
 }
 
-export function interact(breaking) {
+export function interact(breaking, isPress = false) {
   updateTarget();
+
+  // A creature under the crosshair is handled before any block, because one
+  // standing against open sky has no block behind it to fall back on.
+  const creature = state.entityTarget;
+  if (!breaking && creature && creature.kind === "cat") {
+    if (isPress) {
+      // Spend the press so holding the button cannot toggle sitting again.
+      state.usePressed = false;
+      if (!creature.tamed) {
+        passiveMobs.tame(creature);
+        spawnHearts(creature.x, creature.y + 0.5, creature.z);
+        soundEngine.meow();
+        showToast(`${CAT_COATS[creature.coatIndex]?.name ?? "The"} cat is your friend now`);
+      } else {
+        const sitting = passiveMobs.toggleSit(creature);
+        soundEngine.meow();
+        showToast(sitting ? "Cat sits down and waits" : "Cat follows you again");
+      }
+      state.saveDirty = true;
+    }
+    return;
+  }
+
   if (!state.target) {
     if (breaking) {
       resetBreakState();

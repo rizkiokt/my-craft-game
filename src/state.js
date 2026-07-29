@@ -55,6 +55,8 @@ export const state = {
   lastInteractionTime: 0,
   elapsed: 0,
   target: null,
+  entityTarget: null,
+  usePressed: false,
   dragLook: false,
   dragAnchor: null,
   dayTime: 0.34,

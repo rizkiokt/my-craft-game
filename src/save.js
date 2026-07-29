@@ -2,6 +2,7 @@
 
 import { HOTBAR_SIZE, PENDING_SEED_KEY, SAVE_KEY } from "./constants.js";
 import { getSelectedItem, isPlaceableItem } from "./items.js";
+import { passiveMobs } from "./mobs.js";
 import { clamp, getWorldSeed, seedFromText, setWorldSeed } from "./math.js";
 import { settings } from "./settings.js";
 import { state } from "./state.js";
@@ -42,6 +43,7 @@ export function saveGame(force = false) {
       xp: state.xp,
       health: state.health,
       chests: serializeChests(),
+      pets: passiveMobs.serializePets(),
       armor: state.armor,
       enchantments: state.enchantments,
       inventory: state.inventory,
@@ -123,6 +125,9 @@ export function loadGame() {
     }
     state.xp = Number.isFinite(payload.xp) ? payload.xp : state.xp;
     state.health = Number.isFinite(payload.health) ? payload.health : state.health;
+    if (Array.isArray(payload.pets)) {
+      passiveMobs.restorePets(payload.pets);
+    }
     if (payload.chests && typeof payload.chests === "object") {
       state.chests = payload.chests;
     }

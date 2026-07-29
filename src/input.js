@@ -97,7 +97,11 @@ export function handleInput(dt) {
     interact(true);
   }
   if (isActionDown("use")) {
-    interact(false);
+    interact(false, state.usePressed);
+  } else {
+    // The press edge lives until the button comes back up, so a click that
+    // lands while the crosshair is drifting is not silently swallowed.
+    state.usePressed = false;
   }
 }
 

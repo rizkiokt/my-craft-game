@@ -209,6 +209,17 @@ export class SoundEngine {
     });
   }
 
+  meow() {
+    const context = this.ensureContext();
+    if (!context) {
+      return;
+    }
+    // A rising then falling chirp reads as a small animal.
+    this.pulse({ frequency: 620, type: "triangle", gain: 0.05, attack: 0.02, decay: 0.16 });
+    this.pulse({ frequency: 780, type: "triangle", gain: 0.04, attack: 0.03, decay: 0.2, time: 0.06 });
+    this.pulse({ frequency: 540, type: "sine", gain: 0.03, attack: 0.02, decay: 0.22, time: 0.14 });
+  }
+
   craft() {
     this.resume();
     this.pulse({ frequency: 392, type: "triangle", gain: 0.018, decay: 0.08 });
