@@ -1,6 +1,6 @@
 // The single mutable game state object.
 
-import { BLOCKS, DEFAULT_SPAWN, ITEMS } from "./constants.js";
+import { BLOCKS, DEFAULT_SPAWN, ITEMS, MAX_AIR, MAX_HEALTH } from "./constants.js";
 export const state = {
   mode: "menu",
   screen: "title",
@@ -17,6 +17,15 @@ export const state = {
   suppressAnimationTick: false,
   inventoryOpen: false,
   station: "inventory",
+  health: MAX_HEALTH,
+  air: MAX_AIR,
+  armor: { helmet: null, chestplate: null, leggings: null, boots: null },
+  fallStartY: null,
+  lastDamageTime: -99,
+  lastDamageCause: "",
+  damageFlash: 0,
+  regenTimer: 0,
+  drownTimer: 0,
   xp: 0,
   enchantments: {},
   enchantTarget: null,

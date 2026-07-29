@@ -9,6 +9,7 @@ import { updatePlayerModel } from "./playerModel.js";
 import { exitPointerLock, requestPointerLock } from "./pointerLock.js";
 import { camera } from "./scene.js";
 import { settings } from "./settings.js";
+import { resetVitals } from "./combat.js";
 import { state } from "./state.js";
 import { showScreen } from "./ui/screens.js";
 import { world } from "./world.js";
@@ -170,10 +171,11 @@ export function updateSafeAnchor(dt) {
   }
 }
 
-export function handlePlayerDeath() {
+export function handlePlayerDeath(cause = "") {
   if (state.isDead) {
     return;
   }
+  state.lastDamageCause = cause;
   state.isDead = true;
   state.flying = false;
   state.flyVelocityY = 0;
@@ -181,7 +183,8 @@ export function handlePlayerDeath() {
   state.keys.clear();
   exitPointerLock();
   const pos = findClosestSafeRespawn();
-  deathLocationText.textContent = `Nearest safe ground at (${Math.round(pos.x)}, ${Math.round(pos.z)})`;
+  deathLocationText.textContent =
+    `${cause ? `Killed by ${cause}. ` : ""}Nearest safe ground at (${Math.round(pos.x)}, ${Math.round(pos.z)})`;
   deathScreen.classList.remove("is-hidden");
 }
 
@@ -201,6 +204,7 @@ export function respawnPlayer() {
   state.flying = false;
   state.flyVelocityY = 0;
   state.safeAnchorCooldown = 0;
+  resetVitals();
 
   // Last resort: never leave the player embedded in geometry.
   let attempts = 0;

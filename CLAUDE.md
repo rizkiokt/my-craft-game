@@ -34,7 +34,7 @@ Modules are layered; a module may only import from a layer below it. `src/ui/*` 
 | 1 | `settings.js`, `bindings.js`, `state.js`, `recipes.js` | Options, control scheme, mutable state, recipe tables |
 | 2 | `worldgen.js`, `textures.js`, `world.js`, `items.js`, `enchanting.js` | Terrain, atlas, voxel storage, item rules, XP |
 | 3 | `scene.js`, `icons.js`, `chunkMesh.js`, `sound.js`, `mobs.js`, `particles.js`, `playerModel.js` | Three.js resources and singletons |
-| 4 | `player.js`, `interaction.js`, `crafting.js`, `drops.js`, `pointerLock.js`, `fullscreen.js`, `save.js` | Gameplay systems |
+| 4 | `player.js`, `interaction.js`, `crafting.js`, `combat.js`, `drops.js`, `pointerLock.js`, `fullscreen.js`, `save.js` | Gameplay systems |
 | 5 | `ui/hud.js`, `ui/inventory.js`, `ui/screens.js`, `ui/controlsScreen.js`, `ui/options.js`, `ui/menus.js` | Screens and overlays |
 | 6 | `actions.js`, `input.js`, `loop.js`, `debugApi.js` | Input routing and the frame loop |
 
@@ -132,6 +132,16 @@ apply Efficiency (break speed) and Fortune (extra ore drops).
 
 Offers are deterministic from `hash3(itemId, state.enchantSeed, slot)` so the panel does
 not reshuffle on every repaint; `rerollOffers()` bumps the seed after a successful enchant.
+
+### Health, damage and armour
+
+`src/combat.js` owns hearts, air, armour and every damage source. `updateVitals(dt)` runs
+from the loop and handles fall tracking, drowning and regeneration; `damagePlayer()` is the
+only way health goes down and applies armour reduction unless `ignoreArmor` is set.
+
+Worn pieces live in `state.armor` keyed by slot, and `ARMOR_ITEMS` in `constants.js` maps
+each item to its slot, defence points and tier colour. Reduction is 4% per point capped at
+80%, plus 2% per Protection level summed across the set.
 
 ### Adding a new block type
 

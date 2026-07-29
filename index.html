@@ -15,10 +15,16 @@
       <!-- ---------------------------------------------------------------- -->
       <div id="hud-layer" class="hud-layer">
         <div class="crosshair" aria-hidden="true"></div>
+        <div id="damage-flash" class="damage-flash"></div>
         <div id="mode-banner" class="mode-banner"></div>
         <div id="toast" class="toast"></div>
         <div class="hotbar-wrap">
           <div id="item-name" class="item-name"></div>
+          <div id="vitals" class="vitals">
+            <div id="armor-row" class="vital-row" aria-label="Armour"></div>
+            <div id="health-row" class="vital-row" aria-label="Health"></div>
+            <div id="air-row" class="vital-row vital-row-air" aria-label="Air"></div>
+          </div>
           <div id="xp-bar" class="xp-bar">
             <div id="xp-fill" class="xp-fill"></div>
             <span id="xp-level" class="xp-level">0</span>
@@ -50,6 +56,7 @@
                 <h3 id="inventory-grid-title">Backpack</h3>
                 <span id="inventory-grid-hint">Click to equip &middot; right-click for one</span>
               </div>
+              <div class="armor-strip" id="armor-strip"></div>
               <div id="inventory-grid" class="inventory-grid"></div>
             </section>
             <section class="inventory-section inventory-section-wide">

@@ -1291,3 +1291,138 @@ input[type="range"]:focus-visible {
 .craft-hint.is-hidden {
   display: none;
 }
+
+/* ------------------------------------------------------------------ */
+/* Hearts, armour and air                                              */
+/* ------------------------------------------------------------------ */
+
+.vitals {
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+}
+
+.vitals.is-hidden {
+  display: none;
+}
+
+.vital-row {
+  display: flex;
+  gap: 1px;
+  min-height: 11px;
+}
+
+.vital-row-air:empty {
+  min-height: 0;
+}
+
+.pip {
+  width: 11px;
+  height: 11px;
+  background-repeat: no-repeat;
+  background-size: contain;
+  filter: drop-shadow(1px 1px 0 rgba(0, 0, 0, 0.85));
+}
+
+/* Hearts drawn with CSS so there is no image to load. */
+.pip-heart {
+  clip-path: polygon(50% 100%, 8% 46%, 8% 22%, 30% 8%, 50% 24%, 70% 8%, 92% 22%, 92% 46%);
+  background: #3a1113;
+}
+
+.pip-heart.is-full {
+  background: linear-gradient(180deg, #ff5f5f, #c81f1f);
+}
+
+.pip-heart.is-half {
+  background: linear-gradient(90deg, #ff5f5f 50%, #3a1113 50%);
+}
+
+.pip-armor {
+  clip-path: polygon(50% 0%, 100% 22%, 100% 62%, 50% 100%, 0% 62%, 0% 22%);
+  background: #2b3340;
+}
+
+.pip-armor.is-full {
+  background: linear-gradient(180deg, #e7edf5, #9aa7b8);
+}
+
+.pip-armor.is-half {
+  background: linear-gradient(90deg, #e7edf5 50%, #2b3340 50%);
+}
+
+.pip-air {
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 32%, #ffffff, #4fa8ff 60%, #1f5fbf);
+}
+
+/* A red wash on the screen edge when something hurts you. */
+.damage-flash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(ellipse at center, rgba(180, 0, 0, 0) 45%, rgba(190, 10, 10, 0.55) 100%);
+  transition: opacity 0.12s ease;
+}
+
+/* ------------------------------------------------------------------ */
+/* Armour slots in the inventory                                       */
+/* ------------------------------------------------------------------ */
+
+.armor-strip {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.armor-strip .armor-label {
+  margin-right: 4px;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.armor-slot {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border: 2px solid rgba(0, 0, 0, 0.5);
+  border-radius: 4px;
+  background: var(--slot);
+  cursor: pointer;
+}
+
+.armor-slot:hover {
+  border-color: var(--accent);
+}
+
+.armor-slot .slot-icon {
+  position: absolute;
+  inset: 6px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  image-rendering: pixelated;
+}
+
+.armor-slot.is-empty .slot-icon {
+  opacity: 0.22;
+}
+
+.armor-total {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.armor-total b {
+  color: var(--text);
+}

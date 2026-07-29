@@ -203,18 +203,50 @@ Place a **Furnace** and right-click it, then load the input and fuel slots:
 
 ---
 
+## Health, Damage & Armour
+
+Survival gives you **10 hearts**. The HUD stacks armour, hearts, the experience bar and
+the hotbar, as in Minecraft.
+
+**What hurts you**
+
+| Source | Damage |
+|---|---|
+| Falling | 1 per block beyond the first 3 |
+| Drowning | 1 heart every 1.2 s once your air runs out |
+| The void | Instant death below y = -20 |
+
+Air bubbles appear when your head is underwater and refill quickly at the surface. If
+nothing has hurt you for 5 seconds you regenerate half a heart at a time.
+
+**Armour** comes in Iron, Diamond and Netherite, in four pieces. Craft it at a table, then
+click it in your inventory to wear it; click a worn piece to take it off. Each defence
+point cuts 4% of incoming damage, capped at 80%.
+
+| Set | Helmet | Chestplate | Leggings | Boots | Total |
+|---|---|---|---|---|---|
+| Iron | 2 | 6 | 5 | 2 | 15 |
+| Diamond | 3 | 8 | 6 | 3 | 20 |
+| Netherite | 3 | 8 | 6 | 3 | 20 |
+
+Armour does not protect against drowning or the void. Creative mode takes no damage at all.
+
+---
+
 ## Experience & Enchanting
 
 Mining ore grants experience: **Coal 2, Iron 3, Diamond 8, Ancient Debris 12**. The green
 bar above the hotbar shows your progress; the number is your level.
 
-Craft an **Enchanting Table** (3 Diamonds + 4 Bricks) and right-click it. Drop a pickaxe
+Craft an **Enchanting Table** (3 Diamonds + 4 Bricks) and right-click it. Drop a pickaxe or a piece of armour
 into the slot and you get three offers priced at 1, 2 and 3 levels:
 
-| Enchantment | Max | Effect |
-|---|---|---|
-| Efficiency | V | Mines faster (+30% break speed per level) |
-| Fortune | III | Ores drop up to `level` extra items |
+| Enchantment | Applies to | Max | Effect |
+|---|---|---|---|
+| Efficiency | Pickaxes | V | Mines faster (+30% break speed per level) |
+| Fortune | Pickaxes | III | Ores drop up to `level` extra items |
+| Protection | Armour | IV | 2% more damage reduction per level |
+| Feather Falling | Armour | IV | Shortens the effective fall by 0.6 blocks per level |
 
 Enchanted gear shimmers purple in the hotbar and inventory, and `F3` lists what your held
 tool carries. Enchantments are recorded per item *type* — there is no durability in this

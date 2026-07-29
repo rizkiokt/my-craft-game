@@ -6,7 +6,7 @@
 // pickaxe. That keeps the bag model intact and, in a game with no durability,
 // plays the same way.
 
-import { BLOCKS, ENCHANTMENTS, ITEMS, MAX_ENCHANT_LEVEL_COST, XP_PER_LEVEL } from "./constants.js";
+import { ARMOR_ITEMS, BLOCKS, ENCHANTMENTS, ITEMS, MAX_ENCHANT_LEVEL_COST, XP_PER_LEVEL } from "./constants.js";
 import { hash3 } from "./math.js";
 import { state } from "./state.js";
 
@@ -33,12 +33,9 @@ export function getEnchantCategory(itemId) {
   return null;
 }
 
-/** Armor is added in a later step; the hook lives here so offers work now. */
 export function isArmorItem(itemId) {
-  return Boolean(ARMOR_ITEMS[itemId]);
+  return itemId != null && itemId in ARMOR_ITEMS;
 }
-
-export const ARMOR_ITEMS = {};
 
 export function canEnchant(itemId) {
   return getEnchantCategory(itemId) !== null;

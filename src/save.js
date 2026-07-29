@@ -39,6 +39,8 @@ export function saveGame(force = false) {
     const payload = {
       gameMode: state.gameMode,
       xp: state.xp,
+      health: state.health,
+      armor: state.armor,
       enchantments: state.enchantments,
       inventory: state.inventory,
       hotbarSlots: state.hotbarSlots,
@@ -68,6 +70,10 @@ export function loadGame() {
       state.gameMode = payload.gameMode;
     }
     state.xp = Number.isFinite(payload.xp) ? payload.xp : state.xp;
+    state.health = Number.isFinite(payload.health) ? payload.health : state.health;
+    if (payload.armor && typeof payload.armor === "object") {
+      Object.assign(state.armor, payload.armor);
+    }
     if (payload.enchantments && typeof payload.enchantments === "object") {
       state.enchantments = payload.enchantments;
     }

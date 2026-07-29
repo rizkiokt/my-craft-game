@@ -1,7 +1,8 @@
 // Hotbar, toasts, held-item label and the F3 overlay.
 
-import { BLOCK_NAMES, CHUNK_SIZE, CITY_PLAN, HOTBAR_SIZE, SNOW_REALM, SUBURB_PLAN } from "../constants.js";
-import { debugLeft, debugOverlay, debugRight, hotbar, hudLayer, itemNameLabel, modeBanner, toastLabel, xpBar, xpFill, xpLevel } from "../dom.js";
+import { BLOCK_NAMES, CHUNK_SIZE, CITY_PLAN, HOTBAR_SIZE, MAX_AIR, MAX_HEALTH, SNOW_REALM, SUBURB_PLAN } from "../constants.js";
+import { getArmorPoints, getDamageReduction } from "../combat.js";
+import { airRow, armorRow, damageFlashEl, debugLeft, debugOverlay, debugRight, healthRow, hotbar, hudLayer, itemNameLabel, modeBanner, toastLabel, vitals, xpBar, xpFill, xpLevel } from "../dom.js";
 import { describeEnchantments, getLevel, getLevelProgress } from "../enchanting.js";
 import { itemIcons } from "../icons.js";
 import { getItemCount, getSelectedItem, isCreative } from "../items.js";
@@ -107,8 +108,43 @@ export function getBiomeLabel() {
   return "wilderness";
 }
 
+/** Rebuilds a pip row only when its shape actually changed. */
+function renderPips(row, className, filled, total, { half = false } = {}) {
+  const signature = `${className}:${filled}:${total}:${half}`;
+  if (row.dataset.signature === signature) {
+    return;
+  }
+  row.dataset.signature = signature;
+  row.replaceChildren();
+  for (let i = 0; i < total; i++) {
+    const pip = document.createElement("div");
+    const value = filled - i;
+    pip.className = `pip ${className}${value >= 1 ? " is-full" : value >= 0.5 ? " is-half" : ""}`;
+    row.appendChild(pip);
+  }
+}
+
+function updateVitalsHud() {
+  // Hearts and armour are survival-only; creative has nothing to lose.
+  const survival = !isCreative();
+  vitals.classList.toggle("is-hidden", !survival);
+  if (!survival) {
+    return;
+  }
+  renderPips(healthRow, "pip-heart", state.health / 2, MAX_HEALTH / 2);
+  damageFlashEl.style.opacity = String(Math.min(1, state.damageFlash));
+
+  const armorPoints = getArmorPoints();
+  renderPips(armorRow, "pip-armor", armorPoints / 2, armorPoints > 0 ? 10 : 0);
+
+  // Bubbles only appear while your head is under water, as in Minecraft.
+  const airPips = state.air >= MAX_AIR ? 0 : Math.ceil(state.air);
+  renderPips(airRow, "pip-air", airPips, airPips);
+}
+
 export function updateHud() {
   hudLayer.classList.toggle("is-hidden", !state.hudVisible);
+  updateVitalsHud();
 
   // Experience bar sits above the hotbar, as in Minecraft.
   const level = getLevel();
@@ -159,6 +195,7 @@ export function updateHud() {
     `Day time: ${(state.dayTime * 24).toFixed(1)}h`;
 
   debugRight.textContent =
+    `Health: ${state.health.toFixed(1)}/${MAX_HEALTH} · Armour: ${getArmorPoints()} (${Math.round(getDamageReduction() * 100)}% less damage)\n` +
     `Held: ${activeItem == null ? "Empty" : BLOCK_NAMES[activeItem]}${activeItem != null && describeEnchantments(activeItem) ? ` (${describeEnchantments(activeItem)})` : ""}\n` +
     `XP: ${state.xp} (level ${getLevel()})\n` +
     `Target: ${state.target

@@ -1,6 +1,7 @@
 // The window hooks used for scripted testing.
 
-import { BLOCK_NAMES, CITY_PLAN, FIXED_STEP, SNOW_REALM, SUBURB_PLAN } from "./constants.js";
+import { getArmorPoints } from "./combat.js";
+import { BLOCK_NAMES, CITY_PLAN, FIXED_STEP, MAX_HEALTH, SNOW_REALM, SUBURB_PLAN } from "./constants.js";
 import { hotbar } from "./dom.js";
 import { getSelectedItem } from "./items.js";
 import { update } from "./loop.js";
@@ -31,6 +32,13 @@ export function renderGameToText() {
     station: state.station,
     xp: state.xp,
     experienceLevel: getLevel(),
+    health: state.health,
+    maxHealth: MAX_HEALTH,
+    air: Number(state.air.toFixed(1)),
+    armorPoints: getArmorPoints(),
+    armor: Object.fromEntries(
+      Object.entries(state.armor).map(([slot, itemId]) => [slot, itemId == null ? null : BLOCK_NAMES[itemId]]),
+    ),
     craftGrid: state.craftGrid.map((slot) => slot ? `${BLOCK_NAMES[slot.itemId]} x${slot.count}` : null),
     craftResult: (() => {
       const recipe = findGridRecipe();

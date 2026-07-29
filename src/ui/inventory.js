@@ -1,11 +1,13 @@
 // Inventory panel: bag, crafting grid, result slot and the recipe book.
 
 import { keyHint } from "../bindings.js";
-import { BLOCKS, BLOCK_NAMES, CREATIVE_ITEMS, ITEMS, PLACEABLE_BLOCKS } from "../constants.js";
+import { equipArmor, getArmorPoints, getDamageReduction, isArmor, unequipArmor } from "../combat.js";
+import { ARMOR_ITEMS, ARMOR_SLOTS, ARMOR_SLOT_LABELS, BLOCKS, BLOCK_NAMES, CREATIVE_ITEMS, ITEMS, PLACEABLE_BLOCKS } from "../constants.js";
 import {
   craftArea,
   craftGridEl,
   craftResultEl,
+  armorStrip,
   craftHint,
   craftTitle,
   cursorStackEl,
@@ -149,6 +151,7 @@ function renderBag() {
         ITEMS.iron_pickaxe,
         ITEMS.diamond_pickaxe,
         ITEMS.netherite_pickaxe,
+        ...Object.keys(ARMOR_ITEMS).map(Number),
       ])];
 
   for (const itemId of items) {
@@ -164,6 +167,15 @@ function renderBag() {
         state.cursorStack = takeFromBag(itemId, event.shiftKey ? Infinity : Infinity);
         soundEngine.select();
         updateInventoryPanel();
+        return;
+      }
+      if (isArmor(itemId)) {
+        if (equipArmor(itemId)) {
+          soundEngine.ui(true);
+          showToast(`Equipped ${BLOCK_NAMES[itemId]}`);
+        }
+        updateInventoryPanel();
+        updateHotbar();
         return;
       }
       state.hotbarSlots[state.activeSlot] = itemId;
@@ -194,6 +206,37 @@ function renderBag() {
     });
     inventoryGrid.appendChild(slot);
   }
+}
+
+/** The four worn pieces, with click-to-equip from the bag. */
+function renderArmorStrip() {
+  armorStrip.replaceChildren();
+
+  const label = document.createElement("span");
+  label.className = "armor-label";
+  label.textContent = "Armour";
+  armorStrip.appendChild(label);
+
+  for (const slotName of ARMOR_SLOTS) {
+    const itemId = state.armor[slotName];
+    const cell = makeSlot("armor-slot", itemId, 0, { showCount: false });
+    cell.classList.toggle("is-empty", itemId == null);
+    cell.title = itemId == null
+      ? `${ARMOR_SLOT_LABELS[slotName]} — empty`
+      : `${BLOCK_NAMES[itemId]} — click to take off`;
+    cell.addEventListener("click", () => {
+      if (unequipArmor(slotName)) {
+        soundEngine.select();
+        updateInventoryPanel();
+      }
+    });
+    armorStrip.appendChild(cell);
+  }
+
+  const total = document.createElement("span");
+  total.className = "armor-total";
+  total.innerHTML = `<b>${getArmorPoints()}</b> defence · <b>${Math.round(getDamageReduction() * 100)}%</b> less damage`;
+  armorStrip.appendChild(total);
 }
 
 function renderCraftArea() {
@@ -378,6 +421,7 @@ export function updateInventoryPanel() {
     : "Click to equip · right-click for one";
   inventoryRecipeHint.textContent = `Press ${keyHint("inventory")} to close`;
 
+  renderArmorStrip();
   renderBag();
   renderCraftArea();
   renderRecipeBook();

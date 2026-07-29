@@ -1,7 +1,7 @@
 // Canvas item icons shared by the UI and dropped items.
 
 import * as THREE from "../node_modules/three/build/three.module.js";
-import { BLOCKS, ITEMS, PI } from "./constants.js";
+import { ARMOR_ITEMS, BLOCKS, ITEMS, PI } from "./constants.js";
 import { atlasInfo, getTileIndex } from "./textures.js";
 export const itemIcons = new Map();
 export const iconCanvases = new Map();
@@ -154,3 +154,40 @@ registerIcon(ITEMS.netherite_ingot, createFlatIcon("#2b3343", "#6b5b58", (ctxGly
   ctxGlyph.fillStyle = "rgba(255,220,190,0.35)";
   ctxGlyph.fillRect(17, 17, 14, 2);
 }));
+
+/* ------------------------------------------------------------------ *
+ * Armour icons — one silhouette per slot, tinted per tier.
+ * ------------------------------------------------------------------ */
+
+const ARMOR_GLYPHS = {
+  helmet: (ctxGlyph) => {
+    ctxGlyph.fillRect(13, 12, 22, 8);
+    ctxGlyph.fillRect(13, 20, 6, 12);
+    ctxGlyph.fillRect(29, 20, 6, 12);
+    ctxGlyph.fillRect(19, 20, 10, 4);
+  },
+  chestplate: (ctxGlyph) => {
+    ctxGlyph.fillRect(16, 12, 16, 22);
+    ctxGlyph.fillRect(10, 14, 6, 14);
+    ctxGlyph.fillRect(32, 14, 6, 14);
+  },
+  leggings: (ctxGlyph) => {
+    ctxGlyph.fillRect(14, 12, 20, 7);
+    ctxGlyph.fillRect(14, 19, 8, 17);
+    ctxGlyph.fillRect(26, 19, 8, 17);
+  },
+  boots: (ctxGlyph) => {
+    ctxGlyph.fillRect(13, 18, 9, 10);
+    ctxGlyph.fillRect(26, 18, 9, 10);
+    ctxGlyph.fillRect(13, 28, 13, 6);
+    ctxGlyph.fillRect(26, 28, 13, 6);
+  },
+};
+
+for (const [itemId, info] of Object.entries(ARMOR_ITEMS)) {
+  const tint = `#${info.color.toString(16).padStart(6, "0")}`;
+  registerIcon(Number(itemId), createFlatIcon("#2b3343", tint, (ctxGlyph) => {
+    ctxGlyph.fillStyle = tint;
+    ARMOR_GLYPHS[info.slot](ctxGlyph);
+  }));
+}

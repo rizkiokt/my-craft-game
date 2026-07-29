@@ -67,6 +67,18 @@ export const ITEMS = {
   netherite_scrap: 109,
   netherite_ingot: 110,
   netherite_pickaxe: 111,
+  iron_helmet: 120,
+  iron_chestplate: 121,
+  iron_leggings: 122,
+  iron_boots: 123,
+  diamond_helmet: 124,
+  diamond_chestplate: 125,
+  diamond_leggings: 126,
+  diamond_boots: 127,
+  netherite_helmet: 128,
+  netherite_chestplate: 129,
+  netherite_leggings: 130,
+  netherite_boots: 131,
 };
 
 export const BLOCK_NAMES = {
@@ -103,7 +115,64 @@ export const BLOCK_NAMES = {
   [ITEMS.netherite_scrap]: "Netherite Scrap",
   [ITEMS.netherite_ingot]: "Netherite Ingot",
   [ITEMS.netherite_pickaxe]: "Netherite Pickaxe",
+  [ITEMS.iron_helmet]: "Iron Helmet",
+  [ITEMS.iron_chestplate]: "Iron Chestplate",
+  [ITEMS.iron_leggings]: "Iron Leggings",
+  [ITEMS.iron_boots]: "Iron Boots",
+  [ITEMS.diamond_helmet]: "Diamond Helmet",
+  [ITEMS.diamond_chestplate]: "Diamond Chestplate",
+  [ITEMS.diamond_leggings]: "Diamond Leggings",
+  [ITEMS.diamond_boots]: "Diamond Boots",
+  [ITEMS.netherite_helmet]: "Netherite Helmet",
+  [ITEMS.netherite_chestplate]: "Netherite Chestplate",
+  [ITEMS.netherite_leggings]: "Netherite Leggings",
+  [ITEMS.netherite_boots]: "Netherite Boots",
 };
+
+/* ------------------------------------------------------------------ *
+ * Armour
+ *
+ * Slot, defence points and tier colour for every wearable piece. Points
+ * follow Minecraft, and damage reduction is 4% per point (capped at 80%).
+ * ------------------------------------------------------------------ */
+
+export const ARMOR_SLOTS = ["helmet", "chestplate", "leggings", "boots"];
+
+export const ARMOR_ITEMS = {
+  [ITEMS.iron_helmet]: { slot: "helmet", points: 2, tier: "iron", color: 0xd8dce2 },
+  [ITEMS.iron_chestplate]: { slot: "chestplate", points: 6, tier: "iron", color: 0xd8dce2 },
+  [ITEMS.iron_leggings]: { slot: "leggings", points: 5, tier: "iron", color: 0xd8dce2 },
+  [ITEMS.iron_boots]: { slot: "boots", points: 2, tier: "iron", color: 0xd8dce2 },
+  [ITEMS.diamond_helmet]: { slot: "helmet", points: 3, tier: "diamond", color: 0x63e6db },
+  [ITEMS.diamond_chestplate]: { slot: "chestplate", points: 8, tier: "diamond", color: 0x63e6db },
+  [ITEMS.diamond_leggings]: { slot: "leggings", points: 6, tier: "diamond", color: 0x63e6db },
+  [ITEMS.diamond_boots]: { slot: "boots", points: 3, tier: "diamond", color: 0x63e6db },
+  [ITEMS.netherite_helmet]: { slot: "helmet", points: 3, tier: "netherite", color: 0x6b5b58 },
+  [ITEMS.netherite_chestplate]: { slot: "chestplate", points: 8, tier: "netherite", color: 0x6b5b58 },
+  [ITEMS.netherite_leggings]: { slot: "leggings", points: 6, tier: "netherite", color: 0x6b5b58 },
+  [ITEMS.netherite_boots]: { slot: "boots", points: 3, tier: "netherite", color: 0x6b5b58 },
+};
+
+export const ARMOR_SLOT_LABELS = {
+  helmet: "Helmet",
+  chestplate: "Chestplate",
+  leggings: "Leggings",
+  boots: "Boots",
+};
+
+/* ------------------------------------------------------------------ *
+ * Health
+ * ------------------------------------------------------------------ */
+
+export const MAX_HEALTH = 20;
+export const MAX_AIR = 10;
+/** Falls shorter than this never hurt, as in Minecraft. */
+export const SAFE_FALL_DISTANCE = 3;
+export const REGEN_DELAY = 5;
+export const REGEN_INTERVAL = 1.6;
+export const DROWN_INTERVAL = 1.2;
+export const ARMOR_REDUCTION_PER_POINT = 0.04;
+export const MAX_ARMOR_REDUCTION = 0.8;
 
 export const PLACEABLE_BLOCKS = [
   BLOCKS.crafting_table,
@@ -161,6 +230,18 @@ export const CREATIVE_ITEMS = [
   ITEMS.iron_pickaxe,
   ITEMS.diamond_pickaxe,
   ITEMS.netherite_pickaxe,
+  ITEMS.iron_helmet,
+  ITEMS.iron_chestplate,
+  ITEMS.iron_leggings,
+  ITEMS.iron_boots,
+  ITEMS.diamond_helmet,
+  ITEMS.diamond_chestplate,
+  ITEMS.diamond_leggings,
+  ITEMS.diamond_boots,
+  ITEMS.netherite_helmet,
+  ITEMS.netherite_chestplate,
+  ITEMS.netherite_leggings,
+  ITEMS.netherite_boots,
 ];
 
 export const HOTBAR_SIZE = 9;

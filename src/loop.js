@@ -2,6 +2,7 @@
 
 import { captureScreenshot } from "./actions.js";
 import { chunkMeshes } from "./chunkMesh.js";
+import { isOutOfHealth, updateVitals } from "./combat.js";
 import { BLOCKS, BREAK_RESET_TIME, GRAVITY } from "./constants.js";
 import { updateDrops } from "./drops.js";
 import { handleInput } from "./input.js";
@@ -102,9 +103,13 @@ export function update(dt, shouldRender = true) {
     }
 
     updateSafeAnchor(dt);
+    updateVitals(dt);
 
+    if (isOutOfHealth()) {
+      handlePlayerDeath(state.lastDamageCause || "injury");
+    }
     if (state.player.y < -20) {
-      handlePlayerDeath();
+      handlePlayerDeath("the void");
     }
   }
 
