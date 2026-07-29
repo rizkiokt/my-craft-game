@@ -2,10 +2,11 @@
 
 import { DEFAULT_BINDINGS, bindings, saveBindings } from "../bindings.js";
 import { SAVE_KEY } from "../constants.js";
-import { deathScreen, deathTitleBtn, inventoryClose, pauseModeBtn, respawnBtn } from "../dom.js";
+import { deathScreen, deathTitleBtn, inventoryClose, pauseModeBtn, respawnBtn, seedCurrent, seedInput } from "../dom.js";
+import { getWorldSeed } from "../math.js";
 import { isCreative } from "../items.js";
 import { respawnPlayer } from "../player.js";
-import { saveGame } from "../save.js";
+import { saveGame, stagePendingSeed } from "../save.js";
 import { state } from "../state.js";
 import { buildControlsScreen, buildHelpControls } from "./controlsScreen.js";
 import { showToast } from "./hud.js";
@@ -50,13 +51,20 @@ export function installMenuHandlers() {
     });
   }
 
+  // Show the seed this world was generated from, and let a new one be typed.
+  seedCurrent.textContent = String(getWorldSeed());
+  seedInput.addEventListener("keydown", (event) => event.stopPropagation());
+
   const resetButton = document.getElementById("btn-reset");
   let resetArmed = false;
   let resetTimer = 0;
   resetButton.addEventListener("click", () => {
     if (!resetArmed) {
       resetArmed = true;
-      resetButton.textContent = "Erase save? Click again";
+      const typed = seedInput.value.trim();
+      resetButton.textContent = typed
+        ? `Start seed "${typed}"? Click again`
+        : "Erase save? Click again";
       window.clearTimeout(resetTimer);
       resetTimer = window.setTimeout(() => {
         resetArmed = false;
@@ -64,6 +72,8 @@ export function installMenuHandlers() {
       }, 4000);
       return;
     }
+    // The seed is applied on the next load, before any chunk generates.
+    stagePendingSeed(seedInput.value);
     try {
       localStorage.removeItem(SAVE_KEY);
     } catch {

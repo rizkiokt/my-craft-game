@@ -102,6 +102,22 @@ directly; touching the ground clears the flag.
 
 **Coordinate system:** origin near spawn; x = east-west, y = up, z = north-south. Chunks are 16 × 16 columns. Load/unload radii live on the `World` instance (`world.loadRadius` / `world.unloadRadius`) and are driven by the Render Distance option via `world.setRenderDistance()`; default is 2.
 
+### World seeds
+
+`src/math.js` owns the seed. `setWorldSeed(seed)` reshuffles the Perlin permutation with a
+mulberry32 PRNG and offsets `hash3`, which is what moves ores and scattered features.
+**Seed 0 deliberately restores the original hardcoded table and a zero hash offset**, so
+worlds saved before seeds existed still generate identically.
+
+The seed must be applied before anything reads the world, because chunks generate on first
+access — hence `loadWorldSeed()` runs first in `main.js`, ahead of `loadGame()` and the
+spawn-height lookup. A seed typed on the title screen is staged in localStorage and applied
+on the reload that follows, since changing it mid-session would not match already-generated
+chunks.
+
+The city and snow realm are deterministic structures independent of the noise, so they do
+not move between seeds.
+
 ### Biomes and structures
 
 Three distinct terrain zones are composed in `getHeightAt` and `getBlock`:

@@ -19,7 +19,7 @@ import { animationLoop, render } from "./src/loop.js";
 import { passiveMobs } from "./src/mobs.js";
 import { onUnexpectedUnlock } from "./src/pointerLock.js";
 import { ensureValidPlayerPosition } from "./src/player.js";
-import { loadGame } from "./src/save.js";
+import { loadGame, loadWorldSeed } from "./src/save.js";
 import { resizeRenderer } from "./src/scene.js";
 import { loadBindings } from "./src/bindings.js";
 import { loadSettings } from "./src/settings.js";
@@ -47,14 +47,18 @@ pickSplash();
 resizeRenderer();
 buildHotbar();
 
-// The world is needed to know where the ground is, so place the player here
-// rather than in the state literal. A save, if present, overrides it.
-state.player.y = world.getHeightAt(
-  Math.floor(DEFAULT_SPAWN.x),
-  Math.floor(DEFAULT_SPAWN.z),
-) + 3.05;
+// The seed decides what every chunk generates, so it has to be applied before
+// anything reads the world -- including the spawn height below.
+loadWorldSeed();
 
-loadGame();
+const hadSave = loadGame();
+if (!hadSave) {
+  // Fresh world: drop the player just above the surface at spawn.
+  state.player.y = world.getHeightAt(
+    Math.floor(DEFAULT_SPAWN.x),
+    Math.floor(DEFAULT_SPAWN.z),
+  ) + 3.05;
+}
 ensureValidPlayerPosition();
 world.updateLoadedChunks(state.player.x, state.player.z);
 chunkMeshes.syncLoadedChunks();

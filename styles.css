@@ -1426,3 +1426,43 @@ input[type="range"]:focus-visible {
 .armor-total b {
   color: var(--text);
 }
+
+/* ------------------------------------------------------------------ */
+/* World seed picker                                                   */
+/* ------------------------------------------------------------------ */
+
+.seed-row {
+  display: grid;
+  gap: 6px;
+}
+
+.seed-row > span {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.seed-row b {
+  color: var(--accent);
+  font-family: var(--mono);
+}
+
+.seed-row input {
+  padding: 9px 12px;
+  border: 2px solid rgba(0, 0, 0, 0.55);
+  border-radius: 4px;
+  background: rgba(8, 11, 16, 0.85);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+
+.seed-row input::placeholder {
+  color: rgba(236, 242, 248, 0.32);
+}
+
+.seed-row input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

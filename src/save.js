@@ -1,8 +1,8 @@
 // World, inventory and player persistence in localStorage.
 
-import { HOTBAR_SIZE, SAVE_KEY } from "./constants.js";
+import { HOTBAR_SIZE, PENDING_SEED_KEY, SAVE_KEY } from "./constants.js";
 import { getSelectedItem, isPlaceableItem } from "./items.js";
-import { clamp } from "./math.js";
+import { clamp, getWorldSeed, seedFromText, setWorldSeed } from "./math.js";
 import { settings } from "./settings.js";
 import { state } from "./state.js";
 import { world } from "./world.js";
@@ -37,6 +37,7 @@ export function saveGame(force = false) {
   }
   try {
     const payload = {
+      seed: getWorldSeed(),
       gameMode: state.gameMode,
       xp: state.xp,
       health: state.health,
@@ -59,13 +60,52 @@ export function saveGame(force = false) {
   }
 }
 
+/**
+ * Reads just the seed and applies it. Must run before anything touches the
+ * world, because chunks generate on first access.
+ */
+let loadedSave = false;
+
+export function loadWorldSeed() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    const seed = raw ? JSON.parse(raw)?.seed : undefined;
+    setWorldSeed(Number.isFinite(seed) ? seed : readPendingSeed());
+  } catch {
+    setWorldSeed(0);
+  }
+}
+
+/** A seed chosen on the title screen survives the reload that applies it. */
+function readPendingSeed() {
+  try {
+    const pending = localStorage.getItem(PENDING_SEED_KEY);
+    if (pending == null) {
+      return 0;
+    }
+    localStorage.removeItem(PENDING_SEED_KEY);
+    return seedFromText(pending);
+  } catch {
+    return 0;
+  }
+}
+
+export function stagePendingSeed(text) {
+  try {
+    localStorage.setItem(PENDING_SEED_KEY, String(text ?? ""));
+  } catch {
+    /* storage is optional */
+  }
+}
+
 export function loadGame() {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) {
-      return;
+      return false;
     }
     const payload = JSON.parse(raw);
+    loadedSave = true;
     if (payload.gameMode === "creative" || payload.gameMode === "survival") {
       state.gameMode = payload.gameMode;
     }
@@ -95,8 +135,10 @@ export function loadGame() {
     if (isPlaceableItem(selectedItem)) {
       state.selectedBlock = selectedItem;
     }
+    return loadedSave;
   } catch {
     state.uiMessage = "Save data was invalid";
     state.uiMessageTimer = 1.1;
+    return false;
   }
 }

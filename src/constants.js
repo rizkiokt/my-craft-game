@@ -250,6 +250,7 @@ export const WATER_LEVEL = 7;
 export const SAVE_KEY = "mycraft-save-v2";
 export const SETTINGS_KEY = "mycraft-settings-v1";
 export const BINDINGS_KEY = "mycraft-controls-v1";
+export const PENDING_SEED_KEY = "mycraft-pending-seed";
 export const CITY_PLAN = {
   minX: -8,
   maxX: 44,

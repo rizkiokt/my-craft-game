@@ -1,7 +1,7 @@
 // Perlin noise and small numeric helpers.
 
 import { CHUNK_SIZE, PI } from "./constants.js";
-export const permutation = (() => {
+const BASE_PERMUTATION = (() => {
   const source = [
     151, 160, 137, 91, 90, 15, 131, 13, 201, 95, 96, 53, 194, 233, 7, 225,
     140, 36, 103, 30, 69, 142, 8, 99, 37, 240, 21, 10, 23, 190, 6, 148, 247,
@@ -21,8 +21,72 @@ export const permutation = (() => {
     4, 150, 254, 138, 236, 205, 93, 222, 114, 67, 29, 24, 72, 243, 141, 128,
     195, 78, 66, 215, 61, 156, 180,
   ];
-  return source.concat(source);
+  return source;
 })();
+
+/* ------------------------------------------------------------------ *
+ * World seed
+ *
+ * Seed 0 keeps the original table and zero hash offset, so worlds saved
+ * before seeds existed still generate exactly the same terrain.
+ * ------------------------------------------------------------------ */
+
+let worldSeed = 0;
+let permutation = BASE_PERMUTATION.concat(BASE_PERMUTATION);
+let hashOffset = 0;
+
+/** Small deterministic PRNG, enough to shuffle a 256-entry table. */
+function mulberry32(a) {
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Turns any text into a seed number; digits are used as typed. */
+export function seedFromText(text) {
+  const trimmed = String(text ?? "").trim();
+  if (!trimmed) {
+    return 0;
+  }
+  if (/^\d+$/.test(trimmed)) {
+    return Number(trimmed) >>> 0;
+  }
+  let hash = 2166136261;
+  for (let i = 0; i < trimmed.length; i++) {
+    hash ^= trimmed.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+export function getWorldSeed() {
+  return worldSeed;
+}
+
+/** Must be called before any chunk is generated. */
+export function setWorldSeed(seed) {
+  worldSeed = (Number(seed) || 0) >>> 0;
+  if (worldSeed === 0) {
+    permutation = BASE_PERMUTATION.concat(BASE_PERMUTATION);
+    hashOffset = 0;
+    return;
+  }
+  const random = mulberry32(worldSeed);
+  const shuffled = BASE_PERMUTATION.slice();
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    const swap = shuffled[i];
+    shuffled[i] = shuffled[j];
+    shuffled[j] = swap;
+  }
+  permutation = shuffled.concat(shuffled);
+  // Shifts every hash3 sample so ores and structures move with the seed too.
+  hashOffset = random() * 1000;
+}
 
 export function fade(t) {
   return t * t * t * (t * (t * 6 - 15) + 10);
@@ -66,7 +130,7 @@ export function fract(value) {
 }
 
 export function hash3(x, y, z) {
-  const s = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453123;
+  const s = Math.sin(x * 127.1 + y * 311.7 + z * 74.7 + hashOffset) * 43758.5453123;
   return fract(s);
 }
 

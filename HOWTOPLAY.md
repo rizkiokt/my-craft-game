@@ -89,6 +89,19 @@ Settings and key bindings persist in `localStorage` alongside your world save.
 
 ---
 
+## World Seeds
+
+Type a seed on the title screen and press **New World** to generate a different world.
+Anything works — `12345`, `sunflower`, your name — and the same text always gives the same
+world, so a seed is something you can share. Leaving it blank gives the classic world.
+
+A seed changes the natural terrain, caves and where ore appears. The **city district** and
+the **snow realm** are hand-placed landmarks, so they stay where they are in every world.
+
+Your current seed is shown on the title screen and is saved with the world.
+
+---
+
 ## The World
 
 You spawn in a small city district. The world has three distinct zones:
