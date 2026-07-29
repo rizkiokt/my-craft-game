@@ -12,7 +12,7 @@ import { settings } from "./settings.js";
 import { resetVitals } from "./combat.js";
 import { state } from "./state.js";
 import { showScreen } from "./ui/screens.js";
-import { world } from "./world.js";
+import { getSurfaceData, world } from "./world.js";
 export function moveLook(deltaX, deltaY) {
   const sensitivity = BASE_LOOK_SENSITIVITY * clamp(settings.sensitivity / 100, 0.05, 4);
   const pitchSign = settings.invertMouse ? 1 : -1;
@@ -186,6 +186,32 @@ export function handlePlayerDeath(cause = "") {
   deathLocationText.textContent =
     `${cause ? `Killed by ${cause}. ` : ""}Nearest safe ground at (${Math.round(pos.x)}, ${Math.round(pos.z)})`;
   deathScreen.classList.remove("is-hidden");
+}
+
+/**
+ * Puts the player down on solid ground at a place, loading the chunks there
+ * first. Used by portals, and by scripted runs that need to be somewhere.
+ */
+export function teleportTo(x, z) {
+  world.updateLoadedChunks(x, z);
+  const surface = getSurfaceData(x, z);
+  state.player.x = x;
+  state.player.z = z;
+  state.player.y = surface.y + 0.05;
+  state.player.vx = 0;
+  state.player.vy = 0;
+  state.player.vz = 0;
+  state.player.onGround = false;
+  state.fallStartY = null;
+
+  // Never leave the player standing inside anything.
+  let attempts = 0;
+  while (hasCollision(state.player.x, state.player.y, state.player.z) && attempts < 48) {
+    state.player.y += 1;
+    attempts += 1;
+  }
+  state.saveDirty = true;
+  return { x: state.player.x, y: state.player.y, z: state.player.z };
 }
 
 export function respawnPlayer() {

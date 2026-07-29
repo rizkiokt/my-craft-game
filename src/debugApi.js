@@ -1,5 +1,6 @@
 // The window hooks used for scripted testing.
 
+import { chunkMeshes } from "./chunkMesh.js";
 import { damagePlayer, getArmorPoints } from "./combat.js";
 import { BLOCK_NAMES, CITY_PLAN, FIXED_STEP, MAX_HEALTH, SNOW_REALM, SUBURB_PLAN } from "./constants.js";
 import { hotbar } from "./dom.js";
@@ -7,6 +8,7 @@ import { getSelectedItem } from "./items.js";
 import { update } from "./loop.js";
 import { isInsideRect } from "./math.js";
 import { passiveMobs } from "./mobs.js";
+import { teleportTo } from "./player.js";
 import { npcs } from "./npcs.js";
 import { FURNACE_RECIPES, HAND_RECIPES, TABLE_RECIPES } from "./recipes.js";
 import { soundEngine } from "./sound.js";
@@ -144,6 +146,13 @@ export function installDebugApi() {
       plan: need.plan?.length ?? 0,
       changes: (need.plan ?? []).filter((s) => npcs.canChange(s.x, s.y, s.z, s.block)).length,
     };
+  };
+  // Lets a scripted run stand somewhere far away without walking there.
+  window.debugTeleport = (x, z) => {
+    const spot = teleportTo(x, z);
+    chunkMeshes.syncLoadedChunks();
+    passiveMobs.syncLoadedChunks();
+    return spot;
   };
   // Lets a scripted run reach states that would otherwise need a long fall.
   window.debugDamage = (amount) => damagePlayer(amount, { ignoreArmor: true, cause: "testing" });

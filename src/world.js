@@ -1,13 +1,25 @@
 // Voxel storage, terrain generation and block access.
 
-import { BLOCKS, CHUNK_SIZE, CITY_PLAN, DEFAULT_RENDER_DISTANCE, DEFAULT_SPAWN, LIGHT_HEIGHT, LIGHT_MAX_Y, LIGHT_MIN_Y, MAX_BUILD_HEIGHT, MAX_LIGHT, MAX_RENDER_DISTANCE, MAX_WORLD_Y, MIN_RENDER_DISTANCE, MIN_WORLD_Y, SNOW_REALM, SUBURB_PLAN, TORCH_LIGHT, WATER_LEVEL } from "./constants.js";
+import { BIOME_REGIONS, BLOCKS, CHUNK_SIZE, CITY_PLAN, DEFAULT_RENDER_DISTANCE, DEFAULT_SPAWN, LIGHT_HEIGHT, LIGHT_MAX_Y, LIGHT_MIN_Y, MAX_BUILD_HEIGHT, MAX_LIGHT, MAX_RENDER_DISTANCE, MAX_WORLD_Y, MIN_RENDER_DISTANCE, MIN_WORLD_Y, SNOW_REALM, SUBURB_PLAN, TORCH_LIGHT, WATER_LEVEL } from "./constants.js";
 
 /** Six-way neighbours used by the light flood fill. */
 const NEIGHBOUR_OFFSETS = [
   [1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1],
 ];
 import { chunkIntersectsRect, clamp, hash3, lerp, perlin2 } from "./math.js";
-import { getCityParcel, getCityTargetHeight, getSettlementBlend, getSnowBlend, getSnowParcel, getSnowTargetHeight, getStructureBlock } from "./worldgen.js";
+import {
+  getBiomeAt,
+  getOasisDepth,
+  getBiomeBlock,
+  getBiomeTargetHeight,
+  getCityParcel,
+  getCityTargetHeight,
+  getSettlementBlend,
+  getSnowBlend,
+  getSnowParcel,
+  getSnowTargetHeight,
+  getStructureBlock,
+} from "./worldgen.js";
 /* ------------------------------------------------------------------ *
  * Lighting helpers
  * ------------------------------------------------------------------ */
@@ -19,11 +31,28 @@ export function blocksLight(blockType) {
     && blockType !== BLOCKS.glass
     && blockType !== BLOCKS.water
     && blockType !== BLOCKS.leaves
-    && blockType !== BLOCKS.pine_leaves;
+    && blockType !== BLOCKS.pine_leaves
+    && blockType !== BLOCKS.portal;
 }
 
+/**
+ * What a block gives off. Glowstone and lava are what make the Ember Deep
+ * readable at all, since its stone roof shuts the sky out entirely.
+ */
 export function getLightEmission(blockType) {
-  return blockType === BLOCKS.torch ? TORCH_LIGHT : 0;
+  if (blockType === BLOCKS.torch) {
+    return TORCH_LIGHT;
+  }
+  if (blockType === BLOCKS.glowstone) {
+    return MAX_LIGHT;
+  }
+  if (blockType === BLOCKS.lava) {
+    return 12;
+  }
+  if (blockType === BLOCKS.portal) {
+    return 11;
+  }
+  return 0;
 }
 
 function lightIndex(lx, wy, lz) {
@@ -61,6 +90,14 @@ export class World {
     if (snowBlend > 0) {
       return Math.round(lerp(naturalHeight, getSnowTargetHeight(wx, wz), snowBlend));
     }
+    const biome = getBiomeAt(wx, wz);
+    if (biome) {
+      return Math.round(lerp(
+        naturalHeight,
+        getBiomeTargetHeight(biome.region, wx, wz),
+        biome.blend,
+      ));
+    }
     return naturalHeight;
   }
 
@@ -92,6 +129,9 @@ export class World {
       sandy: new Uint8Array(CHUNK_SIZE * CHUNK_SIZE),
       trees: [],
       frostTrees: [],
+      cacti: [],
+      spires: [],
+      emitters: [],
       fauna: [],
       light: null,
       lightDirty: true,
@@ -105,6 +145,11 @@ export class World {
     }
     if (chunkIntersectsRect(cx, cz, SNOW_REALM)) {
       chunk.maxBuildY = Math.max(chunk.maxBuildY, SNOW_REALM.baseHeight + 15);
+    }
+    for (const region of BIOME_REGIONS) {
+      if (chunkIntersectsRect(cx, cz, region)) {
+        chunk.maxBuildY = Math.max(chunk.maxBuildY, (region.ceiling ?? region.baseHeight) + 12);
+      }
     }
 
     for (let z = 1; z < CHUNK_SIZE - 1; z++) {
@@ -139,12 +184,16 @@ export class World {
           }
         }
 
-        if (!isSandy && !settlementZone && !snowZone && height >= 10 && height <= 18) {
-          const flatEnough =
-            Math.abs(height - heights[index - 1]) <= 1 &&
-            Math.abs(height - heights[index + 1]) <= 1 &&
-            Math.abs(height - heights[index - CHUNK_SIZE]) <= 1 &&
-            Math.abs(height - heights[index + CHUNK_SIZE]) <= 1;
+        const biome = getBiomeAt(wx, wz);
+        const flatEnough =
+          Math.abs(height - heights[index - 1]) <= 1 &&
+          Math.abs(height - heights[index + 1]) <= 1 &&
+          Math.abs(height - heights[index - CHUNK_SIZE]) <= 1 &&
+          Math.abs(height - heights[index + CHUNK_SIZE]) <= 1;
+
+        if (biome && biome.blend > 0.4) {
+          this.decorateBiome(chunk, biome.region, wx, wz, height, flatEnough);
+        } else if (!isSandy && !settlementZone && !snowZone && height >= 10 && height <= 18) {
           if (flatEnough && hash3(wx, 17, wz) > 0.992) {
             const trunkHeight = 4 + Math.floor(hash3(wx, 29, wz) * 2);
             chunk.trees.push({
@@ -152,6 +201,7 @@ export class World {
               z: wz,
               y: height + 1,
               trunkHeight,
+              kind: "oak",
             });
             chunk.maxBuildY = Math.max(chunk.maxBuildY, height + trunkHeight + 2);
           }
@@ -204,6 +254,14 @@ export class World {
         z: spawnZ,
       });
     };
+
+    // Terrain that lights itself has to be listed now: the light pass seeds
+    // from this rather than sweeping the chunk volume.
+    for (const region of BIOME_REGIONS) {
+      if (region.emissive && chunkIntersectsRect(cx, cz, region)) {
+        this.collectEmitters(chunk, region);
+      }
+    }
 
     tryAddFauna("sheep", 61, 0.44, { allowSand: false, minHeight: 9, maxHeight: 18 });
     tryAddFauna("sheep", 71, 0.68, { allowSand: false, minHeight: 9, maxHeight: 18 });
@@ -282,6 +340,82 @@ export class World {
     }
   }
 
+  /** Lists the glowing blocks a biome generates, for the light pass to seed from. */
+  collectEmitters(chunk, region) {
+    const from = Math.max(LIGHT_MIN_Y, region.baseHeight - 4);
+    for (let lz = 0; lz < CHUNK_SIZE; lz++) {
+      for (let lx = 0; lx < CHUNK_SIZE; lx++) {
+        const wx = chunk.cx * CHUNK_SIZE + lx;
+        const wz = chunk.cz * CHUNK_SIZE + lz;
+        if (!getBiomeAt(wx, wz)) {
+          continue;
+        }
+        const height = chunk.heights[lz * CHUNK_SIZE + lx];
+        const to = Math.min(LIGHT_MAX_Y, height);
+        for (let wy = from; wy <= to; wy++) {
+          const level = getLightEmission(getBiomeBlock(region, wx, wy, wz, height));
+          if (level > 0) {
+            chunk.emitters.push({ lx, y: wy, lz, level });
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * What grows in each biome. Kept apart from ensureChunk so the per-column
+   * loop there stays readable.
+   */
+  decorateBiome(chunk, region, wx, wz, height, flatEnough) {
+    if (region.id === "forest") {
+      // Much denser than open country, and taller with it.
+      if (flatEnough && height >= 9 && hash3(wx, 17, wz) > 0.955) {
+        const trunkHeight = 5 + Math.floor(hash3(wx, 29, wz) * 3);
+        chunk.trees.push({ x: wx, z: wz, y: height + 1, trunkHeight, kind: "oak" });
+        chunk.maxBuildY = Math.max(chunk.maxBuildY, height + trunkHeight + 2);
+      }
+      return;
+    }
+
+    if (region.id === "desert") {
+      const oasis = getOasisDepth(region, wx, wz);
+      if (oasis > 0.55) {
+        // Palms round the water hole.
+        if (flatEnough && height > WATER_LEVEL && hash3(wx, 37, wz) > 0.965) {
+          const trunkHeight = 5 + Math.floor(hash3(wx, 41, wz) * 3);
+          chunk.trees.push({ x: wx, z: wz, y: height + 1, trunkHeight, kind: "palm" });
+          chunk.maxBuildY = Math.max(chunk.maxBuildY, height + trunkHeight + 3);
+        }
+        return;
+      }
+      if (flatEnough && height > WATER_LEVEL && hash3(wx, 53, wz) > 0.985) {
+        const tall = 2 + Math.floor(hash3(wx, 59, wz) * 3);
+        chunk.cacti.push({ x: wx, z: wz, y: height + 1, tall });
+        chunk.maxBuildY = Math.max(chunk.maxBuildY, height + tall + 1);
+      }
+      return;
+    }
+
+    if (region.id === "swamp") {
+      // Crooked and wide-crowned, and happy with wet feet.
+      if (height > WATER_LEVEL && hash3(wx, 67, wz) > 0.975) {
+        const trunkHeight = 3 + Math.floor(hash3(wx, 71, wz) * 3);
+        chunk.trees.push({ x: wx, z: wz, y: height + 1, trunkHeight, kind: "swamp" });
+        chunk.maxBuildY = Math.max(chunk.maxBuildY, height + trunkHeight + 3);
+      }
+      return;
+    }
+
+    if (region.id === "canyon") {
+      // Standing spires left behind where the rock did not wear away.
+      if (flatEnough && hash3(wx, 83, wz) > 0.993) {
+        const tall = 5 + Math.floor(hash3(wx, 89, wz) * 7);
+        chunk.spires.push({ x: wx, z: wz, y: height + 1, tall });
+        chunk.maxBuildY = Math.max(chunk.maxBuildY, height + tall + 2);
+      }
+    }
+  }
+
   getGeneratedBlock(wx, wy, wz) {
     if (wy < MIN_WORLD_Y) {
       return BLOCKS.stone;
@@ -292,6 +426,7 @@ export class World {
     const height = chunk.heights[lz * CHUNK_SIZE + lx];
     const sandy = chunk.sandy[lz * CHUNK_SIZE + lx] === 1;
     const snowZone = getSnowBlend(wx, wz) > 0;
+    const biome = getBiomeAt(wx, wz);
     const caveNoise =
       Math.abs(perlin2(wx / 21 + wy * 0.08, wz / 21)) +
       Math.abs(perlin2(wx / 25, wy / 9 + wz * 0.04));
@@ -301,14 +436,47 @@ export class World {
       return structureBlock;
     }
     if (wy > height) {
+      for (const cactus of chunk.cacti) {
+        if (wx === cactus.x && wz === cactus.z && wy >= cactus.y && wy < cactus.y + cactus.tall) {
+          return BLOCKS.cactus;
+        }
+      }
+      for (const spire of chunk.spires) {
+        // Narrower as it rises, so it tapers like weathered rock.
+        const dx = Math.abs(wx - spire.x);
+        const dz = Math.abs(wz - spire.z);
+        const up = wy - spire.y;
+        if (up >= 0 && up < spire.tall) {
+          const radius = up < spire.tall * 0.65 ? 1 : 0;
+          if (dx <= radius && dz <= radius) {
+            return up > spire.tall - 2 ? BLOCKS.red_sand : BLOCKS.red_rock;
+          }
+        }
+      }
       for (const tree of chunk.trees) {
         const dx = wx - tree.x;
         const dz = wz - tree.z;
-        const canopyBase = tree.y + tree.trunkHeight - 2;
-        const canopyTop = tree.y + tree.trunkHeight + 1;
-        if (wx === tree.x && wz === tree.z && wy >= tree.y && wy < tree.y + tree.trunkHeight) {
+        const top = tree.y + tree.trunkHeight;
+        if (wx === tree.x && wz === tree.z && wy >= tree.y && wy < top) {
           return BLOCKS.wood;
         }
+        if (tree.kind === "palm") {
+          // A bare trunk with a flat spray of fronds on top.
+          if (wy === top && Math.abs(dx) + Math.abs(dz) <= 2) {
+            return BLOCKS.leaves;
+          }
+          continue;
+        }
+        if (tree.kind === "swamp") {
+          // Wide and low, with the canopy drooping past the trunk.
+          if (wy >= top - 1 && wy <= top + 1 && Math.abs(dx) <= 3 && Math.abs(dz) <= 3
+            && Math.abs(dx) + Math.abs(dz) <= 4) {
+            return BLOCKS.leaves;
+          }
+          continue;
+        }
+        const canopyBase = top - 2;
+        const canopyTop = top + 1;
         if (
           wy >= canopyBase &&
           wy <= canopyTop &&
@@ -343,11 +511,17 @@ export class World {
       }
       return BLOCKS.air;
     }
-    if (caveCarve) {
+    if (caveCarve && !biome) {
       if (wy <= WATER_LEVEL - 1) {
         return BLOCKS.water;
       }
       return BLOCKS.air;
+    }
+    if (biome) {
+      const biomeBlock = getBiomeBlock(biome.region, wx, wy, wz, height);
+      if (biomeBlock != null) {
+        return biomeBlock;
+      }
     }
     if (sandy) {
       return BLOCKS.sand;
@@ -489,8 +663,22 @@ export class World {
       }
     }
 
-    // Emitters only ever come from player edits, so the edit map is the whole
-    // search space rather than the chunk volume.
+    // Terrain that glows on its own. Only a handful of biomes make any, and
+    // ensureChunk has already listed it, so this stays a short loop rather
+    // than a sweep of the chunk volume.
+    for (const emitter of chunk.emitters) {
+      if (emitter.y < LIGHT_MIN_Y || emitter.y > LIGHT_MAX_Y) {
+        continue;
+      }
+      const index = lightIndex(emitter.lx, emitter.y, emitter.lz);
+      if (emitter.level > light[index]) {
+        light[index] = emitter.level;
+        queue.push(index, cx * CHUNK_SIZE + emitter.lx, emitter.y, cz * CHUNK_SIZE + emitter.lz);
+      }
+    }
+
+    // Player-placed emitters. The edit map is the whole search space rather
+    // than the chunk volume.
     for (const [editKey, blockType] of chunk.edits) {
       const emission = getLightEmission(blockType);
       if (emission <= 0) {
@@ -629,7 +817,10 @@ export class World {
     const blockType = this.getBlock(wx, wy, wz);
     return blockType !== BLOCKS.air
       && blockType !== BLOCKS.water
-      && blockType !== BLOCKS.torch;
+      && blockType !== BLOCKS.torch
+      // You walk into lava rather than onto it, and straight through a portal.
+      && blockType !== BLOCKS.lava
+      && blockType !== BLOCKS.portal;
   }
 
   getChunkMaxY(cx, cz) {

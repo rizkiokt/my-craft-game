@@ -29,6 +29,15 @@ export function createTextureSet() {
     BLOCKS.enchanting_table,
     BLOCKS.chest,
     BLOCKS.torch,
+    BLOCKS.cactus,
+    BLOCKS.red_sand,
+    BLOCKS.red_rock,
+    BLOCKS.mud,
+    BLOCKS.netherrack,
+    BLOCKS.glowstone,
+    BLOCKS.lava,
+    BLOCKS.portal_frame,
+    BLOCKS.portal,
   ]) {
     textures[blockType] = {
       top: new Uint8Array(16 * 16 * 3),
@@ -332,6 +341,117 @@ export function createTextureSet() {
       paint(textures[BLOCKS.torch].top, x, y, [255, 232, 150]);
       paint(textures[BLOCKS.torch].bottom, x, y, [120, 88, 56]);
 
+      /* ---------------------------------------------------------- *
+       * Biome blocks
+       * ---------------------------------------------------------- */
+
+      // Cactus: ribbed green with paler spines down the ridges.
+      const rib = x % 5 === 2;
+      const cactusNoise = hash3(x * 0.5, y * 0.5, 71) * 12 - 6;
+      paint(textures[BLOCKS.cactus].side, x, y, [
+        (rib ? 96 : 62) + cactusNoise,
+        (rib ? 150 : 122) + cactusNoise,
+        (rib ? 78 : 58) + cactusNoise * 0.6,
+      ]);
+      paint(textures[BLOCKS.cactus].top, x, y, [
+        70 + cactusNoise,
+        128 + cactusNoise,
+        64 + cactusNoise * 0.6,
+      ]);
+      paint(textures[BLOCKS.cactus].bottom, x, y, [
+        58 + cactusNoise,
+        104 + cactusNoise,
+        54 + cactusNoise * 0.6,
+      ]);
+
+      // Red sand: the same grain as sand, turned to rust.
+      const redGrain = hash3(x * 0.9, y * 0.9, 83) * 26 - 13;
+      for (const face of ["top", "side", "bottom"]) {
+        paint(textures[BLOCKS.red_sand][face], x, y, [
+          196 + redGrain,
+          112 + redGrain * 0.7,
+          72 + redGrain * 0.5,
+        ]);
+      }
+
+      // Red rock: horizontal bands, which is what makes a canyon read as one.
+      const bandIndex = Math.floor(y / 3);
+      const bandShade = [0, -18, 14, -8, 22, 6][bandIndex % 6];
+      const rockGrain = hash3(x * 0.7, y * 0.7, 91) * 12 - 6;
+      for (const face of ["top", "side", "bottom"]) {
+        paint(textures[BLOCKS.red_rock][face], x, y, [
+          168 + bandShade + rockGrain,
+          92 + bandShade * 0.8 + rockGrain * 0.7,
+          62 + bandShade * 0.4 + rockGrain * 0.5,
+        ]);
+      }
+
+      // Mud: wet, dark and blotchy.
+      const mudBlotch = hash3(x * 0.4, y * 0.4, 97) > 0.7 ? -16 : 0;
+      const mudNoise = hash3(x * 0.8, y * 0.8, 101) * 16 - 8;
+      for (const face of ["top", "side", "bottom"]) {
+        paint(textures[BLOCKS.mud][face], x, y, [
+          74 + mudNoise + mudBlotch,
+          62 + mudNoise * 0.8 + mudBlotch,
+          48 + mudNoise * 0.6 + mudBlotch,
+        ]);
+      }
+
+      // Netherrack: pitted crimson stone.
+      const pit = hash3(x * 0.6, y * 0.6, 107) > 0.72 ? -30 : 0;
+      const netherNoise = hash3(x * 1.1, y * 1.1, 113) * 22 - 11;
+      for (const face of ["top", "side", "bottom"]) {
+        paint(textures[BLOCKS.netherrack][face], x, y, [
+          128 + netherNoise + pit,
+          46 + netherNoise * 0.5 + pit * 0.6,
+          40 + netherNoise * 0.4 + pit * 0.5,
+        ]);
+      }
+
+      // Glowstone: clustered bright specks in a warm crust.
+      const speck = hash3(Math.floor(x / 2), Math.floor(y / 2), 127) > 0.45;
+      const glowNoise = hash3(x * 0.9, y * 0.9, 131) * 18 - 9;
+      for (const face of ["top", "side", "bottom"]) {
+        paint(textures[BLOCKS.glowstone][face], x, y, [
+          (speck ? 255 : 206) + glowNoise,
+          (speck ? 226 : 154) + glowNoise,
+          (speck ? 138 : 74) + glowNoise * 0.6,
+        ]);
+      }
+
+      // Lava: bright, with darker crust swirls across it.
+      const crust = hash3(x * 0.35, y * 0.35, 137) > 0.62;
+      const lavaNoise = hash3(x * 0.8, y * 0.8, 139) * 24 - 12;
+      for (const face of ["top", "side", "bottom"]) {
+        paint(textures[BLOCKS.lava][face], x, y, [
+          (crust ? 208 : 255) + lavaNoise,
+          (crust ? 82 : 158) + lavaNoise,
+          (crust ? 24 : 40) + lavaNoise * 0.4,
+        ]);
+      }
+
+      // Portal frame: dark polished stone with a faint inlay.
+      const inlay = (x + y) % 7 === 0;
+      const frameNoise = hash3(x * 0.7, y * 0.7, 149) * 14 - 7;
+      for (const face of ["top", "side", "bottom"]) {
+        paint(textures[BLOCKS.portal_frame][face], x, y, [
+          (inlay ? 122 : 62) + frameNoise,
+          (inlay ? 108 : 58) + frameNoise,
+          (inlay ? 148 : 78) + frameNoise,
+        ]);
+      }
+
+      // Portal: swirling violet. Tinted per destination by the mesher.
+      const swirl = Math.sin((x + y * 1.7) * 0.9) * 0.5 + 0.5;
+      const sparkle = hash3(x * 1.3, y * 1.3, 151) > 0.86 ? 60 : 0;
+      for (const face of ["top", "side", "bottom"]) {
+        paint(textures[BLOCKS.portal][face], x, y, [
+          120 + swirl * 90 + sparkle,
+          60 + swirl * 60 + sparkle,
+          190 + swirl * 60 + sparkle,
+        ]);
+      }
+
       const tableNoise = hash3(x, y, 12) * 14 - 7;
       const gridLine = x % 4 === 0 || y % 4 === 0 ? 20 : 0;
       paint(textures[BLOCKS.crafting_table].top, x, y, [
@@ -445,8 +565,9 @@ export function createTextureSet() {
 export function createAtlasTexture() {
   const textureSet = createTextureSet();
   const tileSize = 16;
-  const columns = 6;
-  const rows = 6;
+  // 8x8 leaves room to grow; everything reads columns/rows off atlasInfo.
+  const columns = 8;
+  const rows = 8;
   const atlas = document.createElement("canvas");
   atlas.width = columns * tileSize;
   atlas.height = rows * tileSize;
@@ -488,6 +609,16 @@ export function createAtlasTexture() {
     textureSet[BLOCKS.chest].side,
     textureSet[BLOCKS.torch].side,
     textureSet[BLOCKS.torch].top,
+    textureSet[BLOCKS.cactus].side,
+    textureSet[BLOCKS.cactus].top,
+    textureSet[BLOCKS.red_sand].side,
+    textureSet[BLOCKS.red_rock].side,
+    textureSet[BLOCKS.mud].side,
+    textureSet[BLOCKS.netherrack].side,
+    textureSet[BLOCKS.glowstone].side,
+    textureSet[BLOCKS.lava].side,
+    textureSet[BLOCKS.portal_frame].side,
+    textureSet[BLOCKS.portal].side,
   ];
 
   tileData.forEach((tile, index) => {
@@ -583,6 +714,33 @@ export function getTileIndex(blockType, faceKey) {
   }
   if (blockType === BLOCKS.torch) {
     return faceKey === "py" ? 32 : 31;
+  }
+  if (blockType === BLOCKS.cactus) {
+    return faceKey === "py" || faceKey === "ny" ? 34 : 33;
+  }
+  if (blockType === BLOCKS.red_sand) {
+    return 35;
+  }
+  if (blockType === BLOCKS.red_rock) {
+    return 36;
+  }
+  if (blockType === BLOCKS.mud) {
+    return 37;
+  }
+  if (blockType === BLOCKS.netherrack) {
+    return 38;
+  }
+  if (blockType === BLOCKS.glowstone) {
+    return 39;
+  }
+  if (blockType === BLOCKS.lava) {
+    return 40;
+  }
+  if (blockType === BLOCKS.portal_frame) {
+    return 41;
+  }
+  if (blockType === BLOCKS.portal) {
+    return 42;
   }
   return 24;
 }

@@ -55,6 +55,15 @@ export const BLOCKS = {
   enchanting_table: 21,
   chest: 22,
   torch: 23,
+  cactus: 24,
+  red_sand: 25,
+  red_rock: 26,
+  mud: 27,
+  netherrack: 28,
+  glowstone: 29,
+  lava: 30,
+  portal_frame: 31,
+  portal: 32,
 };
 
 export const ITEMS = {
@@ -108,6 +117,15 @@ export const BLOCK_NAMES = {
   [BLOCKS.enchanting_table]: "Enchanting Table",
   [BLOCKS.chest]: "Chest",
   [BLOCKS.torch]: "Torch",
+  [BLOCKS.cactus]: "Cactus",
+  [BLOCKS.red_sand]: "Red Sand",
+  [BLOCKS.red_rock]: "Red Rock",
+  [BLOCKS.mud]: "Mud",
+  [BLOCKS.netherrack]: "Netherrack",
+  [BLOCKS.glowstone]: "Glowstone",
+  [BLOCKS.lava]: "Lava",
+  [BLOCKS.portal_frame]: "Portal Frame",
+  [BLOCKS.portal]: "Portal",
   [ITEMS.stick]: "Stick",
   [ITEMS.coal]: "Coal",
   [ITEMS.iron_ingot]: "Iron Ingot",
@@ -225,6 +243,13 @@ export const PLACEABLE_BLOCKS = [
   BLOCKS.enchanting_table,
   BLOCKS.chest,
   BLOCKS.torch,
+  BLOCKS.cactus,
+  BLOCKS.red_sand,
+  BLOCKS.red_rock,
+  BLOCKS.mud,
+  BLOCKS.netherrack,
+  BLOCKS.glowstone,
+  BLOCKS.portal_frame,
 ];
 
 /** Everything the creative palette hands out, in build-menu order. */
@@ -233,6 +258,11 @@ export const CREATIVE_ITEMS = [
   BLOCKS.dirt,
   BLOCKS.stone,
   BLOCKS.sand,
+  BLOCKS.red_sand,
+  BLOCKS.red_rock,
+  BLOCKS.mud,
+  BLOCKS.netherrack,
+  BLOCKS.glowstone,
   BLOCKS.snow,
   BLOCKS.ice,
   BLOCKS.wood,
@@ -251,6 +281,8 @@ export const CREATIVE_ITEMS = [
   BLOCKS.enchanting_table,
   BLOCKS.chest,
   BLOCKS.torch,
+  BLOCKS.cactus,
+  BLOCKS.portal_frame,
   ITEMS.stick,
   ITEMS.coal,
   ITEMS.iron_ingot,
@@ -326,6 +358,99 @@ export const DEFAULT_SPAWN = {
   pitch: -0.28,
 };
 
+/* ------------------------------------------------------------------ *
+ * Biomes
+ *
+ * Hand-placed regions, like the city and the snow realm, rather than
+ * noise spread over everything: each one has a fixed address a portal
+ * can aim at, and worlds built before they existed keep their terrain.
+ * They are laid out in a loose ring around spawn and never overlap.
+ * ------------------------------------------------------------------ */
+
+/** Blocks over which a region fades into the surrounding land. */
+export const BIOME_EDGE = 12;
+
+export const BIOME_REGIONS = [
+  {
+    id: "forest",
+    name: "Deep Forest",
+    blurb: "Close-packed trees and shady clearings",
+    minX: -112, maxX: -40, minZ: -36, maxZ: 36,
+    baseHeight: 12, strength: 0.8,
+  },
+  {
+    id: "desert",
+    name: "Dune Sea",
+    blurb: "Sand, cacti and a green oasis",
+    minX: 56, maxX: 136, minZ: -136, maxZ: -56,
+    baseHeight: 11, strength: 0.92,
+  },
+  {
+    id: "swamp",
+    name: "Murk Fen",
+    blurb: "Shallow pools, mud and crooked trees",
+    minX: -36, maxX: 44, minZ: 64, maxZ: 144,
+    baseHeight: 7, strength: 0.94,
+  },
+  {
+    id: "canyon",
+    name: "Red Canyon",
+    blurb: "Banded cliffs and standing stone spires",
+    minX: -148, maxX: -68, minZ: 68, maxZ: 148,
+    baseHeight: 13, strength: 0.95,
+  },
+  {
+    id: "ember",
+    name: "Ember Deep",
+    blurb: "A glowing cavern roofed in stone, where netherite hides",
+    minX: -152, maxX: -80, minZ: -160, maxZ: -88,
+    baseHeight: 10, strength: 0.97,
+    /** Roofed over, which is what makes it read as another world. */
+    ceiling: 30,
+    /** Its terrain glows, so chunks here list their own light sources. */
+    emissive: true,
+  },
+];
+
+/** Everywhere a portal can take you, including the places that predate biomes. */
+export const TRAVEL_DESTINATIONS = [
+  {
+    id: "home",
+    name: "Home Meadow",
+    blurb: "Where you started",
+    x: DEFAULT_SPAWN.x,
+    z: DEFAULT_SPAWN.z,
+  },
+  ...BIOME_REGIONS.map((region) => ({
+    id: region.id,
+    name: region.name,
+    blurb: region.blurb,
+    x: (region.minX + region.maxX) / 2,
+    z: (region.minZ + region.maxZ) / 2,
+  })),
+  {
+    id: "snow",
+    name: "Snow Realm",
+    blurb: "Igloos, lodges and frozen water",
+    x: 112,
+    z: 66,
+  },
+];
+
+/* ------------------------------------------------------------------ *
+ * Portals
+ * ------------------------------------------------------------------ */
+
+/** Inside measurements of a frame, as in Minecraft: 2 wide, 3 tall. */
+export const PORTAL_MIN_WIDTH = 2;
+export const PORTAL_MIN_HEIGHT = 3;
+export const PORTAL_MAX_WIDTH = 4;
+export const PORTAL_MAX_HEIGHT = 5;
+/** Seconds standing in a portal before it takes you. */
+export const PORTAL_DELAY = 1.1;
+/** How long you are immune to being pulled straight back after arriving. */
+export const PORTAL_COOLDOWN = 3;
+
 export const TOOL_STATS = {
   hand: { power: 0, speed: 1 },
   [ITEMS.wood_pickaxe]: { power: 1, speed: 2.8 },
@@ -345,6 +470,9 @@ export const BLOCK_TIER = {
   [BLOCKS.diamond_ore]: 3,
   [BLOCKS.enchanting_table]: 3,
   [BLOCKS.ancient_debris]: 4,
+  [BLOCKS.red_rock]: 1,
+  [BLOCKS.netherrack]: 1,
+  [BLOCKS.portal_frame]: 2,
 };
 
 /* ------------------------------------------------------------------ *

@@ -107,8 +107,20 @@ export function getBreakHardness(blockType) {
   if (blockType === BLOCKS.wood || blockType === BLOCKS.pine_wood || blockType === BLOCKS.planks || blockType === BLOCKS.crafting_table) {
     return 3.8;
   }
-  if (blockType === BLOCKS.bricks) {
+  if (blockType === BLOCKS.bricks || blockType === BLOCKS.red_rock) {
     return 5.8;
+  }
+  if (blockType === BLOCKS.netherrack) {
+    return 3.2;
+  }
+  if (blockType === BLOCKS.glowstone) {
+    return 2.6;
+  }
+  if (blockType === BLOCKS.portal_frame) {
+    return 6.4;
+  }
+  if (blockType === BLOCKS.cactus || blockType === BLOCKS.mud) {
+    return 1.6;
   }
   if (blockType === BLOCKS.leaves || blockType === BLOCKS.pine_leaves || blockType === BLOCKS.glass || blockType === BLOCKS.ice) {
     return 1.8;
@@ -124,7 +136,8 @@ export function getBreakDamage(blockType) {
   // Efficiency adds a flat speed bonus on top of the tool's own rate.
   const efficiency = 1 + getHeldEnchantLevel("efficiency") * 0.3;
   if (blockType === BLOCKS.stone || blockType === BLOCKS.coal_ore || blockType === BLOCKS.iron_ore
-    || blockType === BLOCKS.furnace || blockType === BLOCKS.diamond_ore || blockType === BLOCKS.ancient_debris) {
+    || blockType === BLOCKS.furnace || blockType === BLOCKS.diamond_ore || blockType === BLOCKS.ancient_debris
+    || blockType === BLOCKS.red_rock || blockType === BLOCKS.netherrack || blockType === BLOCKS.portal_frame) {
     return (1 + tool.speed * 0.68) * efficiency;
   }
   if (blockType === BLOCKS.wood || blockType === BLOCKS.pine_wood || blockType === BLOCKS.planks || blockType === BLOCKS.crafting_table) {
@@ -134,6 +147,9 @@ export function getBreakDamage(blockType) {
 }
 
 export function getDropForBlock(blockType) {
+  if (blockType === BLOCKS.portal) {
+    return null;
+  }
   if (blockType === BLOCKS.leaves || blockType === BLOCKS.pine_leaves) {
     return Math.random() > 0.72 ? ITEMS.stick : null;
   }

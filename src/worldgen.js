@@ -1,7 +1,15 @@
 // Biome blending plus city, suburb and snow-realm structures.
 
-import { BLOCKS, CITY_PLAN, SNOW_REALM, SUBURB_PLAN } from "./constants.js";
-import { hash3, isInsideRect, perlin2 } from "./math.js";
+import {
+  BIOME_EDGE,
+  BIOME_REGIONS,
+  BLOCKS,
+  CITY_PLAN,
+  SNOW_REALM,
+  SUBURB_PLAN,
+  WATER_LEVEL,
+} from "./constants.js";
+import { clamp, hash3, isInsideRect, perlin2 } from "./math.js";
 export function getCityCenter() {
   return {
     x: (CITY_PLAN.minX + CITY_PLAN.maxX) * 0.5,
@@ -514,4 +522,169 @@ export function getStructureBlock(wx, wy, wz, height) {
     return BLOCKS.pine_wood;
   }
   return null;
+}
+
+/* ------------------------------------------------------------------ *
+ * Biome regions
+ *
+ * Each biome is a fixed rectangle with its own idea of how high the
+ * ground should be and what it is made of. The strength fades over
+ * BIOME_EDGE blocks at the border, so a desert runs out into meadow
+ * rather than stopping at a wall.
+ * ------------------------------------------------------------------ */
+
+/** How thick the stone lid over the Ember Deep is, wherever its hill runs. */
+const EMBER_LID = 4;
+
+export function getBiomeAt(wx, wz) {
+  for (const region of BIOME_REGIONS) {
+    if (wx < region.minX || wx > region.maxX || wz < region.minZ || wz > region.maxZ) {
+      continue;
+    }
+    const inset = Math.min(
+      wx - region.minX,
+      region.maxX - wx,
+      wz - region.minZ,
+      region.maxZ - wz,
+    );
+    const blend = clamp(inset / BIOME_EDGE, 0, 1) * region.strength;
+    return blend > 0 ? { region, blend } : null;
+  }
+  return null;
+}
+
+/** Distance 0..1 from the middle of a region, for features that sit in the centre. */
+function centreFalloff(region, wx, wz, radius) {
+  const cx = (region.minX + region.maxX) / 2;
+  const cz = (region.minZ + region.maxZ) / 2;
+  return clamp(1 - Math.hypot(wx - cx, wz - cz) / radius, 0, 1);
+}
+
+/** The oasis: a green dip with water in the middle of the dunes. */
+export function getOasisDepth(region, wx, wz) {
+  return centreFalloff(region, wx, wz, 22) ** 1.6;
+}
+
+export function getBiomeTargetHeight(region, wx, wz) {
+  switch (region.id) {
+    case "forest": {
+      const roll = perlin2(wx / 26 + 41, wz / 26 + 13) * 3.2;
+      return region.baseHeight + roll;
+    }
+    case "desert": {
+      const dunes = perlin2(wx / 34 + 7, wz / 34 + 61) * 6.4
+        + perlin2(wx / 12 + 5, wz / 12 + 29) * 2.6;
+      // The oasis is a bowl, so it dips below the water table.
+      return region.baseHeight + dunes - getOasisDepth(region, wx, wz) * 6.5;
+    }
+    case "swamp": {
+      // Sitting right on the water table is what fills the hollows with
+      // pools without placing a single one by hand.
+      const roll = perlin2(wx / 21 + 19, wz / 21 + 37) * 3.4;
+      return region.baseHeight + roll;
+    }
+    case "canyon": {
+      const broad = perlin2(wx / 46 + 23, wz / 46 + 3) * 14;
+      const ridge = Math.abs(perlin2(wx / 18 + 11, wz / 18 + 47)) * 7;
+      // Terracing in steps of three is what makes it read as layered rock.
+      return Math.floor((region.baseHeight + broad + ridge) / 3) * 3;
+    }
+    case "ember": {
+      // Seen from outside it is a rocky hill, domed towards the middle so it
+      // is not a flat slab; the cavern is hollowed out under its lid.
+      const dome = centreFalloff(region, wx, wz, 46) ** 0.7;
+      return 19 + dome * 10 + perlin2(wx / 19 + 31, wz / 19 + 13) * 1.9;
+    }
+    default:
+      return region.baseHeight;
+  }
+}
+
+/** Where the floor of the Ember Deep's cavern sits under its lid. */
+export function getEmberFloor(region, wx, wz) {
+  return Math.round(region.baseHeight + perlin2(wx / 22 + 53, wz / 22 + 71) * 2.6);
+}
+
+/**
+ * The block a biome wants at this position, or null to fall through to the
+ * ordinary rules. `height` is the surface of this column.
+ */
+export function getBiomeBlock(region, wx, wy, wz, height) {
+  switch (region.id) {
+    case "desert": {
+      // The oasis keeps its grass, so the middle of the desert is green.
+      if (getOasisDepth(region, wx, wz) > 0.55) {
+        return null;
+      }
+      if (wy > height - 5) {
+        return BLOCKS.sand;
+      }
+      return null;
+    }
+    case "swamp": {
+      if (wy === height) {
+        return height <= WATER_LEVEL + 1 ? BLOCKS.mud : BLOCKS.grass;
+      }
+      if (wy > height - 3) {
+        return BLOCKS.mud;
+      }
+      return null;
+    }
+    case "canyon": {
+      if (wy > height - 2) {
+        return BLOCKS.red_sand;
+      }
+      if (wy > 4) {
+        return BLOCKS.red_rock;
+      }
+      return null;
+    }
+    case "ember":
+      return getEmberBlock(region, wx, wy, wz, height);
+    default:
+      return null;
+  }
+}
+
+/**
+ * The Ember Deep, hollowed out of its own mesa: netherrack floor with lava
+ * pools, a stone lid overhead, and glowstone clustered on the underside so
+ * there is something to see by.
+ */
+function getEmberBlock(region, wx, wy, wz, height) {
+  if (wy > height) {
+    return BLOCKS.air;
+  }
+  // The roof hangs a fixed distance under whatever the surface turned out to
+  // be, so the cavern seals itself wherever the hill runs out.
+  const ceiling = height - EMBER_LID;
+  const floor = getEmberFloor(region, wx, wz);
+  if (wy > ceiling) {
+    return BLOCKS.stone;
+  }
+  if (ceiling - floor < 3) {
+    return BLOCKS.netherrack;
+  }
+  if (wy === ceiling) {
+    return hash3(wx * 0.31, 7, wz * 0.31) > 0.78 ? BLOCKS.glowstone : BLOCKS.netherrack;
+  }
+  if (wy > floor) {
+    // Stalactites hanging a little way down from the roof.
+    if (wy > ceiling - 3 && hash3(wx * 0.7, wy, wz * 0.7) > 0.93) {
+      return BLOCKS.netherrack;
+    }
+    return BLOCKS.air;
+  }
+  if (wy === floor) {
+    const pool = perlin2(wx / 12 + 17, wz / 12 + 5);
+    if (pool > 0.34) {
+      return BLOCKS.lava;
+    }
+    return hash3(wx * 0.5, 3, wz * 0.5) > 0.9 ? BLOCKS.glowstone : BLOCKS.netherrack;
+  }
+  // Below the floor: netherrack, and the ancient debris this place is for.
+  if (hash3(wx * 0.17, wy * 0.31, wz * 0.17) > 0.955) {
+    return BLOCKS.ancient_debris;
+  }
+  return BLOCKS.netherrack;
 }

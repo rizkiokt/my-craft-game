@@ -56,6 +56,24 @@ export function getBlockColor(blockType) {
       return [0xa8ddf5, 0xd3f2fb];
     case BLOCKS.pine_leaves:
       return [0x5a7f68, 0x749984];
+    case BLOCKS.cactus:
+      return [0x4c8a45, 0x6aa85c];
+    case BLOCKS.red_sand:
+      return [0xc4704a, 0xa85a38];
+    case BLOCKS.red_rock:
+      return [0xa85c3e, 0x8b4630];
+    case BLOCKS.mud:
+      return [0x4a3f31, 0x635646];
+    case BLOCKS.netherrack:
+      return [0x80302a, 0x5e211d];
+    case BLOCKS.glowstone:
+      return [0xffe08a, 0xd8a648];
+    case BLOCKS.lava:
+      return [0xff9a3c, 0xd45a18];
+    case BLOCKS.portal_frame:
+      return [0x4a4a5e, 0x6f6a86];
+    case BLOCKS.portal:
+      return [0xb27ce8, 0x7a4fd0];
     default:
       return [0x6cab57, 0x84c56f];
   }
