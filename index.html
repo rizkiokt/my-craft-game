@@ -19,6 +19,10 @@
         <div id="toast" class="toast"></div>
         <div class="hotbar-wrap">
           <div id="item-name" class="item-name"></div>
+          <div id="xp-bar" class="xp-bar">
+            <div id="xp-fill" class="xp-fill"></div>
+            <span id="xp-level" class="xp-level">0</span>
+          </div>
           <div id="hotbar" class="hotbar" aria-hidden="true"></div>
         </div>
       </div>
@@ -58,7 +62,7 @@
                 <div class="craft-arrow" aria-hidden="true">&rarr;</div>
                 <div id="craft-result" class="craft-result"></div>
               </div>
-              <p class="craft-hint">
+              <p class="craft-hint" id="craft-hint">
                 Click a recipe below to lay it out &middot; click the result to take it &middot;
                 <kbd>Shift</kbd>-click the result to craft every one you can
               </p>

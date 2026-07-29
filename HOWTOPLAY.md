@@ -109,9 +109,14 @@ To place a block, select it in the hotbar, point at a surface, and **Right Click
 
 | Block | Minimum Tool |
 |---|---|
-| Stone, Coal Ore | Wood Pickaxe or better |
+| Stone, Coal Ore, Bricks | Wood Pickaxe |
 | Iron Ore, Furnace | Stone Pickaxe |
+| Diamond Ore, Enchanting Table | Iron Pickaxe |
+| Ancient Debris | Diamond Pickaxe |
 | Everything else | Bare hands |
+
+The pickaxe ladder runs **Wood → Stone → Iron → Diamond → Netherite**; each tier mines
+faster as well as reaching deeper materials.
 
 ---
 
@@ -180,6 +185,12 @@ Place a **Crafting Table** and right-click it:
 | Stone Pickaxe | 3 Stone + 2 Sticks | 1 Stone Pickaxe |
 | Bricks | 2 Stone + 2 Sand | 4 Bricks |
 
+| Iron Pickaxe | 3 Iron Ingots + 2 Sticks | 1 Iron Pickaxe |
+| Diamond Pickaxe | 3 Diamonds + 2 Sticks | 1 Diamond Pickaxe |
+| Netherite Ingot | 4 Netherite Scrap | 1 Netherite Ingot |
+| Netherite Pickaxe | 1 Netherite Ingot + 1 Diamond Pickaxe | 1 Netherite Pickaxe |
+| Enchanting Table | 3 Diamonds + 4 Bricks | 1 Enchanting Table |
+
 ### Furnace recipes
 
 Place a **Furnace** and right-click it, then load the input and fuel slots:
@@ -188,6 +199,26 @@ Place a **Furnace** and right-click it, then load the input and fuel slots:
 |---|---|---|
 | Glass | 2 Sand + 1 Coal | 2 Glass |
 | Iron Ingot | 1 Iron Ore + 1 Coal | 1 Iron Ingot |
+| Netherite Scrap | 1 Ancient Debris + 1 Coal | 1 Netherite Scrap |
+
+---
+
+## Experience & Enchanting
+
+Mining ore grants experience: **Coal 2, Iron 3, Diamond 8, Ancient Debris 12**. The green
+bar above the hotbar shows your progress; the number is your level.
+
+Craft an **Enchanting Table** (3 Diamonds + 4 Bricks) and right-click it. Drop a pickaxe
+into the slot and you get three offers priced at 1, 2 and 3 levels:
+
+| Enchantment | Max | Effect |
+|---|---|---|
+| Efficiency | V | Mines faster (+30% break speed per level) |
+| Fortune | III | Ores drop up to `level` extra items |
+
+Enchanted gear shimmers purple in the hotbar and inventory, and `F3` lists what your held
+tool carries. Enchantments are recorded per item *type* — there is no durability in this
+game, so enchanting "your diamond pickaxe" enchants the diamond pickaxe you carry.
 
 ---
 
@@ -201,6 +232,8 @@ Place a **Furnace** and right-click it, then load the input and fuel slots:
 | Sand | Beaches and shallow water edges |
 | Coal Ore | Underground (y < 18), dark specks in stone — needs Wood Pickaxe |
 | Iron Ore | Deep underground (y < 12), reddish specks — needs Stone Pickaxe |
+| Diamond Ore | Very deep (y < 6), cyan gems — needs Iron Pickaxe |
+| Ancient Debris | Bedrock depths (y < 2), rare — needs Diamond Pickaxe |
 | Snow / Ice | Snow Realm biome surface |
 | Sticks | Occasionally drop from breaking leaves |
 

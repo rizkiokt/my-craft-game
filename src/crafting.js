@@ -15,6 +15,7 @@ export const STATIONS = {
   inventory: { size: 2, label: "Inventory Crafting", recipes: HAND_RECIPES },
   table: { size: 3, label: "Crafting Table", recipes: [...HAND_RECIPES, ...TABLE_RECIPES] },
   furnace: { size: 0, label: "Furnace", recipes: FURNACE_RECIPES },
+  enchant: { size: 0, label: "Enchanting Table", recipes: [] },
 };
 
 export function getStation() {
@@ -25,12 +26,19 @@ export function isFurnace() {
   return state.station === "furnace";
 }
 
+export function isEnchant() {
+  return state.station === "enchant";
+}
+
 export function getGridSize() {
   return getStation().size;
 }
 
 /** Slot count: a square grid, or the furnace's input + fuel pair. */
 export function getSlotCount() {
+  if (isEnchant()) {
+    return 1;
+  }
   return isFurnace() ? 2 : getGridSize() ** 2;
 }
 
@@ -119,6 +127,9 @@ export function gridToPattern() {
 
 /** The crafting recipe the current layout produces, if any. */
 export function findGridRecipe() {
+  if (isEnchant()) {
+    return null;
+  }
   if (isFurnace()) {
     return findFurnaceRecipe();
   }

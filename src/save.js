@@ -38,6 +38,8 @@ export function saveGame(force = false) {
   try {
     const payload = {
       gameMode: state.gameMode,
+      xp: state.xp,
+      enchantments: state.enchantments,
       inventory: state.inventory,
       hotbarSlots: state.hotbarSlots,
       activeSlot: state.activeSlot,
@@ -64,6 +66,10 @@ export function loadGame() {
     const payload = JSON.parse(raw);
     if (payload.gameMode === "creative" || payload.gameMode === "survival") {
       state.gameMode = payload.gameMode;
+    }
+    state.xp = Number.isFinite(payload.xp) ? payload.xp : state.xp;
+    if (payload.enchantments && typeof payload.enchantments === "object") {
+      state.enchantments = payload.enchantments;
     }
     Object.assign(state.inventory, payload.inventory || {});
     if (Array.isArray(payload.hotbarSlots)) {

@@ -1,6 +1,7 @@
 // Item identity, stack maths and mining rules.
 
-import { BLOCKS, CREATIVE_STACK, ITEMS, PLACEABLE_BLOCKS, TOOL_STATS } from "./constants.js";
+import { BLOCKS, BLOCK_TIER, CREATIVE_STACK, ITEMS, PLACEABLE_BLOCKS, TOOL_STATS } from "./constants.js";
+import { getHeldEnchantLevel } from "./enchanting.js";
 import { state } from "./state.js";
 export function isCollectibleBlock(blockType) {
   return blockType !== BLOCKS.water && blockType !== BLOCKS.air;
@@ -60,14 +61,14 @@ export function canMineBlock(blockType) {
   if (isCreative()) {
     return true;
   }
-  const tool = getToolProfile();
-  if (blockType === BLOCKS.stone || blockType === BLOCKS.coal_ore) {
-    return tool.power >= 1;
-  }
-  if (blockType === BLOCKS.iron_ore || blockType === BLOCKS.furnace) {
-    return tool.power >= 2;
-  }
-  return true;
+  return getToolProfile().power >= (BLOCK_TIER[blockType] ?? 0);
+}
+
+/** The pickaxe a block needs, for the "need a better tool" message. */
+export function getRequiredToolName(blockType) {
+  const tier = BLOCK_TIER[blockType] ?? 0;
+  const names = ["hands", "Wood Pickaxe", "Stone Pickaxe", "Iron Pickaxe", "Diamond Pickaxe", "Netherite Pickaxe"];
+  return names[tier] ?? names[0];
 }
 
 export function getInteractionCooldown(blockType, breaking) {
@@ -88,6 +89,15 @@ export function getInteractionCooldown(blockType, breaking) {
 }
 
 export function getBreakHardness(blockType) {
+  if (blockType === BLOCKS.diamond_ore) {
+    return 8.4;
+  }
+  if (blockType === BLOCKS.ancient_debris) {
+    return 12;
+  }
+  if (blockType === BLOCKS.enchanting_table) {
+    return 9;
+  }
   if (blockType === BLOCKS.stone || blockType === BLOCKS.coal_ore) {
     return 5.4;
   }
@@ -111,13 +121,16 @@ export function getBreakDamage(blockType) {
     return 999;
   }
   const tool = getToolProfile();
-  if (blockType === BLOCKS.stone || blockType === BLOCKS.coal_ore || blockType === BLOCKS.iron_ore || blockType === BLOCKS.furnace) {
-    return 1 + tool.speed * 0.68;
+  // Efficiency adds a flat speed bonus on top of the tool's own rate.
+  const efficiency = 1 + getHeldEnchantLevel("efficiency") * 0.3;
+  if (blockType === BLOCKS.stone || blockType === BLOCKS.coal_ore || blockType === BLOCKS.iron_ore
+    || blockType === BLOCKS.furnace || blockType === BLOCKS.diamond_ore || blockType === BLOCKS.ancient_debris) {
+    return (1 + tool.speed * 0.68) * efficiency;
   }
   if (blockType === BLOCKS.wood || blockType === BLOCKS.pine_wood || blockType === BLOCKS.planks || blockType === BLOCKS.crafting_table) {
-    return 0.95 + tool.speed * 0.4;
+    return (0.95 + tool.speed * 0.4) * efficiency;
   }
-  return 1 + tool.speed * 0.3;
+  return (1 + tool.speed * 0.3) * efficiency;
 }
 
 export function getDropForBlock(blockType) {
@@ -127,8 +140,22 @@ export function getDropForBlock(blockType) {
   if (blockType === BLOCKS.coal_ore) {
     return ITEMS.coal;
   }
-  if (blockType === BLOCKS.iron_ore) {
-    return BLOCKS.iron_ore;
+  if (blockType === BLOCKS.diamond_ore) {
+    return ITEMS.diamond;
   }
   return blockType;
+}
+
+/** Fortune rolls extra drops, but only from ores. */
+export function getDropCount(blockType) {
+  const fortune = getHeldEnchantLevel("fortune");
+  const isOre = blockType === BLOCKS.coal_ore
+    || blockType === BLOCKS.iron_ore
+    || blockType === BLOCKS.diamond_ore
+    || blockType === BLOCKS.ancient_debris;
+  if (!fortune || !isOre) {
+    return 1;
+  }
+  // Same shape as Minecraft: a chance at up to `fortune` extra drops.
+  return 1 + Math.floor(Math.random() * (fortune + 1));
 }

@@ -3,7 +3,8 @@
 import * as THREE from "../node_modules/three/build/three.module.js";
 import { chunkMeshes } from "./chunkMesh.js";
 import { BLOCKS, BLOCK_NAMES, INTERACTION_RANGE, MAX_BUILD_HEIGHT, MIN_WORLD_Y } from "./constants.js";
-import { addItem, canMineBlock, consumeItem, getBreakDamage, getBreakHardness, getDropForBlock, getInteractionCooldown, getItemCount, getSelectedItem, isCollectibleBlock, isCreative, isPlaceableItem } from "./items.js";
+import { getLevel, getXpForBlock, grantXp } from "./enchanting.js";
+import { addItem, canMineBlock, consumeItem, getBreakDamage, getBreakHardness, getDropCount, getDropForBlock, getInteractionCooldown, getItemCount, getRequiredToolName, getSelectedItem, isCollectibleBlock, isCreative, isPlaceableItem } from "./items.js";
 import { clamp, floorVector } from "./math.js";
 import { spawnParticles } from "./particles.js";
 import { applyPlayerToCamera, eyePosition, hasCollision, lookDirection } from "./player.js";
@@ -18,6 +19,7 @@ import { world } from "./world.js";
 export const STATION_BLOCKS = {
   [BLOCKS.crafting_table]: "table",
   [BLOCKS.furnace]: "furnace",
+  [BLOCKS.enchanting_table]: "enchant",
 };
 export const highlightGeometry = new THREE.EdgesGeometry(new THREE.BoxGeometry(1.02, 1.02, 1.02));
 export const highlightMaterial = new THREE.LineBasicMaterial({
@@ -154,7 +156,7 @@ export function interact(breaking) {
 
   if (breaking) {
     if (!canMineBlock(state.target.block.type)) {
-      showToast(`Need a better tool for ${BLOCK_NAMES[state.target.block.type]}`);
+      showToast(`Need a ${getRequiredToolName(state.target.block.type)} for ${BLOCK_NAMES[state.target.block.type]}`);
       resetBreakState();
       return;
     }
@@ -186,8 +188,15 @@ export function interact(breaking) {
       chunkMeshes.markDirtyAtWorld(state.target.block.x, state.target.block.z);
       const dropId = getDropForBlock(brokenType);
       if (dropId != null && isCollectibleBlock(brokenType) && !isCreative()) {
-        addItem(dropId, 1);
-        showToast(`Collected ${BLOCK_NAMES[dropId]}`);
+        const amount = getDropCount(brokenType);
+        addItem(dropId, amount);
+        showToast(`Collected ${amount > 1 ? `${amount} ` : ""}${BLOCK_NAMES[dropId]}`);
+
+        const xp = getXpForBlock(brokenType);
+        if (xp > 0 && grantXp(xp) > 0) {
+          showToast(`Level up — level ${getLevel()}`);
+          soundEngine.craft();
+        }
       }
       spawnParticles(
         state.target.block.x + 0.5,

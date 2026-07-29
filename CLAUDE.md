@@ -32,7 +32,7 @@ Modules are layered; a module may only import from a layer below it. `src/ui/*` 
 |---|---|---|
 | 0 | `constants.js`, `dom.js`, `math.js` | Tables, element handles, noise/util maths. No imports. |
 | 1 | `settings.js`, `bindings.js`, `state.js`, `recipes.js` | Options, control scheme, mutable state, recipe tables |
-| 2 | `worldgen.js`, `textures.js`, `world.js`, `items.js` | Terrain, atlas, voxel storage, item rules |
+| 2 | `worldgen.js`, `textures.js`, `world.js`, `items.js`, `enchanting.js` | Terrain, atlas, voxel storage, item rules, XP |
 | 3 | `scene.js`, `icons.js`, `chunkMesh.js`, `sound.js`, `mobs.js`, `particles.js`, `playerModel.js` | Three.js resources and singletons |
 | 4 | `player.js`, `interaction.js`, `crafting.js`, `drops.js`, `pointerLock.js`, `fullscreen.js`, `save.js` | Gameplay systems |
 | 5 | `ui/hud.js`, `ui/inventory.js`, `ui/screens.js`, `ui/controlsScreen.js`, `ui/options.js`, `ui/menus.js` | Screens and overlays |
@@ -122,6 +122,16 @@ Structure block selection for both settlements funnels through `getStructureBloc
 `state.station` (`"inventory"` | `"table"` | `"furnace"`) selects the grid size and recipe set via the `STATIONS` table. `state.craftGrid` holds `{itemId, count}` slots taken *out* of the bag, and `state.cursorStack` is the stack held by the mouse. `returnGridToBag()` runs on close so nothing is ever lost.
 
 Stations open from `interact(false)` in `src/interaction.js` via the `STATION_BLOCKS` map — right-click opens, sneak+right-click places against the block instead.
+
+### Enchanting and experience
+
+`src/enchanting.js` owns XP and enchantments. Because the bag is a plain
+count-per-item-id map there are no item instances, so **enchantments are stored per item
+type** in `state.enchantments[itemId]`. `getHeldEnchantLevel()` is what `items.js` calls to
+apply Efficiency (break speed) and Fortune (extra ore drops).
+
+Offers are deterministic from `hash3(itemId, state.enchantSeed, slot)` so the panel does
+not reshuffle on every repaint; `rerollOffers()` bumps the seed after a successful enchant.
 
 ### Adding a new block type
 

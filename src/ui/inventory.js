@@ -6,6 +6,7 @@ import {
   craftArea,
   craftGridEl,
   craftResultEl,
+  craftHint,
   craftTitle,
   cursorStackEl,
   inventoryBody,
@@ -27,6 +28,7 @@ import {
   getGridSize,
   getSlotCount,
   getStation,
+  isEnchant,
   isFurnace,
   placeOneInGrid,
   putCursorInBag,
@@ -35,6 +37,13 @@ import {
   takeFromBag,
   takeResult,
 } from "../crafting.js";
+import {
+  applyOffer,
+  canEnchant,
+  describeEnchantments,
+  getLevel,
+  getOffers,
+} from "../enchanting.js";
 import { itemIcons } from "../icons.js";
 import { getItemCount, getSelectedItem, isCreative, isPlaceableItem } from "../items.js";
 import { exitPointerLock, requestPointerLock } from "../pointerLock.js";
@@ -56,9 +65,11 @@ export function canSmelt(recipe) {
 
 function setSlotIcon(element, itemId) {
   const icon = element.querySelector(".slot-icon");
-  if (icon) {
-    icon.style.backgroundImage = itemId == null ? "none" : `url("${itemIcons.get(itemId)}")`;
+  if (!icon) {
+    return;
   }
+  icon.style.backgroundImage = itemId == null ? "none" : `url("${itemIcons.get(itemId)}")`;
+  icon.classList.toggle("is-enchanted", itemId != null && Boolean(describeEnchantments(itemId)));
 }
 
 function makeSlot(className, itemId, count, { showCount = true } = {}) {
@@ -81,7 +92,9 @@ function makeSlot(className, itemId, count, { showCount = true } = {}) {
 export function createInventorySlot(itemId, count, selected) {
   const slot = makeSlot("inventory-slot", itemId, count, { showCount: !isCreative() });
   slot.dataset.item = String(itemId);
-  slot.title = `${BLOCK_NAMES[itemId]}${isCreative() ? "" : ` — ${count} in bag`}`;
+  const enchants = describeEnchantments(itemId);
+  slot.title = `${BLOCK_NAMES[itemId]}${enchants ? ` (${enchants})` : ""}`
+    + `${isCreative() ? "" : ` — ${count} in bag`}`;
   if (selected) {
     slot.classList.add("is-selected");
   }
@@ -128,8 +141,14 @@ function renderBag() {
         ITEMS.stick,
         ITEMS.coal,
         ITEMS.iron_ingot,
+        ITEMS.diamond,
+        ITEMS.netherite_scrap,
+        ITEMS.netherite_ingot,
         ITEMS.wood_pickaxe,
         ITEMS.stone_pickaxe,
+        ITEMS.iron_pickaxe,
+        ITEMS.diamond_pickaxe,
+        ITEMS.netherite_pickaxe,
       ])];
 
   for (const itemId of items) {
@@ -181,6 +200,7 @@ function renderCraftArea() {
   const station = getStation();
   const furnace = isFurnace();
   craftTitle.textContent = station.label;
+  craftHint.classList.toggle("is-hidden", isEnchant());
   craftGridEl.classList.toggle("is-furnace", furnace);
   craftGridEl.style.setProperty("--craft-cols", furnace ? 1 : getGridSize());
   craftGridEl.replaceChildren();
@@ -205,6 +225,12 @@ function renderCraftArea() {
     });
     craftGridEl.appendChild(cell);
   }
+
+  if (isEnchant()) {
+    renderEnchantOffers();
+    return;
+  }
+  craftGridEl.classList.remove("is-enchant");
 
   const recipe = findGridRecipe();
   craftResultEl.replaceChildren();
@@ -232,9 +258,72 @@ function renderCraftArea() {
   craftResultEl.appendChild(result);
 }
 
+/** Enchanting table: one item slot and three level-priced offers. */
+function renderEnchantOffers() {
+  const slot = state.craftGrid[0];
+  const itemId = slot?.itemId ?? null;
+  craftResultEl.replaceChildren();
+
+  const panel = document.createElement("div");
+  panel.className = "enchant-panel";
+
+  const level = getLevel();
+  const header = document.createElement("p");
+  header.className = "enchant-level";
+  header.innerHTML = `Experience level <b>${level}</b>`;
+  panel.appendChild(header);
+
+  if (itemId == null) {
+    const hint = document.createElement("p");
+    hint.className = "enchant-empty";
+    hint.textContent = "Put a pickaxe or a piece of armour in the slot.";
+    panel.appendChild(hint);
+  } else if (!canEnchant(itemId)) {
+    const hint = document.createElement("p");
+    hint.className = "enchant-empty";
+    hint.textContent = `${BLOCK_NAMES[itemId]} cannot be enchanted.`;
+    panel.appendChild(hint);
+  } else {
+    const current = describeEnchantments(itemId);
+    if (current) {
+      const badge = document.createElement("p");
+      badge.className = "enchant-current";
+      badge.textContent = current;
+      panel.appendChild(badge);
+    }
+    for (const offer of getOffers(itemId)) {
+      const affordable = !offer.maxed && level >= offer.cost;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `enchant-offer${affordable ? "" : " is-disabled"}`;
+      button.disabled = !affordable;
+      button.innerHTML =
+        `<span class="enchant-name">${offer.name} ${["", "I", "II", "III", "IV", "V"][offer.level] ?? offer.level}</span>` +
+        `<span class="enchant-blurb">${offer.maxed ? "Already at maximum" : offer.blurb}</span>` +
+        `<span class="enchant-cost">${offer.maxed ? "—" : `${offer.cost} lvl`}</span>`;
+      button.addEventListener("click", () => {
+        if (applyOffer(itemId, offer)) {
+          soundEngine.craft();
+          showToast(`Enchanted ${BLOCK_NAMES[itemId]} — ${describeEnchantments(itemId)}`);
+          updateInventoryPanel();
+          updateHotbar();
+        } else {
+          showToast("Not enough experience levels");
+        }
+      });
+      panel.appendChild(button);
+    }
+  }
+  craftResultEl.appendChild(panel);
+}
+
 function renderRecipeBook() {
   const station = getStation();
   recipeList.replaceChildren();
+
+  if (isEnchant()) {
+    return;
+  }
 
   if (isCreative() && !isFurnace()) {
     const note = document.createElement("p");

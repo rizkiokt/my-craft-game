@@ -340,8 +340,15 @@ export class World {
     if (wy < 18 && oreRoll > 0.83 && oreRoll < 0.9) {
       return BLOCKS.coal_ore;
     }
-    if (wy < 12 && oreRoll > 0.93) {
+    if (wy < 12 && oreRoll > 0.93 && oreRoll < 0.985) {
       return BLOCKS.iron_ore;
+    }
+    // The good stuff only shows up deep, and ancient debris deeper still.
+    if (wy < 6 && oreRoll > 0.985) {
+      return BLOCKS.diamond_ore;
+    }
+    if (wy < 2 && hash3(wx * 0.13, wy * 0.29, wz * 0.11) > 0.975) {
+      return BLOCKS.ancient_debris;
     }
     return BLOCKS.stone;
   }

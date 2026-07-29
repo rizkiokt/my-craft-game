@@ -10,6 +10,7 @@ import { FURNACE_RECIPES, HAND_RECIPES, TABLE_RECIPES } from "./recipes.js";
 import { soundEngine } from "./sound.js";
 import { state } from "./state.js";
 import { findGridRecipe } from "./crafting.js";
+import { getLevel } from "./enchanting.js";
 import { canCraft, canSmelt } from "./ui/inventory.js";
 import { world } from "./world.js";
 import { getCityCenter, getSnowCenter } from "./worldgen.js";
@@ -28,6 +29,8 @@ export function renderGameToText() {
     perspective: ["first", "third-back", "third-front"][state.perspective],
     inventoryOpen: state.inventoryOpen,
     station: state.station,
+    xp: state.xp,
+    experienceLevel: getLevel(),
     craftGrid: state.craftGrid.map((slot) => slot ? `${BLOCK_NAMES[slot.itemId]} x${slot.count}` : null),
     craftResult: (() => {
       const recipe = findGridRecipe();

@@ -98,6 +98,66 @@ export const TABLE_RECIPES = [
     ingredients: { [BLOCKS.stone]: 2, [BLOCKS.sand]: 2 },
     description: "Decorative masonry block.",
   },
+  {
+    id: "iron_pickaxe",
+    output: ITEMS.iron_pickaxe,
+    count: 1,
+    pattern: [
+      [ITEMS.iron_ingot, ITEMS.iron_ingot, ITEMS.iron_ingot],
+      [null, ITEMS.stick, null],
+      [null, ITEMS.stick, null],
+    ],
+    ingredients: { [ITEMS.iron_ingot]: 3, [ITEMS.stick]: 2 },
+    description: "Forge a sturdier pickaxe.",
+  },
+  {
+    id: "diamond_pickaxe",
+    output: ITEMS.diamond_pickaxe,
+    count: 1,
+    pattern: [
+      [ITEMS.diamond, ITEMS.diamond, ITEMS.diamond],
+      [null, ITEMS.stick, null],
+      [null, ITEMS.stick, null],
+    ],
+    ingredients: { [ITEMS.diamond]: 3, [ITEMS.stick]: 2 },
+    description: "Cut a pickaxe from diamonds.",
+  },
+  {
+    id: "netherite_pickaxe",
+    output: ITEMS.netherite_pickaxe,
+    count: 1,
+    pattern: [
+      [ITEMS.netherite_ingot, ITEMS.diamond_pickaxe, null],
+      [null, null, null],
+      [null, null, null],
+    ],
+    ingredients: { [ITEMS.netherite_ingot]: 1, [ITEMS.diamond_pickaxe]: 1 },
+    description: "Upgrade a diamond pickaxe with netherite.",
+  },
+  {
+    id: "netherite_ingot",
+    output: ITEMS.netherite_ingot,
+    count: 1,
+    pattern: [
+      [ITEMS.netherite_scrap, ITEMS.netherite_scrap, null],
+      [ITEMS.netherite_scrap, ITEMS.netherite_scrap, null],
+      [null, null, null],
+    ],
+    ingredients: { [ITEMS.netherite_scrap]: 4 },
+    description: "Fuse scrap into an ingot.",
+  },
+  {
+    id: "enchanting_table",
+    output: BLOCKS.enchanting_table,
+    count: 1,
+    pattern: [
+      [null, ITEMS.diamond, null],
+      [ITEMS.diamond, BLOCKS.bricks, ITEMS.diamond],
+      [BLOCKS.bricks, BLOCKS.bricks, BLOCKS.bricks],
+    ],
+    ingredients: { [ITEMS.diamond]: 3, [BLOCKS.bricks]: 4 },
+    description: "Build a table to enchant your gear.",
+  },
 ];
 
 export const FURNACE_RECIPES = [
@@ -120,5 +180,15 @@ export const FURNACE_RECIPES = [
     fuelCount: 1,
     inputCount: 1,
     description: "Refine iron ore into ingots.",
+  },
+  {
+    id: "netherite_scrap",
+    output: ITEMS.netherite_scrap,
+    count: 1,
+    input: BLOCKS.ancient_debris,
+    fuel: ITEMS.coal,
+    fuelCount: 1,
+    inputCount: 1,
+    description: "Cook debris down to scrap.",
   },
 ];

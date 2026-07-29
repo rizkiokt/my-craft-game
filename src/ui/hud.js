@@ -1,7 +1,8 @@
 // Hotbar, toasts, held-item label and the F3 overlay.
 
 import { BLOCK_NAMES, CHUNK_SIZE, CITY_PLAN, HOTBAR_SIZE, SNOW_REALM, SUBURB_PLAN } from "../constants.js";
-import { debugLeft, debugOverlay, debugRight, hotbar, hudLayer, itemNameLabel, modeBanner, toastLabel } from "../dom.js";
+import { debugLeft, debugOverlay, debugRight, hotbar, hudLayer, itemNameLabel, modeBanner, toastLabel, xpBar, xpFill, xpLevel } from "../dom.js";
+import { describeEnchantments, getLevel, getLevelProgress } from "../enchanting.js";
 import { itemIcons } from "../icons.js";
 import { getItemCount, getSelectedItem, isCreative } from "../items.js";
 import { clamp, isInsideRect } from "../math.js";
@@ -36,6 +37,9 @@ export function updateHotbar() {
     if (icon && icon.dataset.value !== iconValue) {
       icon.dataset.value = iconValue;
       icon.style.backgroundImage = iconValue;
+    }
+    if (icon) {
+      icon.classList.toggle("is-enchanted", itemId != null && Boolean(describeEnchantments(itemId)));
     }
     if (countLabel) {
       // Minecraft hides the stack size for single items and unlimited stacks.
@@ -106,6 +110,14 @@ export function getBiomeLabel() {
 export function updateHud() {
   hudLayer.classList.toggle("is-hidden", !state.hudVisible);
 
+  // Experience bar sits above the hotbar, as in Minecraft.
+  const level = getLevel();
+  xpBar.classList.toggle("is-hidden", isCreative());
+  xpFill.style.width = `${Math.round(getLevelProgress() * 100)}%`;
+  if (xpLevel.textContent !== String(level)) {
+    xpLevel.textContent = String(level);
+  }
+
   const showToastLabel = state.uiMessageTimer > 0;
   toastLabel.classList.toggle("is-visible", showToastLabel);
   if (showToastLabel && toastLabel.textContent !== state.uiMessage) {
@@ -147,7 +159,8 @@ export function updateHud() {
     `Day time: ${(state.dayTime * 24).toFixed(1)}h`;
 
   debugRight.textContent =
-    `Held: ${activeItem == null ? "Empty" : BLOCK_NAMES[activeItem]}\n` +
+    `Held: ${activeItem == null ? "Empty" : BLOCK_NAMES[activeItem]}${activeItem != null && describeEnchantments(activeItem) ? ` (${describeEnchantments(activeItem)})` : ""}\n` +
+    `XP: ${state.xp} (level ${getLevel()})\n` +
     `Target: ${state.target
       ? `${BLOCK_NAMES[state.target.block.type]} @ ${state.target.block.x} ${state.target.block.y} ${state.target.block.z}`
       : "none"}\n` +

@@ -50,6 +50,9 @@ export const BLOCKS = {
   ice: 16,
   pine_wood: 17,
   pine_leaves: 18,
+  diamond_ore: 19,
+  ancient_debris: 20,
+  enchanting_table: 21,
 };
 
 export const ITEMS = {
@@ -58,6 +61,12 @@ export const ITEMS = {
   iron_ingot: 103,
   wood_pickaxe: 104,
   stone_pickaxe: 105,
+  iron_pickaxe: 106,
+  diamond: 107,
+  diamond_pickaxe: 108,
+  netherite_scrap: 109,
+  netherite_ingot: 110,
+  netherite_pickaxe: 111,
 };
 
 export const BLOCK_NAMES = {
@@ -80,11 +89,20 @@ export const BLOCK_NAMES = {
   [BLOCKS.ice]: "Ice",
   [BLOCKS.pine_wood]: "Pine Wood",
   [BLOCKS.pine_leaves]: "Pine Leaves",
+  [BLOCKS.diamond_ore]: "Diamond Ore",
+  [BLOCKS.ancient_debris]: "Ancient Debris",
+  [BLOCKS.enchanting_table]: "Enchanting Table",
   [ITEMS.stick]: "Stick",
   [ITEMS.coal]: "Coal",
   [ITEMS.iron_ingot]: "Iron Ingot",
   [ITEMS.wood_pickaxe]: "Wood Pickaxe",
   [ITEMS.stone_pickaxe]: "Stone Pickaxe",
+  [ITEMS.iron_pickaxe]: "Iron Pickaxe",
+  [ITEMS.diamond]: "Diamond",
+  [ITEMS.diamond_pickaxe]: "Diamond Pickaxe",
+  [ITEMS.netherite_scrap]: "Netherite Scrap",
+  [ITEMS.netherite_ingot]: "Netherite Ingot",
+  [ITEMS.netherite_pickaxe]: "Netherite Pickaxe",
 };
 
 export const PLACEABLE_BLOCKS = [
@@ -105,6 +123,9 @@ export const PLACEABLE_BLOCKS = [
   BLOCKS.pine_leaves,
   BLOCKS.coal_ore,
   BLOCKS.iron_ore,
+  BLOCKS.diamond_ore,
+  BLOCKS.ancient_debris,
+  BLOCKS.enchanting_table,
 ];
 
 /** Everything the creative palette hands out, in build-menu order. */
@@ -124,13 +145,22 @@ export const CREATIVE_ITEMS = [
   BLOCKS.glass,
   BLOCKS.coal_ore,
   BLOCKS.iron_ore,
+  BLOCKS.diamond_ore,
+  BLOCKS.ancient_debris,
   BLOCKS.crafting_table,
   BLOCKS.furnace,
+  BLOCKS.enchanting_table,
   ITEMS.stick,
   ITEMS.coal,
   ITEMS.iron_ingot,
+  ITEMS.diamond,
+  ITEMS.netherite_scrap,
+  ITEMS.netherite_ingot,
   ITEMS.wood_pickaxe,
   ITEMS.stone_pickaxe,
+  ITEMS.iron_pickaxe,
+  ITEMS.diamond_pickaxe,
+  ITEMS.netherite_pickaxe,
 ];
 
 export const HOTBAR_SIZE = 9;
@@ -174,7 +204,39 @@ export const TOOL_STATS = {
   hand: { power: 0, speed: 1 },
   [ITEMS.wood_pickaxe]: { power: 1, speed: 2.8 },
   [ITEMS.stone_pickaxe]: { power: 2, speed: 4 },
+  [ITEMS.iron_pickaxe]: { power: 3, speed: 5.4 },
+  [ITEMS.diamond_pickaxe]: { power: 4, speed: 7.2 },
+  [ITEMS.netherite_pickaxe]: { power: 5, speed: 9 },
 };
+
+/** Mining tier each block demands, checked against a tool's `power`. */
+export const BLOCK_TIER = {
+  [BLOCKS.stone]: 1,
+  [BLOCKS.coal_ore]: 1,
+  [BLOCKS.bricks]: 1,
+  [BLOCKS.iron_ore]: 2,
+  [BLOCKS.furnace]: 2,
+  [BLOCKS.diamond_ore]: 3,
+  [BLOCKS.enchanting_table]: 3,
+  [BLOCKS.ancient_debris]: 4,
+};
+
+/* ------------------------------------------------------------------ *
+ * Enchanting
+ *
+ * Without per-item durability there is nothing for Unbreaking or Mending to
+ * act on, so the table offers the enchantments that do have teeth here.
+ * ------------------------------------------------------------------ */
+
+export const ENCHANTMENTS = {
+  efficiency: { name: "Efficiency", max: 5, applies: "pickaxe", blurb: "Mines faster" },
+  fortune: { name: "Fortune", max: 3, applies: "pickaxe", blurb: "Extra ore drops" },
+  protection: { name: "Protection", max: 4, applies: "armor", blurb: "Reduces damage taken" },
+  feather_falling: { name: "Feather Falling", max: 4, applies: "armor", blurb: "Softens landings" },
+};
+
+export const XP_PER_LEVEL = 12;
+export const MAX_ENCHANT_LEVEL_COST = 3;
 
 export const FACE_DEFS = [
   {

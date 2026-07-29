@@ -24,6 +24,9 @@ export function createTextureSet() {
     BLOCKS.ice,
     BLOCKS.pine_wood,
     BLOCKS.pine_leaves,
+    BLOCKS.diamond_ore,
+    BLOCKS.ancient_debris,
+    BLOCKS.enchanting_table,
   ]) {
     textures[blockType] = {
       top: new Uint8Array(16 * 16 * 3),
@@ -252,6 +255,50 @@ export function createTextureSet() {
         74 + rock * 0.25,
       ]);
 
+      // Diamond ore: cyan gems clustered in stone.
+      const gemSeed = hash3(x * 0.7, y * 0.7, 21);
+      const gem = gemSeed > 0.78 && (x + y) % 3 !== 0 ? 1 : 0;
+      for (const face of ["top", "side", "bottom"]) {
+        const shade = face === "top" ? 10 : face === "bottom" ? -10 : 0;
+        paint(textures[BLOCKS.diamond_ore][face], x, y, [
+          (gem ? 96 : 108 + shade) + rock * 0.4,
+          (gem ? 224 : 112 + shade) + rock * 0.35,
+          (gem ? 232 : 120 + shade) + rock * 0.3,
+        ]);
+      }
+
+      // Ancient debris: dark rock streaked with warm metal.
+      const debrisSeed = hash3(x * 0.5, y * 0.5, 33);
+      const streak = debrisSeed > 0.72 ? 1 : 0;
+      for (const face of ["top", "side", "bottom"]) {
+        const shade = face === "top" ? 8 : face === "bottom" ? -8 : 0;
+        paint(textures[BLOCKS.ancient_debris][face], x, y, [
+          (streak ? 120 : 62 + shade) + rock * 0.25,
+          (streak ? 86 : 50 + shade) + rock * 0.2,
+          (streak ? 74 : 48 + shade) + rock * 0.2,
+        ]);
+      }
+
+      // Enchanting table: obsidian base with a glowing top.
+      const runeSeed = hash3(x * 0.9, y * 0.9, 44);
+      const rune = runeSeed > 0.86 ? 1 : 0;
+      paint(textures[BLOCKS.enchanting_table].top, x, y, [
+        (rune ? 198 : 46) + rock * 0.2,
+        (rune ? 132 : 34) + rock * 0.15,
+        (rune ? 226 : 62) + rock * 0.2,
+      ]);
+      const clothRow = y > 11;
+      paint(textures[BLOCKS.enchanting_table].side, x, y, [
+        (clothRow ? 138 : 38) + rock * 0.2,
+        (clothRow ? 30 : 28) + rock * 0.15,
+        (clothRow ? 52 : 58) + rock * 0.2,
+      ]);
+      paint(textures[BLOCKS.enchanting_table].bottom, x, y, [
+        34 + rock * 0.2,
+        26 + rock * 0.15,
+        52 + rock * 0.2,
+      ]);
+
       const tableNoise = hash3(x, y, 12) * 14 - 7;
       const gridLine = x % 4 === 0 || y % 4 === 0 ? 20 : 0;
       paint(textures[BLOCKS.crafting_table].top, x, y, [
@@ -365,8 +412,8 @@ export function createTextureSet() {
 export function createAtlasTexture() {
   const textureSet = createTextureSet();
   const tileSize = 16;
-  const columns = 5;
-  const rows = 5;
+  const columns = 6;
+  const rows = 6;
   const atlas = document.createElement("canvas");
   atlas.width = columns * tileSize;
   atlas.height = rows * tileSize;
@@ -400,6 +447,10 @@ export function createAtlasTexture() {
     textureSet[BLOCKS.pine_wood].top,
     textureSet[BLOCKS.pine_wood].side,
     textureSet[BLOCKS.pine_leaves].side,
+    textureSet[BLOCKS.diamond_ore].side,
+    textureSet[BLOCKS.ancient_debris].side,
+    textureSet[BLOCKS.enchanting_table].top,
+    textureSet[BLOCKS.enchanting_table].side,
   ];
 
   tileData.forEach((tile, index) => {
@@ -480,6 +531,15 @@ export function getTileIndex(blockType, faceKey) {
   }
   if (blockType === BLOCKS.pine_wood) {
     return faceKey === "py" || faceKey === "ny" ? 22 : 23;
+  }
+  if (blockType === BLOCKS.diamond_ore) {
+    return 25;
+  }
+  if (blockType === BLOCKS.ancient_debris) {
+    return 26;
+  }
+  if (blockType === BLOCKS.enchanting_table) {
+    return faceKey === "py" ? 27 : 28;
   }
   return 24;
 }
