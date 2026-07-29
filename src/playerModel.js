@@ -12,12 +12,15 @@ import { camera, scene } from "./scene.js";
 import { state } from "./state.js";
 import { atlasInfo, atlasUv, getTileIndex } from "./textures.js";
 
-const SKIN = "#d8a077";
-const HAIR = "#3a2a1d";
-const SHIRT = "#3f8f8a";
-const SHIRT_DARK = "#347571";
-const PANTS = "#3c4a78";
-const SHOE = "#4a3a2a";
+/** The player's own look; NPCs pass their own palette. */
+export const DEFAULT_PALETTE = {
+  skin: "#d8a077",
+  hair: "#3a2a1d",
+  shirt: "#3f8f8a",
+  shirtDark: "#347571",
+  pants: "#3c4a78",
+  shoe: "#4a3a2a",
+};
 
 /** 16x16 canvas texture, nearest-filtered so it stays crisp and blocky. */
 function makeFaceTexture(draw) {
@@ -56,67 +59,6 @@ function plain(color) {
   });
 }
 
-const faceTexture = makeFaceTexture((ctx) => {
-  fill(ctx, SKIN);
-  speckle(ctx);
-  ctx.fillStyle = HAIR;
-  ctx.fillRect(0, 0, 16, 4);
-  ctx.fillRect(0, 4, 2, 3);
-  ctx.fillRect(14, 4, 2, 3);
-  ctx.fillStyle = "#f2f2f2";
-  ctx.fillRect(3, 7, 4, 3);
-  ctx.fillRect(9, 7, 4, 3);
-  ctx.fillStyle = "#3b6fb5";
-  ctx.fillRect(5, 8, 2, 2);
-  ctx.fillRect(9, 8, 2, 2);
-  ctx.fillStyle = "rgba(0,0,0,0.18)";
-  ctx.fillRect(3, 6, 10, 1);
-  ctx.fillStyle = "#8a5a44";
-  ctx.fillRect(6, 12, 4, 1);
-});
-
-const hairSideTexture = makeFaceTexture((ctx) => {
-  fill(ctx, SKIN);
-  speckle(ctx);
-  ctx.fillStyle = HAIR;
-  ctx.fillRect(0, 0, 16, 5);
-  ctx.fillRect(0, 5, 4, 3);
-});
-
-const hairTexture = makeFaceTexture((ctx) => {
-  fill(ctx, HAIR);
-  speckle(ctx, 0.08);
-});
-
-const shirtFrontTexture = makeFaceTexture((ctx) => {
-  fill(ctx, SHIRT);
-  speckle(ctx);
-  ctx.fillStyle = SHIRT_DARK;
-  ctx.fillRect(0, 0, 16, 2);
-  ctx.fillRect(7, 2, 2, 14);
-  ctx.fillStyle = SKIN;
-  ctx.fillRect(5, 0, 6, 2);
-});
-
-const sleeveTexture = makeFaceTexture((ctx) => {
-  fill(ctx, SHIRT);
-  speckle(ctx);
-  ctx.fillStyle = SKIN;
-  ctx.fillRect(0, 11, 16, 5);
-});
-
-const shoeTexture = makeFaceTexture((ctx) => {
-  fill(ctx, PANTS);
-  speckle(ctx);
-  ctx.fillStyle = SHOE;
-  ctx.fillRect(0, 10, 16, 6);
-});
-
-const shirtTexture = plain(SHIRT);
-const shirtSideTexture = plain(SHIRT_DARK);
-const skinTexture = plain(SKIN);
-const pantsTexture = plain(PANTS);
-
 const lambert = (map) => new THREE.MeshLambertMaterial({ map });
 
 /** BoxGeometry material order is +x, -x, +y, -y, +z, -z. */
@@ -124,41 +66,114 @@ function boxMaterials({ right, left, top, bottom, front, back }) {
   return [right, left, top, bottom, front, back].map(lambert);
 }
 
-const headMaterials = boxMaterials({
-  right: hairSideTexture,
-  left: hairSideTexture,
-  top: hairTexture,
-  bottom: skinTexture,
-  front: faceTexture,
-  back: hairTexture,
-});
+const materialCache = new Map();
 
-const bodyMaterials = boxMaterials({
-  right: shirtSideTexture,
-  left: shirtSideTexture,
-  top: shirtTexture,
-  bottom: pantsTexture,
-  front: shirtFrontTexture,
-  back: shirtTexture,
-});
+/** Builds (and caches) the six-sided material sets for one look. */
+function getCharacterMaterials(palette) {
+  const key = Object.values(palette).join("|");
+  if (materialCache.has(key)) {
+    return materialCache.get(key);
+  }
+  const { skin, hair, shirt, shirtDark, pants, shoe } = palette;
 
-const armMaterials = boxMaterials({
-  right: sleeveTexture,
-  left: sleeveTexture,
-  top: shirtTexture,
-  bottom: skinTexture,
-  front: sleeveTexture,
-  back: sleeveTexture,
-});
+  const faceTexture = makeFaceTexture((ctx) => {
+    fill(ctx, skin);
+    speckle(ctx);
+    ctx.fillStyle = hair;
+    ctx.fillRect(0, 0, 16, 4);
+    ctx.fillRect(0, 4, 2, 3);
+    ctx.fillRect(14, 4, 2, 3);
+    ctx.fillStyle = "#f2f2f2";
+    ctx.fillRect(3, 7, 4, 3);
+    ctx.fillRect(9, 7, 4, 3);
+    ctx.fillStyle = palette.eyes ?? "#3b6fb5";
+    ctx.fillRect(5, 8, 2, 2);
+    ctx.fillRect(9, 8, 2, 2);
+    ctx.fillStyle = "rgba(0,0,0,0.18)";
+    ctx.fillRect(3, 6, 10, 1);
+    ctx.fillStyle = "#8a5a44";
+    ctx.fillRect(6, 12, 4, 1);
+  });
 
-const legMaterials = boxMaterials({
-  right: shoeTexture,
-  left: shoeTexture,
-  top: pantsTexture,
-  bottom: plain(SHOE),
-  front: shoeTexture,
-  back: shoeTexture,
-});
+  const hairSideTexture = makeFaceTexture((ctx) => {
+    fill(ctx, skin);
+    speckle(ctx);
+    ctx.fillStyle = hair;
+    ctx.fillRect(0, 0, 16, 5);
+    ctx.fillRect(0, 5, 4, 3);
+  });
+
+  const hairTexture = makeFaceTexture((ctx) => {
+    fill(ctx, hair);
+    speckle(ctx, 0.08);
+  });
+
+  const shirtFrontTexture = makeFaceTexture((ctx) => {
+    fill(ctx, shirt);
+    speckle(ctx);
+    ctx.fillStyle = shirtDark;
+    ctx.fillRect(0, 0, 16, 2);
+    ctx.fillRect(7, 2, 2, 14);
+    ctx.fillStyle = skin;
+    ctx.fillRect(5, 0, 6, 2);
+  });
+
+  const sleeveTexture = makeFaceTexture((ctx) => {
+    fill(ctx, shirt);
+    speckle(ctx);
+    ctx.fillStyle = skin;
+    ctx.fillRect(0, 11, 16, 5);
+  });
+
+  const shoeTexture = makeFaceTexture((ctx) => {
+    fill(ctx, pants);
+    speckle(ctx);
+    ctx.fillStyle = shoe;
+    ctx.fillRect(0, 10, 16, 6);
+  });
+
+  const shirtTexture = plain(shirt);
+  const shirtSideTexture = plain(shirtDark);
+  const skinTexture = plain(skin);
+  const pantsTexture = plain(pants);
+
+  const materials = {
+    head: boxMaterials({
+      right: hairSideTexture,
+      left: hairSideTexture,
+      top: hairTexture,
+      bottom: skinTexture,
+      front: faceTexture,
+      back: hairTexture,
+    }),
+    body: boxMaterials({
+      right: shirtSideTexture,
+      left: shirtSideTexture,
+      top: shirtTexture,
+      bottom: pantsTexture,
+      front: shirtFrontTexture,
+      back: shirtTexture,
+    }),
+    arm: boxMaterials({
+      right: sleeveTexture,
+      left: sleeveTexture,
+      top: shirtTexture,
+      bottom: skinTexture,
+      front: sleeveTexture,
+      back: sleeveTexture,
+    }),
+    leg: boxMaterials({
+      right: shoeTexture,
+      left: shoeTexture,
+      top: pantsTexture,
+      bottom: plain(shoe),
+      front: shoeTexture,
+      back: shoeTexture,
+    }),
+  };
+  materialCache.set(key, materials);
+  return materials;
+}
 
 export const playerGeometry = {
   head: new THREE.BoxGeometry(0.46, 0.46, 0.46),
@@ -198,7 +213,8 @@ function createLimb(geometry, materials, pivotX, pivotY) {
   return pivot;
 }
 
-function createPlayerModel() {
+export function createCharacterModel(palette = DEFAULT_PALETTE) {
+  const materials = getCharacterMaterials(palette);
   const root = new THREE.Group();
 
   // Torso pivots at the hips so sneaking can hunch the whole upper body.
@@ -206,23 +222,23 @@ function createPlayerModel() {
   torso.position.set(0, 0.7, 0);
   root.add(torso);
 
-  const body = new THREE.Mesh(playerGeometry.body, bodyMaterials);
+  const body = new THREE.Mesh(playerGeometry.body, materials.body);
   body.position.set(0, 0.35, 0);
   torso.add(body);
 
   const headPivot = new THREE.Group();
   headPivot.position.set(0, 0.7, 0);
-  const head = new THREE.Mesh(playerGeometry.head, headMaterials);
+  const head = new THREE.Mesh(playerGeometry.head, materials.head);
   head.position.y = 0.23;
   headPivot.add(head);
   torso.add(headPivot);
 
-  const leftArm = createLimb(playerGeometry.arm, armMaterials, -0.35, 0.7);
-  const rightArm = createLimb(playerGeometry.arm, armMaterials, 0.35, 0.7);
+  const leftArm = createLimb(playerGeometry.arm, materials.arm, -0.35, 0.7);
+  const rightArm = createLimb(playerGeometry.arm, materials.arm, 0.35, 0.7);
   torso.add(leftArm, rightArm);
 
-  const leftLeg = createLimb(playerGeometry.leg, legMaterials, -0.13, 0.7);
-  const rightLeg = createLimb(playerGeometry.leg, legMaterials, 0.13, 0.7);
+  const leftLeg = createLimb(playerGeometry.leg, materials.leg, -0.13, 0.7);
+  const rightLeg = createLimb(playerGeometry.leg, materials.leg, 0.13, 0.7);
   root.add(leftLeg, rightLeg);
 
   const armorMeshes = {
@@ -263,8 +279,32 @@ function createPlayerModel() {
   return root;
 }
 
-export const playerModel = createPlayerModel();
+export const playerModel = createCharacterModel();
 scene.add(playerModel);
+
+/**
+ * Poses a character's limbs. Shared by the player avatar and the NPCs so they
+ * walk, sneak and swing identically.
+ */
+export function animateCharacter(parts, { stride = 0, pitch = 0, lean = 0, swing = 0, flying = false }) {
+  parts.torso.rotation.x = lean;
+  parts.headPivot.rotation.x = -pitch - lean;
+
+  if (flying) {
+    parts.leftArm.rotation.set(-0.5, 0, 0.35);
+    parts.rightArm.rotation.set(-0.5, 0, -0.35);
+    parts.leftLeg.rotation.x = 0.3;
+    parts.rightLeg.rotation.x = 0.15;
+  } else {
+    parts.leftArm.rotation.set(stride, 0, 0);
+    parts.rightArm.rotation.set(-stride, 0, 0);
+    parts.leftLeg.rotation.x = -stride;
+    parts.rightLeg.rotation.x = stride;
+  }
+  if (swing > 0) {
+    parts.rightArm.rotation.x -= Math.sin(clamp(swing, 0, 1) * PI) * 1.5;
+  }
+}
 
 /* ------------------------------------------------------------------ *
  * Held item
@@ -394,28 +434,18 @@ export function updatePlayerModel() {
   const sneaking = state.sneaking && !state.flying;
 
   playerModel.position.set(player.x, player.y - (sneaking ? 0.12 : 0), player.z);
-  playerModel.rotation.y = player.yaw;
+  // The face is on the model's +Z side, but the player's forward vector is
+  // (-sin yaw, -cos yaw), i.e. -Z. Without the half turn he walks backwards.
+  playerModel.rotation.y = player.yaw + PI;
 
   // Sneaking hunches the torso forward; flight tips it back a little.
-  parts.torso.rotation.x = sneaking ? 0.45 : state.flying ? -0.12 : 0;
-  parts.headPivot.rotation.x = -player.pitch - parts.torso.rotation.x;
-
-  if (state.flying) {
-    parts.leftArm.rotation.set(-0.5, 0, 0.35);
-    parts.rightArm.rotation.set(-0.5, 0, -0.35);
-    parts.leftLeg.rotation.x = 0.3;
-    parts.rightLeg.rotation.x = 0.15;
-  } else {
-    parts.leftArm.rotation.set(stride, 0, 0);
-    parts.rightArm.rotation.set(-stride, 0, 0);
-    parts.leftLeg.rotation.x = -stride;
-    parts.rightLeg.rotation.x = stride;
-  }
-
-  // Mining and placing swing the tool arm.
-  if (state.armSwing > 0) {
-    parts.rightArm.rotation.x -= Math.sin(clamp(state.armSwing, 0, 1) * PI) * 1.5;
-  }
+  animateCharacter(parts, {
+    stride,
+    pitch: player.pitch,
+    lean: sneaking ? 0.45 : state.flying ? -0.12 : 0,
+    swing: state.armSwing,
+    flying: state.flying,
+  });
 
   syncArmor(parts);
   syncHeldItem(parts.heldAnchor, heldItem);
