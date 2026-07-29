@@ -352,11 +352,18 @@ body:not(.is-playing) .hud-layer {
   position: absolute;
   inset: 0;
   display: grid;
-  place-items: center;
+  /* Start-aligned with auto margins: centred when it fits, scrollable from
+     the top when it does not, rather than clipped at both ends. */
+  justify-items: center;
+  align-items: start;
   padding: 24px;
   overflow: auto;
   background: linear-gradient(180deg, rgba(6, 9, 14, 0.55), rgba(6, 9, 14, 0.78));
   animation: screen-in 0.18s ease;
+}
+
+.screen > * {
+  margin-block: auto;
 }
 
 .screen.is-hidden {
@@ -1897,4 +1904,77 @@ body.is-touch .item-name {
 /* Where this portal currently points. */
 .portal-option.is-active {
   background: linear-gradient(180deg, #8a6ec8 0%, #6a4fae 48%, #5f45a1 50%, #4e3688 100%);
+}
+
+/* ------------------------------------------------------------------ *
+ * Title screen byline
+ * ------------------------------------------------------------------ */
+
+.made-by {
+  margin: 14px 0 0;
+  text-align: center;
+  font-size: 14px;
+  color: var(--muted);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6);
+}
+
+.made-by strong {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.made-by span {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+/* Short windows: the title screen has a lot on it, so it tightens up. */
+@media (max-height: 780px) {
+  .game-title {
+    font-size: clamp(2.1rem, 7.5vw, 3.6rem);
+  }
+
+  .brand {
+    margin-bottom: 2px;
+  }
+
+  .splash {
+    /* The wordmark shrinks but the splash still sits under it, not on it. */
+    margin-top: 12px;
+  }
+
+  .menu-buttons {
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .made-by {
+    margin-top: 8px;
+  }
+
+  .menu-hint {
+    margin-top: 8px;
+    line-height: 1.7;
+  }
+}
+
+@media (max-height: 620px) {
+  .menu-hint {
+    display: none;
+  }
+
+  .made-by span {
+    display: inline;
+    margin-left: 4px;
+  }
+}
+
+/* The corner notes are absolutely positioned, so narrow screens need the
+   byline to keep clear of them. */
+@media (max-width: 620px) {
+  .made-by {
+    margin-bottom: 32px;
+  }
 }
