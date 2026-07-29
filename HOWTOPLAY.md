@@ -191,7 +191,8 @@ yourself somewhere. Right-click any lit portal to send it somewhere else instead
 Break a frame block and the portal goes out. Build it again to relight it.
 
 > The Ember Deep is under a hill, so its portal drops you inside the cavern rather than on
-> top. Mind the lava.
+> top. **Lava burns** — it takes a heart every second you stand in it, and the pools are only
+> one block deep, so step straight back out and you will be fine.
 
 ---
 

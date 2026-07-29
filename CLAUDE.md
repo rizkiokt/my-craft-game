@@ -323,8 +323,12 @@ The held item is a cube with atlas UVs for blocks, or a flat quad using the item
 ### Health, damage and armour
 
 `src/combat.js` owns hearts, air, armour and every damage source. `updateVitals(dt)` runs
-from the loop and handles fall tracking, drowning and regeneration; `damagePlayer()` is the
-only way health goes down and applies armour reduction unless `ignoreArmor` is set.
+from the loop and handles fall tracking, drowning, lava and regeneration; `damagePlayer()` is
+the only way health goes down and applies armour reduction unless `ignoreArmor` is set.
+
+Lava burns on a timer rather than all at once, and its pools generate one block deep, so
+walking into one in the Ember Deep is a fright rather than a death. `getSurfaceData()` skips
+lava along with water, so nothing is ever placed standing on top of a pool.
 
 Worn pieces live in `state.armor` keyed by slot, and `ARMOR_ITEMS` in `constants.js` maps
 each item to its slot, defence points and tier colour. Reduction is 4% per point capped at

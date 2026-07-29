@@ -36,6 +36,7 @@ export const state = {
   armSwing: 0,
   regenTimer: 0,
   drownTimer: 0,
+  burnTimer: 0,
   xp: 0,
   enchantments: {},
   enchantTarget: null,

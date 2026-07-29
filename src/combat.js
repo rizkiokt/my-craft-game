@@ -6,6 +6,8 @@ import {
   ARMOR_SLOTS,
   BLOCKS,
   DROWN_INTERVAL,
+  LAVA_DAMAGE,
+  LAVA_INTERVAL,
   MAX_AIR,
   MAX_ARMOR_REDUCTION,
   MAX_HEALTH,
@@ -131,6 +133,15 @@ function isHeadUnderwater() {
   ) === BLOCKS.water;
 }
 
+/** True when you are standing in lava. Pools are one block deep, so you can walk out. */
+function isStandingInLava() {
+  return world.getBlock(
+    Math.floor(state.player.x),
+    Math.floor(state.player.y + 0.1),
+    Math.floor(state.player.z),
+  ) === BLOCKS.lava;
+}
+
 /**
  * Fall damage, Minecraft's formula: one heart per block past three, softened
  * by Feather Falling. Called with the height the fall started from.
@@ -190,6 +201,20 @@ export function updateVitals(dt) {
   } else {
     state.air = Math.min(MAX_AIR, state.air + dt * 4);
     state.drownTimer = 0;
+  }
+
+  // Lava burns steadily rather than all at once, so there is time to climb
+  // back out of a pool you walked into.
+  if (isStandingInLava()) {
+    state.burnTimer += dt;
+    if (state.burnTimer >= LAVA_INTERVAL) {
+      state.burnTimer = 0;
+      damagePlayer(LAVA_DAMAGE, { cause: "the lava" });
+      state.uiMessage = "That is hot! Get out of the lava";
+      state.uiMessageTimer = 1.2;
+    }
+  } else {
+    state.burnTimer = 0;
   }
 
   // Regeneration once nothing has hurt you recently.

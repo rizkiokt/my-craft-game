@@ -845,7 +845,10 @@ export function getSurfaceData(x, z) {
   const ceiling = Math.min(MAX_BUILD_HEIGHT, world.getHeightAt(wx, wz) + 12);
   for (let y = ceiling; y >= MIN_WORLD_Y; y--) {
     const blockType = world.getBlock(wx, y, wz);
-    if (blockType !== BLOCKS.air && blockType !== BLOCKS.water && blockType !== BLOCKS.leaves) {
+    // Lava is skipped along with water: nothing should be put down standing
+    // on top of a pool it would sink straight into.
+    if (blockType !== BLOCKS.air && blockType !== BLOCKS.water
+      && blockType !== BLOCKS.leaves && blockType !== BLOCKS.lava) {
       return { x: wx, y: y + 1, z: wz, blockType };
     }
   }

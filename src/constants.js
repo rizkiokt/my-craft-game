@@ -217,6 +217,9 @@ export const SAFE_FALL_DISTANCE = 3;
 export const REGEN_DELAY = 5;
 export const REGEN_INTERVAL = 1.6;
 export const DROWN_INTERVAL = 1.2;
+/** Lava hurts steadily rather than instantly, so a pool is escapable. */
+export const LAVA_INTERVAL = 1;
+export const LAVA_DAMAGE = 2;
 export const ARMOR_REDUCTION_PER_POINT = 0.04;
 export const MAX_ARMOR_REDUCTION = 0.8;
 
