@@ -386,6 +386,18 @@ export const TABLE_RECIPES = [
     description: "Drive it. Right-click to get in, shift to get out, right-click again to honk.",
   },
   {
+    id: "truck",
+    output: ITEMS.truck,
+    count: 1,
+    pattern: [
+      [ITEMS.coal, null, ITEMS.coal],
+      [null, ITEMS.car, null],
+      [ITEMS.coal, null, ITEMS.coal],
+    ],
+    ingredients: { [ITEMS.car]: 1, [ITEMS.coal]: 4 },
+    description: "Four big tyres on a car. Climbs two blocks, and jumps.",
+  },
+  {
     id: "super_duper_tnt",
     output: BLOCKS.super_duper_tnt,
     count: 1,

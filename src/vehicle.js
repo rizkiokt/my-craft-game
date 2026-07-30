@@ -1,31 +1,27 @@
-// A car you can build, park, and drive.
+// Things you can build, park, and drive.
 //
-// It is the only thing in the game that moves you without your feet, so the
-// rules are deliberately forgiving: it climbs a whole block rather than
-// stopping at a kerb, it floats instead of sinking, and it cannot hurt
-// anybody. Driving off a cliff is free — the car takes the landing, you do
-// not — because a car that could kill you would be the one thing in here that
-// fights back.
+// Two of them: a car and a monster truck. They are one set of physics driven
+// by a `VEHICLE_KINDS` entry, the same way the eight charges are one blast
+// driven by a `BLAST_KINDS` entry — a third would be a table row rather than
+// another file.
+//
+// The rules are deliberately forgiving. They climb rather than stop, they
+// float instead of sinking, and they cannot hurt anybody. Driving off a cliff
+// is free — the vehicle takes the landing, you do not — because something you
+// drive that could kill you would be the one thing in here that fights back.
 
 import * as THREE from "../node_modules/three/build/three.module.js";
 import { isActionDown } from "./bindings.js";
 import { markDone } from "./book.js";
 import {
   BLOCKS,
-  CAR_ACCEL,
-  CAR_BRAKE,
   CAR_COLORS,
   CAR_FLOAT,
-  CAR_HEIGHT,
-  CAR_MAX_SPEED,
-  CAR_RADIUS,
-  CAR_REVERSE_SPEED,
-  CAR_SEAT_HEIGHT,
-  CAR_STEER,
-  CAR_STEP,
   GRAVITY,
   MAX_WORLD_Y,
   MIN_WORLD_Y,
+  VEHICLE_BY_ID,
+  VEHICLE_KINDS,
 } from "./constants.js";
 import { clamp } from "./math.js";
 import { npcs } from "./npcs.js";
@@ -35,48 +31,83 @@ import { soundEngine } from "./sound.js";
 import { state } from "./state.js";
 import { world } from "./world.js";
 
+const DEFAULT_KIND = VEHICLE_KINDS[Object.keys(VEHICLE_KINDS)[0]];
+
+/** Shortest gap between two bounces. Long enough not to double-fire. */
+const JUMP_COOLDOWN = 0.28;
+
+function specFor(car) {
+  return VEHICLE_BY_ID[car.kind] ?? DEFAULT_KIND;
+}
+
 const box = (w, h, d, color) => new THREE.Mesh(
   new THREE.BoxGeometry(w, h, d),
   new THREE.MeshLambertMaterial({ color }),
 );
 
 /**
- * Boxes, like everything else with a body in this game. The car points down
- * -z when its yaw is 0, which is the same direction the camera looks at yaw 0,
+ * Boxes, like everything else with a body in this game, with every dimension
+ * worked out from the kind's wheel size and ride height — so the truck is the
+ * same drawing sitting much higher on much bigger tyres.
+ *
+ * A vehicle points down -z at yaw 0, which is where the camera looks at yaw 0,
  * so "forwards" means the same thing for both.
  */
-function createCarModel(color) {
+function createVehicleModel(spec, color) {
   const group = new THREE.Group();
   const dark = new THREE.Color(color).multiplyScalar(0.62).getHex();
+  const width = spec.radius * 2.18;
+  const length = spec.radius * 3.45;
+  const axle = spec.wheel * 0.5;
+  const floor = axle + spec.lift;
 
-  const chassis = box(1.7, 0.5, 2.7, color);
-  chassis.position.y = 0.52;
+  const chassis = box(width, 0.5, length, color);
+  chassis.position.y = floor + 0.25;
   group.add(chassis);
 
-  const cabin = box(1.42, 0.52, 1.25, dark);
-  cabin.position.set(0, 1.0, 0.1);
+  const cabin = box(width * 0.84, 0.52, length * 0.46, dark);
+  cabin.position.set(0, floor + 0.75, length * 0.04);
   group.add(cabin);
 
-  const windscreen = box(1.3, 0.34, 0.08, 0x9fd4ea);
-  windscreen.position.set(0, 1.03, -0.52);
+  const windscreen = box(width * 0.76, 0.34, 0.08, 0x9fd4ea);
+  windscreen.position.set(0, floor + 0.78, -length * 0.19);
   group.add(windscreen);
 
-  const bonnet = box(1.6, 0.22, 0.9, color);
-  bonnet.position.set(0, 0.72, -1.0);
+  const bonnet = box(width * 0.94, 0.22, length * 0.33, color);
+  bonnet.position.set(0, floor + 0.47, -length * 0.37);
   group.add(bonnet);
 
   for (const side of [-1, 1]) {
     for (const end of [-1, 1]) {
-      const wheel = box(0.3, 0.62, 0.62, 0x1d1f24);
-      wheel.position.set(side * 0.87, 0.32, end * 0.92);
+      const wheel = box(spec.wheel * 0.48, spec.wheel, spec.wheel, 0x1d1f24);
+      wheel.position.set(side * (width * 0.5 + 0.03), axle, end * length * 0.34);
       group.add(wheel);
+      // A pale hub, or a big tyre reads as a black slab rather than a wheel.
+      const hub = box(spec.wheel * 0.54, spec.wheel * 0.34, spec.wheel * 0.34, 0xb9c0cb);
+      hub.position.copy(wheel.position);
+      group.add(hub);
     }
     const lamp = box(0.26, 0.2, 0.1, 0xfff2c4);
-    lamp.position.set(side * 0.52, 0.66, -1.44);
+    lamp.position.set(side * width * 0.3, floor + 0.42, -length * 0.53);
     group.add(lamp);
     const tail = box(0.24, 0.18, 0.1, 0xd8402c);
-    tail.position.set(side * 0.56, 0.7, 1.36);
+    tail.position.set(side * width * 0.33, floor + 0.45, length * 0.5);
     group.add(tail);
+  }
+
+  // The roll bar and spotlights are most of what makes a truck read as one.
+  if (spec.rollBar) {
+    for (const side of [-1, 1]) {
+      const post = box(0.14, 0.8, 0.14, 0xd2d7de);
+      post.position.set(side * width * 0.36, floor + 1.1, length * 0.22);
+      group.add(post);
+      const spot = box(0.2, 0.2, 0.14, 0xfff2c4);
+      spot.position.set(side * width * 0.2, floor + 1.48, length * 0.14);
+      group.add(spot);
+    }
+    const bar = box(width * 0.8, 0.14, 0.14, 0xd2d7de);
+    bar.position.set(0, floor + 1.48, length * 0.22);
+    group.add(bar);
   }
   return group;
 }
@@ -88,14 +119,16 @@ export class CarManager {
     this.models = new Map();
   }
 
-  /** Puts a new car on the ground and hands it back. */
-  spawn(x, y, z, yaw = 0, color = null) {
+  /** Puts a new vehicle on the ground and hands it back. */
+  spawn(x, y, z, yaw = 0, kind = "car", color = null) {
     const car = {
       id: state.nextCarId++,
+      kind: VEHICLE_BY_ID[kind] ? kind : "car",
       x, y, z, yaw,
       speed: 0,
       vy: 0,
       onGround: false,
+      jumpTimer: 0,
       color: color ?? CAR_COLORS[Math.floor(Math.random() * CAR_COLORS.length)],
     };
     state.cars.push(car);
@@ -104,8 +137,8 @@ export class CarManager {
   }
 
   attach(car) {
-    const model = createCarModel(car.color);
-    // Lets a raycast hit find its way back to the car it belongs to.
+    const model = createVehicleModel(specFor(car), car.color);
+    // Lets a raycast hit find its way back to the vehicle it belongs to.
     model.userData.car = car;
     model.position.set(car.x, car.y, car.z);
     model.rotation.y = car.yaw;
@@ -128,7 +161,7 @@ export class CarManager {
     }
   }
 
-  /** Which car the crosshair is on, if any. */
+  /** Which vehicle the crosshair is on, if any. */
   raycast(raycaster, maxDistance) {
     const hits = raycaster.intersectObjects(this.root.children, true);
     for (const hit of hits) {
@@ -148,7 +181,7 @@ export class CarManager {
 
   serialize() {
     return state.cars.map((car) => ({
-      x: car.x, y: car.y, z: car.z, yaw: car.yaw, color: car.color,
+      x: car.x, y: car.y, z: car.z, yaw: car.yaw, kind: car.kind, color: car.color,
     }));
   }
 
@@ -157,7 +190,8 @@ export class CarManager {
       this.remove(car);
     }
     for (const entry of list ?? []) {
-      this.spawn(entry.x, entry.y, entry.z, entry.yaw ?? 0, entry.color);
+      // Saves from before there was more than one kind carry no `kind` field.
+      this.spawn(entry.x, entry.y, entry.z, entry.yaw ?? 0, entry.kind ?? "car", entry.color);
     }
   }
 
@@ -178,23 +212,46 @@ export class CarManager {
     if (state.drivingCar) {
       sitInSeat(state.drivingCar);
     }
-    soundEngine.engine(Boolean(state.drivingCar), Math.abs(state.drivingCar?.speed ?? 0) / CAR_MAX_SPEED);
+    const driven = state.drivingCar;
+    soundEngine.engine(
+      Boolean(driven),
+      driven ? Math.abs(driven.speed) / specFor(driven).maxSpeed : 0,
+    );
   }
 }
 
 export const cars = new CarManager();
 
-/** True if a car-sized box at this spot would be inside the world. */
-function carBlocked(x, y, z) {
+/** True if a vehicle-sized box at this spot would be inside the world. */
+function carBlocked(spec, x, y, z) {
   if (y < MIN_WORLD_Y || y > MAX_WORLD_Y) {
     return true;
   }
-  for (const [ox, oz] of [[-CAR_RADIUS, -CAR_RADIUS], [CAR_RADIUS, -CAR_RADIUS],
-    [-CAR_RADIUS, CAR_RADIUS], [CAR_RADIUS, CAR_RADIUS], [0, 0]]) {
-    for (let dy = 0.1; dy < CAR_HEIGHT; dy += 0.55) {
+  const r = spec.radius;
+  for (const [ox, oz] of [[-r, -r], [r, -r], [-r, r], [r, r], [0, 0]]) {
+    for (let dy = 0.1; dy < spec.height; dy += 0.55) {
       if (world.isSolid(Math.floor(x + ox), Math.floor(y + dy), Math.floor(z + oz))) {
         return true;
       }
+    }
+  }
+  return false;
+}
+
+/**
+ * Whether there is ground directly under the wheels.
+ *
+ * This is a separate test from `carBlocked`, which samples the *body* from
+ * just above the floor upwards and so can never see what is underneath. Using
+ * it for the downward move let a vehicle sink half a block before it caught,
+ * then snap back — which read as a wobble and, worse, meant `onGround` was
+ * false on most frames.
+ */
+function groundBelow(spec, x, y, z) {
+  const r = spec.radius;
+  for (const [ox, oz] of [[-r, -r], [r, -r], [-r, r], [r, r], [0, 0]]) {
+    if (world.isSolid(Math.floor(x + ox), Math.floor(y - 0.05), Math.floor(z + oz))) {
+      return true;
     }
   }
   return false;
@@ -210,36 +267,52 @@ function drive(car, dt) {
     leaveCar();
     return;
   }
+  const spec = specFor(car);
   const throttle = (isActionDown("forward") ? 1 : 0) - (isActionDown("back") ? 1 : 0);
   const steer = (isActionDown("left") ? 1 : 0) - (isActionDown("right") ? 1 : 0);
   const floating = inWater(car);
 
   if (throttle > 0) {
-    car.speed += CAR_ACCEL * dt * (floating ? 0.45 : 1);
+    car.speed += spec.accel * dt * (floating ? 0.45 : 1);
   } else if (throttle < 0) {
-    car.speed -= (car.speed > 0 ? CAR_BRAKE : CAR_ACCEL) * dt;
+    car.speed -= (car.speed > 0 ? spec.brake : spec.accel) * dt;
   } else {
     car.speed *= Math.exp(-dt * 1.4);
   }
-  car.speed = clamp(car.speed, -CAR_REVERSE_SPEED, floating ? CAR_MAX_SPEED * 0.5 : CAR_MAX_SPEED);
+  car.speed = clamp(car.speed, -spec.reverse, floating ? spec.maxSpeed * 0.5 : spec.maxSpeed);
 
   const bite = clamp(Math.abs(car.speed) / 2.5, 0, 1) * Math.sign(car.speed || 1);
-  const turn = steer * CAR_STEER * bite * dt;
+  const turn = steer * spec.steer * bite * dt;
   car.yaw += turn;
-  // The view swings round with the car, so you keep facing where you are
+  // The view swings round with the vehicle, so you keep facing where you are
   // going without having to steer with the mouse as well.
   state.player.yaw += turn;
+
+  // Hold the jump key and it bounces every time the wheels touch down, which
+  // is the whole point of a monster truck. Gated on a short cooldown rather
+  // than on the key edge: an edge meant that pressing jump a moment before
+  // landing did nothing at all, and then you had to let go and press again.
+  car.jumpTimer = Math.max(0, car.jumpTimer - dt);
+  if (spec.jump && isActionDown("jump") && car.onGround && car.jumpTimer <= 0) {
+    car.vy = spec.jump;
+    car.onGround = false;
+    car.jumpTimer = JUMP_COOLDOWN;
+    soundEngine.jump();
+    spawnParticles(car.x, car.y + 0.2, car.z, BLOCKS.dirt, 8, 1.4);
+    markDone("truckjump");
+  }
 }
 
-/** One frame of car movement: forwards, then down. */
+/** One frame of movement: forwards, then down. */
 function stepCar(car, dt) {
+  const spec = specFor(car);
   if (Math.abs(car.speed) > 0.01) {
     const dx = -Math.sin(car.yaw) * car.speed * dt;
     const dz = -Math.cos(car.yaw) * car.speed * dt;
     if (state.drivingCar === car) {
       state.stats.driven += Math.hypot(dx, dz);
     }
-    if (!slide(car, dx, dz) && Math.abs(car.speed) > 3.5) {
+    if (!slide(car, spec, dx, dz) && Math.abs(car.speed) > 3.5) {
       spawnParticles(car.x, car.y + 0.6, car.z, BLOCKS.stone, 6, 1.6);
       soundEngine.land(6);
     }
@@ -253,11 +326,18 @@ function stepCar(car, dt) {
   }
 
   const ny = car.y + car.vy * dt;
-  if (car.vy <= 0 && carBlocked(car.x, ny, car.z)) {
-    car.y = Math.floor(ny) + 1;
-    car.vy = 0;
+  if (car.vy <= 0 && groundBelow(spec, car.x, ny, car.z)) {
+    const landing = car.vy;
+    car.y = Math.floor(ny - 0.05) + 1;
     car.onGround = true;
-  } else if (car.vy > 0 && carBlocked(car.x, ny, car.z)) {
+    // Big tyres bounce. Only off a real drop, and each bounce is a fifth of
+    // the one before, so it settles instead of pogoing forever.
+    car.vy = spec.jump && landing < -11 ? -landing * 0.2 : 0;
+    if (landing < -11) {
+      spawnParticles(car.x, car.y + 0.1, car.z, BLOCKS.dirt, 8, 1.2);
+      soundEngine.land(-landing);
+    }
+  } else if (car.vy > 0 && carBlocked(spec, car.x, ny, car.z)) {
     car.vy = 0;
   } else {
     car.y = ny;
@@ -266,23 +346,26 @@ function stepCar(car, dt) {
 }
 
 /**
- * Moves the car, climbing a kerb if there is one and sliding along a wall it
- * cannot get past. Returns false only if it is properly stuck.
+ * Moves the vehicle, climbing a ledge if there is one and sliding along a wall
+ * it cannot get past. Returns false only if it is properly stuck.
  */
-function slide(car, dx, dz) {
+function slide(car, spec, dx, dz) {
   const tryMove = (nx, nz) => {
-    if (!carBlocked(nx, car.y, nz)) {
+    if (!carBlocked(spec, nx, car.y, nz)) {
       car.x = nx;
       car.z = nz;
       return true;
     }
-    // A whole block, not a step: kerbs, garden walls and the odd staircase
-    // should all be driveable, or a car is useless anywhere you have built.
-    if (car.onGround && !carBlocked(nx, car.y + CAR_STEP, nz)) {
-      car.x = nx;
-      car.z = nz;
-      car.y += CAR_STEP;
-      return true;
+    // Whole blocks, not steps: kerbs, garden walls and the odd staircase have
+    // to be driveable or a vehicle is useless anywhere you have built. The
+    // truck's bigger wheels take twice as much.
+    for (let rise = 1; rise <= spec.step; rise++) {
+      if (car.onGround && !carBlocked(spec, nx, car.y + rise, nz)) {
+        car.x = nx;
+        car.z = nz;
+        car.y += rise;
+        return true;
+      }
     }
     return false;
   };
@@ -301,13 +384,13 @@ function slide(car, dx, dz) {
 function sitInSeat(car) {
   const player = state.player;
   player.x = car.x;
-  player.y = car.y + CAR_SEAT_HEIGHT;
+  player.y = car.y + specFor(car).seat;
   player.z = car.z;
   player.vx = 0;
   player.vy = 0;
   player.vz = 0;
   player.onGround = true;
-  // However far it just fell, the landing is the car's problem.
+  // However far it just fell, the landing is the vehicle's problem.
   state.fallStartY = null;
 }
 
@@ -315,14 +398,21 @@ export function isDriving() {
   return state.drivingCar !== null;
 }
 
+export function vehicleName(car) {
+  return specFor(car).name;
+}
+
 export function enterCar(car) {
   state.drivingCar = car;
   state.flying = false;
+  // A beat before the first bounce, so getting in with jump already held does
+  // not launch you the instant you sit down.
+  car.jumpTimer = JUMP_COOLDOWN;
   soundEngine.horn();
   return car;
 }
 
-/** Steps out onto whichever side of the car is clear. */
+/** Steps out onto whichever side is clear. */
 export function leaveCar() {
   const car = state.drivingCar;
   if (!car) {
@@ -331,9 +421,10 @@ export function leaveCar() {
   state.drivingCar = null;
   car.speed = 0;
   const player = state.player;
+  const reach = specFor(car).radius + 0.8;
   for (const angle of [Math.PI / 2, -Math.PI / 2, Math.PI, 0]) {
-    const x = car.x + Math.sin(car.yaw + angle) * 1.6;
-    const z = car.z + Math.cos(car.yaw + angle) * 1.6;
+    const x = car.x + Math.sin(car.yaw + angle) * reach;
+    const z = car.z + Math.cos(car.yaw + angle) * reach;
     if (!world.isSolid(Math.floor(x), Math.floor(car.y + 0.5), Math.floor(z))) {
       player.x = x;
       player.z = z;

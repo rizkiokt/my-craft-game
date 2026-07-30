@@ -488,7 +488,7 @@ cost.
 
 ### Things to do
 
-`src/book.js` is the only thing in the game that points at what is in it. Twenty-seven entries
+`src/book.js` is the only thing in the game that points at what is in it. Twenty-nine entries
 covering the whole of it — first block to all eight charges — ticked off as you go, opened with
 **B** or from the pause menu.
 
@@ -512,22 +512,43 @@ Three details are load-bearing:
 Adding an entry is one row in `BOOK`, with a `check` if the state already shows it and a
 `markDone("id")` at the event site if it does not.
 
-### Cars
+### Cars and trucks
 
-`src/vehicle.js` owns the only thing in the game that moves you without your feet. A car is a
-plain object in `state.cars` plus a `THREE.Group` of boxes; `CarManager` mirrors the two and is
-the same shape as `PassiveMobManager`, down to `userData.car` letting a raycast hit find its way
-back to the thing it belongs to.
+`src/vehicle.js` owns the only things in the game that move you without your feet. A vehicle is
+a plain object in `state.cars` plus a `THREE.Group` of boxes; `CarManager` mirrors the two and
+is the same shape as `PassiveMobManager`, down to `userData.car` letting a raycast hit find its
+way back to the thing it belongs to.
 
-Three rules make it fun rather than fiddly, and each is deliberate:
+**Two kinds, one set of physics**, described by `VEHICLE_KINDS` exactly as the charges are
+described by `BLAST_KINDS` — a third would be a table row rather than another file:
 
-- **It climbs a whole block, not a step.** `slide()` retries one block up before giving up, so
-  kerbs, garden walls and the odd staircase are all driveable. A car that stopped at a kerb
-  would be useless anywhere you had actually built something.
-- **It floats.** `CAR_FLOAT` pushes up while the car is in water, so a pond is something to
-  drive across rather than a way to lose your car.
-- **It cannot hurt you.** `sitInSeat()` clears `state.fallStartY` every frame, so the car takes
-  the landing and you do not — verified at forty blocks, which is twice lethal on foot.
+| | Climbs | Top speed | Jumps |
+|---|---|---|---|
+| Car | 1 block | 13 | no |
+| Monster Truck | 2 blocks | 11 | 11.5 |
+
+`createVehicleModel()` derives every dimension from the kind's `wheel` and `lift`, so the truck
+is the same drawing sitting much higher on much bigger tyres, plus a roll bar.
+
+Three rules make them fun rather than fiddly, and each is deliberate:
+
+- **They climb whole blocks, not steps.** `slide()` retries upward as far as the kind's `step`
+  before giving up, so kerbs, garden walls and the odd staircase are all driveable. Something
+  that stopped at a kerb would be useless anywhere you had actually built.
+- **They float.** `CAR_FLOAT` pushes up while in water, so a pond is something to drive across
+  rather than a way to lose your car.
+- **They cannot hurt you.** `sitInSeat()` clears `state.fallStartY` every frame, so the vehicle
+  takes the landing and you do not — verified at forty-five blocks, twice lethal on foot.
+
+Two bugs found by the truck are worth not reintroducing:
+
+- **`groundBelow()` is a separate test from `carBlocked()`.** The latter samples the body from
+  just above the floor *upwards* and so can never see what is underneath; using it for the
+  downward move let a vehicle sink half a block before catching and snapping back, which read as
+  a wobble and left `onGround` false on most frames.
+- **The jump is gated on a cooldown, not on the key edge.** Edge-triggering meant pressing jump
+  a moment before landing did nothing, and you then had to release and press again. Holding it
+  now bounces on every touchdown, which is what a monster truck is for.
 
 Two integration details matter:
 

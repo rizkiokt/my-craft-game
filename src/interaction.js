@@ -2,7 +2,7 @@
 
 import * as THREE from "../node_modules/three/build/three.module.js";
 import { chunkMeshes } from "./chunkMesh.js";
-import { BLOCKS, BLOCK_NAMES, INTERACTION_RANGE, ITEMS, MAX_BUILD_HEIGHT, MIN_WORLD_Y, PLAYER_HEIGHT, PLAYER_RADIUS } from "./constants.js";
+import { BLOCKS, BLOCK_NAMES, INTERACTION_RANGE, MAX_BUILD_HEIGHT, MIN_WORLD_Y, PLAYER_HEIGHT, PLAYER_RADIUS, VEHICLE_ITEMS } from "./constants.js";
 import { getLevel, getXpForBlock, grantXp } from "./enchanting.js";
 import { getBodyHeight, getBodyRadius, getReach } from "./growth.js";
 import { addItem, canMineBlock, consumeItem, getBreakDamage, getBreakHardness, getDropCount, getDropForBlock, getInteractionCooldown, getItemCount, getRequiredToolName, getSelectedItem, isCollectibleBlock, isCreative, isPlaceableItem } from "./items.js";
@@ -14,7 +14,7 @@ import { spawnHearts, spawnParticles } from "./particles.js";
 import { clearPortalAt, describeFrameProblem, extinguishAround, lightPortal } from "./portals.js";
 import { isCharge, lightTnt } from "./tnt.js";
 import { markDone } from "./book.js";
-import { cars, enterCar, honk, isDriving } from "./vehicle.js";
+import { cars, enterCar, honk, isDriving, vehicleName } from "./vehicle.js";
 import { applyPlayerToCamera, eyePosition, hasCollision, lookDirection } from "./player.js";
 import { scene } from "./scene.js";
 import { soundEngine } from "./sound.js";
@@ -215,8 +215,9 @@ export function interact(breaking, isPress = false) {
   if (!breaking && state.carTarget) {
     if (isPress) {
       state.usePressed = false;
+      const name = vehicleName(state.carTarget);
       enterCar(state.carTarget);
-      showToast("Driving — steer with your movement keys, sneak to get out");
+      showToast(`Driving the ${name} — sneak to get out`);
     }
     return;
   }
@@ -399,13 +400,14 @@ export function interact(breaking, isPress = false) {
     }
 
     const selectedItem = getSelectedItem();
-    if (selectedItem === ITEMS.car) {
-      if (isPress && getItemCount(ITEMS.car) > 0) {
+    const vehicleKind = VEHICLE_ITEMS[selectedItem];
+    if (vehicleKind) {
+      if (isPress && getItemCount(selectedItem) > 0) {
         const spot = state.target.place;
-        cars.spawn(spot.x + 0.5, spot.y, spot.z + 0.5, state.player.yaw);
-        consumeItem(ITEMS.car, 1);
+        cars.spawn(spot.x + 0.5, spot.y, spot.z + 0.5, state.player.yaw, vehicleKind);
+        consumeItem(selectedItem, 1);
         soundEngine.place(BLOCKS.stone);
-        showToast("Parked a car — touch it to drive");
+        showToast(`Parked a ${BLOCK_NAMES[selectedItem]} — touch it to drive`);
         state.saveDirty = true;
       }
       return;

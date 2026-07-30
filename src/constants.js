@@ -105,6 +105,7 @@ export const ITEMS = {
   netherite_leggings: 130,
   netherite_boots: 131,
   car: 140,
+  truck: 141,
 };
 
 export const BLOCK_NAMES = {
@@ -160,6 +161,7 @@ export const BLOCK_NAMES = {
   [ITEMS.netherite_scrap]: "Netherite Scrap",
   [ITEMS.netherite_ingot]: "Netherite Ingot",
   [ITEMS.car]: "Car",
+  [ITEMS.truck]: "Monster Truck",
   [ITEMS.netherite_pickaxe]: "Netherite Pickaxe",
   [ITEMS.iron_helmet]: "Iron Helmet",
   [ITEMS.iron_chestplate]: "Iron Chestplate",
@@ -343,6 +345,7 @@ export const CREATIVE_ITEMS = [
   ITEMS.netherite_scrap,
   ITEMS.netherite_ingot,
   ITEMS.car,
+  ITEMS.truck,
   ITEMS.wood_pickaxe,
   ITEMS.stone_pickaxe,
   ITEMS.iron_pickaxe,
@@ -734,20 +737,41 @@ export const FACE_DEFS = [
 ];
 
 /**
- * The car. Fast enough to be worth building and slow enough to steer, which is
- * roughly three times a walk. It climbs a whole block rather than a step,
- * because a car that stops at a kerb is no use in a place you have built.
+ * The two things you can drive, described the same way the charges are. Both
+ * climb rather than stop — a vehicle that halts at a kerb is no use anywhere
+ * you have actually built something — but the truck climbs twice as much and
+ * can jump, which is the whole reason to build one.
  */
-export const CAR_ACCEL = 11;
-export const CAR_BRAKE = 20;
-export const CAR_MAX_SPEED = 13;
-export const CAR_REVERSE_SPEED = 5;
-export const CAR_STEER = 2.1;
-export const CAR_RADIUS = 0.78;
-export const CAR_HEIGHT = 1.35;
-export const CAR_STEP = 1;
-export const CAR_SEAT_HEIGHT = 0.95;
-/** Upward push in water: it floats, so a pond is something to drive across. */
+export const VEHICLE_KINDS = {
+  [ITEMS.car]: {
+    id: "car",
+    name: "Car",
+    accel: 11, brake: 20, maxSpeed: 13, reverse: 5, steer: 2.1,
+    radius: 0.78, height: 1.35, step: 1, seat: 0.95,
+    wheel: 0.62, lift: 0, jump: 0,
+  },
+  [ITEMS.truck]: {
+    id: "truck",
+    name: "Monster Truck",
+    // Heavier off the line and slower flat out, which is the trade for
+    // climbing a two-block ledge and bouncing off the landing.
+    accel: 9, brake: 18, maxSpeed: 11, reverse: 4.5, steer: 1.8,
+    radius: 0.92, height: 2.1, step: 2, seat: 1.55,
+    wheel: 1.2, lift: 0.5, jump: 11.5, rollBar: true,
+  },
+};
+
+/** Looked up by the saved `kind` string when a world is restored. */
+export const VEHICLE_BY_ID = Object.fromEntries(
+  Object.values(VEHICLE_KINDS).map((kind) => [kind.id, kind]),
+);
+
+/** Which item puts which vehicle on the ground. */
+export const VEHICLE_ITEMS = Object.fromEntries(
+  Object.entries(VEHICLE_KINDS).map(([itemId, kind]) => [itemId, kind.id]),
+);
+
+/** Upward push in water: they float, so a pond is something to drive across. */
 export const CAR_FLOAT = 26;
 export const CAR_COLORS = [
   0xd8402c, 0x2f7fd4, 0xf0b429, 0x3fa65c, 0x9b5de5, 0xe8724c, 0x24b6c9, 0xe4e6ea,

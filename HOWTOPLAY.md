@@ -210,30 +210,39 @@ you can lay a line of them — or mix kinds and set off a tornado with an earthq
 
 ## Things to Do
 
-Press **B** at any time for a list of twenty-seven things worth trying, from breaking your first
+Press **B** at any time for a list of twenty-nine things worth trying, from breaking your first
 block to setting off all eight kinds of charge. It ticks itself off as you go — there is nothing
 to hand in and nothing to lose. If you are ever not sure what to do next, that is the page to
 open.
 
-## Cars
+## Cars and Trucks
 
-Build one at a crafting table: **four iron ingots and two coal** — iron for the body, coal for
-the wheels.
+Build a **Car** at a crafting table from **four iron ingots and two coal** — iron for the body,
+coal for the wheels. Then put **four more coal around the car** to make a **Monster Truck**:
+four big tyres.
+
+| | Climbs | Speed | Jumps? |
+|---|---|---|---|
+| **Car** | one block | quicker | no |
+| **Monster Truck** | **two blocks** | a bit slower | **yes — press jump** |
+
+The truck is the one for rough ground. It walks up two-block ledges the car simply stops at, and
+**holding the jump key bounces it every time the wheels touch down**.
 
 | | |
 |---|---|
-| **Park it** | Hold the car and right-click the ground |
-| **Get in** | Right-click the car |
+| **Park it** | Hold it and right-click the ground |
+| **Get in** | Right-click it |
 | **Drive** | Your normal movement keys. The view turns with the car |
 | **Honk** | Right-click while driving |
 | **Get out** | Sneak (Shift) |
 
-It **climbs a whole block**, so kerbs, garden walls and steps are all driveable — you can drive
-right up to your front door. It **floats**, so ponds and rivers are things to cross rather than
-things to lose your car in.
+Both **climb**, so kerbs, garden walls and steps are driveable — you can drive right up to your
+front door. Both **float**, so ponds and rivers are things to cross rather than things to lose
+your car in.
 
-And it cannot hurt you. Drive it off the tallest cliff you can find: the car takes the landing,
-you do not.
+And neither can hurt you. Drive off the tallest cliff you can find: the vehicle takes the
+landing, you do not.
 
 ## Growing Up
 

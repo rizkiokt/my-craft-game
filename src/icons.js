@@ -214,3 +214,19 @@ registerFlatIcon(ITEMS.car, "#2f7fd4", (ctxGlyph) => {
   ctxGlyph.fillRect(8, 21, 5, 5);
   ctxGlyph.fillRect(19, 21, 5, 5);
 });
+
+// The monster truck: the same silhouette up on far bigger wheels.
+registerFlatIcon(ITEMS.truck, "#3fa65c", (ctxGlyph) => {
+  ctxGlyph.fillStyle = "#e9eef5";
+  ctxGlyph.fillRect(6, 11, 20, 6);
+  ctxGlyph.fillRect(10, 6, 12, 6);
+  ctxGlyph.fillStyle = "#8fc8e8";
+  ctxGlyph.fillRect(12, 7, 4, 4);
+  ctxGlyph.fillRect(17, 7, 4, 4);
+  ctxGlyph.fillStyle = "#1d1f24";
+  ctxGlyph.fillRect(3, 17, 10, 10);
+  ctxGlyph.fillRect(19, 17, 10, 10);
+  ctxGlyph.fillStyle = "#b9c0cb";
+  ctxGlyph.fillRect(6, 20, 4, 4);
+  ctxGlyph.fillRect(22, 20, 4, 4);
+});

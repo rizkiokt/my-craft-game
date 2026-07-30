@@ -60,6 +60,8 @@ export const BOOK = [
   { id: "charges", title: "Set off all eight kinds of charge", hint: "Fire, flood, tornado, earthquake, blizzard...", check: () => state.stats.charges.length >= 8 },
   { id: "car", title: "Build a car", hint: "Four iron ingots and two coal.", check: () => has(ITEMS.car) },
   { id: "drive", title: "Drive a hundred blocks", check: () => state.stats.driven >= 100 },
+  { id: "truck", title: "Build a monster truck", hint: "Four coal round a car — big tyres.", check: () => has(ITEMS.truck) },
+  { id: "truckjump", title: "Jump a monster truck", hint: "Press jump while you are driving it." },
   { id: "honk", title: "Honk the horn", hint: "Right-click while you are driving." },
 ];
 
