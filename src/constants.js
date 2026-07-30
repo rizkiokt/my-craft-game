@@ -107,6 +107,7 @@ export const ITEMS = {
   car: 140,
   truck: 141,
   rig: 142,
+  semi: 143,
 };
 
 export const BLOCK_NAMES = {
@@ -164,6 +165,7 @@ export const BLOCK_NAMES = {
   [ITEMS.car]: "Car",
   [ITEMS.truck]: "Monster Truck",
   [ITEMS.rig]: "Trailer Truck",
+  [ITEMS.semi]: "Semi Truck",
   [ITEMS.netherite_pickaxe]: "Netherite Pickaxe",
   [ITEMS.iron_helmet]: "Iron Helmet",
   [ITEMS.iron_chestplate]: "Iron Chestplate",
@@ -349,6 +351,7 @@ export const CREATIVE_ITEMS = [
   ITEMS.car,
   ITEMS.truck,
   ITEMS.rig,
+  ITEMS.semi,
   ITEMS.wood_pickaxe,
   ITEMS.stone_pickaxe,
   ITEMS.iron_pickaxe,
@@ -771,7 +774,24 @@ export const VEHICLE_KINDS = {
     accel: 6.5, brake: 15, maxSpeed: 10, reverse: 3.5, steer: 1.15,
     radius: 1, long: 3.2, height: 2.9, step: 2, seat: 1.9,
     wheel: 1.2, lift: 0.5, jump: 8.5,
-    trailer: { hitch: -1.2, length: 4.2, height: 1.5 },
+    cabAxles: 2,
+    trailers: [{ hitch: -1.2, length: 4.2, height: 1.5, axles: 2 }],
+  },
+  [ITEMS.semi]: {
+    id: "semi",
+    name: "Semi Truck",
+    // Eleven blocks of lorry on fourteen wheels, and two hitches rather than
+    // one — each trailer follows the thing in front of it, so the back of it
+    // cuts the corner more than the front does.
+    accel: 5.5, brake: 14, maxSpeed: 9, reverse: 3, steer: 0.95,
+    radius: 1.05, long: 5.2, height: 3, step: 2, seat: 1.95,
+    wheel: 1.2, lift: 0.5, jump: 7,
+    cabAxles: 3,
+    trailers: [
+      { hitch: -1.2, length: 4.6, height: 1.5, axles: 3 },
+      // Measured from the trailer in front, because the pivots nest.
+      { hitch: 4.2, length: 4.2, height: 1.4, axles: 3 },
+    ],
   },
 };
 

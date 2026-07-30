@@ -63,6 +63,7 @@ export const BOOK = [
   { id: "truck", title: "Build a monster truck", hint: "Four coal round a car — big tyres.", check: () => has(ITEMS.truck) },
   { id: "truckjump", title: "Jump a monster truck", hint: "Press jump while you are driving it." },
   { id: "rig", title: "Build a trailer truck", hint: "A monster truck, three iron and two planks.", check: () => has(ITEMS.rig) },
+  { id: "semi", title: "Build a semi truck", hint: "Two trailers. Both of them bend.", check: () => has(ITEMS.semi) },
   { id: "honk", title: "Honk the horn", hint: "Right-click while you are driving." },
 ];
 

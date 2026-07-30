@@ -409,6 +409,20 @@ export const TABLE_RECIPES = [
     description: "A cab and a trailer on monster tyres. Long, slow, and it bends.",
   },
   {
+    id: "semi",
+    output: ITEMS.semi,
+    count: 1,
+    pattern: [
+      [BLOCKS.planks, BLOCKS.planks, BLOCKS.planks],
+      [ITEMS.rig, ITEMS.iron_ingot, ITEMS.iron_ingot],
+      [ITEMS.coal, null, ITEMS.coal],
+    ],
+    ingredients: {
+      [ITEMS.rig]: 1, [BLOCKS.planks]: 3, [ITEMS.iron_ingot]: 2, [ITEMS.coal]: 2,
+    },
+    description: "A second trailer, a coupling and more tyres. Both of them bend.",
+  },
+  {
     id: "super_duper_tnt",
     output: BLOCKS.super_duper_tnt,
     count: 1,

@@ -488,7 +488,7 @@ cost.
 
 ### Things to do
 
-`src/book.js` is the only thing in the game that points at what is in it. Thirty entries
+`src/book.js` is the only thing in the game that points at what is in it. Thirty-one entries
 covering the whole of it — first block to all eight charges — ticked off as you go, opened with
 **B** or from the pause menu.
 
@@ -519,31 +519,42 @@ a plain object in `state.cars` plus a `THREE.Group` of boxes; `CarManager` mirro
 is the same shape as `PassiveMobManager`, down to `userData.car` letting a raycast hit find its
 way back to the thing it belongs to.
 
-**Three kinds, one set of physics**, described by `VEHICLE_KINDS` exactly as the charges are
-described by `BLAST_KINDS` — a fourth is a table row rather than another file:
+**Four kinds, one set of physics**, described by `VEHICLE_KINDS` exactly as the charges are
+described by `BLAST_KINDS` — a fifth is a table row rather than another file:
 
-| | Climbs | Top speed | Length | Jumps |
-|---|---|---|---|---|
-| Car | 1 block | 13 | 2.4 | no |
-| Monster Truck | 2 blocks | 11 | 2.7 | 11.5 |
-| Trailer Truck | 2 blocks | 10 | 6.4 | 8.5 |
+| | Climbs | Top speed | Length | Wheels | Jumps |
+|---|---|---|---|---|---|
+| Car | 1 block | 13 | 2.4 | 4 | no |
+| Monster Truck | 2 blocks | 11 | 2.7 | 4 | 11.5 |
+| Trailer Truck | 2 blocks | 10 | 6.4 | 8 | 8.5 |
+| Semi Truck | 2 blocks | 9 | 10.5 | 18 | 7 |
 
 `createVehicleModel()` derives every dimension from the kind's `wheel` and `lift`, so the truck
-is the same drawing sitting much higher on much bigger tyres, plus a roll bar. The rig has its
-own builder — a cab, and a container hung off a **pivot at the hitch** so it can swing.
+is the same drawing sitting much higher on much bigger tyres, plus a roll bar. Anything with a
+`trailers` array goes through `createRigModel()` instead: a cab, then one pivot per trailer.
 
-**The trailer follows the kinematic model, not an ease.** A towed axle turns at `v/L · sin(θ)`
-where θ is the angle it is being dragged at. Easing the trailer towards the cab instead was
-tried first and looked wrong: it caught up within a few frames, so the rig may as well have been
-one rigid brick. The real model makes the bend grow with the steering, settle at an angle rather
-than closing, and swing wider the slower you go, which is the whole character of a lorry.
-`MAX_JACKKNIFE` stops it folding into the cab.
+**The pivots nest.** The second trailer's pivot is a child of the first's, so each one only ever
+needs the angle between itself and the thing directly in front of it and three.js composes the
+rest. That is the whole reason a chain of them needs no maths in the renderer.
+
+**Trailers follow the kinematic model, not an ease.** A towed axle turns at `v/L · sin(θ)` where
+θ is the angle it is being dragged at. Easing a trailer towards the cab was tried first and
+looked wrong: it caught up within a few frames, so the lorry may as well have been one rigid
+brick. The real model makes the bend grow with the steering, settle at an angle rather than
+closing, and **swing wider the slower you go** — measured at 28° through a corner at speed and
+69° at a crawl. `MAX_JACKKNIFE` stops one folding into the thing towing it.
+
+**`followTheCab()` scales the speed by the cosine of each joint on the way back**, which is what
+makes a second trailer cut the corner harder than the first rather than merely copying it: the
+further back you are, the less of the cab's motion is pushing you forwards. On the semi that
+comes out as 28° at the first joint, 27° more at the second, and 54° nose to tail.
 
 **`footprint(spec, yaw)` samples along the vehicle's own forward axis and turns with it.** A
-square footprint was fine while everything was about as long as it was wide; a six-block rig
+square footprint was fine while everything was about as long as it was wide; ten blocks of semi
 would otherwise drive through a wall side-on and jam on nothing at all when straight. The
-trailer's swing is deliberately not modelled in the footprint — close enough while going
-forwards, which is when a collision matters.
+trailers' swing is deliberately not modelled in the footprint — close enough while going
+forwards, which is when a collision matters. Driving the longest one costs 0.7 ms a frame
+against 0.4 ms for the rest, which is the price of sampling that many cells.
 
 Three rules make them fun rather than fiddly, and each is deliberate:
 

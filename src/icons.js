@@ -246,3 +246,18 @@ registerFlatIcon(ITEMS.rig, "#e8724c", (ctxGlyph) => {
   ctxGlyph.fillRect(15, 18, 8, 8);
   ctxGlyph.fillRect(23, 18, 7, 8);
 });
+
+// The semi: a cab and two boxes, on a lot of wheels.
+registerFlatIcon(ITEMS.semi, "#9b5de5", (ctxGlyph) => {
+  ctxGlyph.fillStyle = "#e9eef5";
+  ctxGlyph.fillRect(1, 8, 7, 9);
+  ctxGlyph.fillStyle = "#8fc8e8";
+  ctxGlyph.fillRect(2, 10, 4, 3);
+  ctxGlyph.fillStyle = "#d5dbe4";
+  ctxGlyph.fillRect(9, 5, 10, 12);
+  ctxGlyph.fillRect(20, 6, 11, 11);
+  ctxGlyph.fillStyle = "#9aa3b0";
+  ctxGlyph.fillRect(9, 11, 22, 2);
+  ctxGlyph.fillStyle = "#1d1f24";
+  for (const x of [1, 8, 13, 20, 25]) ctxGlyph.fillRect(x, 18, 6, 7);
+});

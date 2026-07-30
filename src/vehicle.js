@@ -57,7 +57,7 @@ const box = (w, h, d, color) => new THREE.Mesh(
  * so "forwards" means the same thing for both.
  */
 function createVehicleModel(spec, color) {
-  if (spec.trailer) {
+  if (spec.trailers) {
     return createRigModel(spec, color);
   }
   const group = new THREE.Group();
@@ -131,12 +131,48 @@ function addAxle(group, spec, width, z) {
   }
 }
 
+/** Where a cab's axles sit, front first. */
+const CAB_AXLES = {
+  2: [-2.9, -1.6],
+  3: [-2.9, -1.85, -0.95],
+};
+
+/** One trailer's body and wheels, hung inside its own pivot. */
+function buildTrailer(pivot, spec, segment, color, dark, width, floor) {
+  const deck = box(width * 0.94, 0.3, segment.length, dark);
+  deck.position.set(0, floor + 0.15, segment.length * 0.5);
+  pivot.add(deck);
+
+  const container = box(width * 1.02, segment.height, segment.length - 0.2, color);
+  container.position.set(0, floor + 0.3 + segment.height * 0.5, segment.length * 0.5);
+  pivot.add(container);
+
+  // A pale band along the side, or a big box reads as a wall rather than a
+  // trailer at any distance.
+  const band = box(width * 1.04, 0.22, segment.length - 0.6, 0xe6eaef);
+  band.position.set(0, floor + 0.3 + segment.height * 0.72, segment.length * 0.5);
+  pivot.add(band);
+
+  // Axles bunched at the back, the way a trailer's bogie actually sits.
+  for (let i = 0; i < (segment.axles ?? 2); i++) {
+    addAxle(pivot, spec, width, segment.length - 0.8 - i);
+  }
+
+  for (const side of [-1, 1]) {
+    const tail = box(0.24, 0.2, 0.1, 0xd8402c);
+    tail.position.set(side * width * 0.3, floor + 0.5, segment.length + 0.02);
+    pivot.add(tail);
+  }
+}
+
 /**
- * The rig: a cab up front and a container behind it, on the truck's tyres.
+ * A cab up front and one or more containers behind it, on the truck's tyres.
  *
- * The trailer hangs off a pivot at the hitch rather than being part of the
- * body, so it can swing. Without that it is a very long brick, and the whole
- * appeal of an articulated lorry is watching it bend round a corner.
+ * Each trailer hangs off a pivot at its hitch, and **the pivots nest** — the
+ * second trailer's pivot is a child of the first's. That is what makes a chain
+ * of them work with no maths at all in the renderer: each pivot only ever
+ * needs the angle between itself and the thing directly in front of it, and
+ * three.js composes the rest.
  */
 function createRigModel(spec, color) {
   const group = new THREE.Group();
@@ -167,37 +203,21 @@ function createRigModel(spec, color) {
     group.add(lamp);
   }
 
-  addAxle(group, spec, width, -2.9);
-  addAxle(group, spec, width, -1.6);
-
-  // Trailer, on its own pivot at the hitch.
-  const pivot = new THREE.Group();
-  pivot.position.set(0, 0, spec.trailer.hitch);
-  group.add(pivot);
-  group.userData.trailerPivot = pivot;
-
-  const deck = box(width * 0.94, 0.3, spec.trailer.length, dark);
-  deck.position.set(0, floor + 0.15, spec.trailer.length * 0.5);
-  pivot.add(deck);
-
-  const container = box(width * 1.02, spec.trailer.height, spec.trailer.length - 0.2, color);
-  container.position.set(0, floor + 0.3 + spec.trailer.height * 0.5, spec.trailer.length * 0.5);
-  pivot.add(container);
-
-  // A pale band along the side, or a big box reads as a wall rather than a
-  // trailer at any distance.
-  const band = box(width * 1.04, 0.22, spec.trailer.length - 0.6, 0xe6eaef);
-  band.position.set(0, floor + 0.3 + spec.trailer.height * 0.72, spec.trailer.length * 0.5);
-  pivot.add(band);
-
-  addAxle(pivot, spec, width, spec.trailer.length - 0.9);
-  addAxle(pivot, spec, width, spec.trailer.length - 1.9);
-
-  for (const side of [-1, 1]) {
-    const tail = box(0.24, 0.2, 0.1, 0xd8402c);
-    tail.position.set(side * width * 0.3, floor + 0.5, spec.trailer.length + 0.02);
-    pivot.add(tail);
+  for (const z of CAB_AXLES[spec.cabAxles] ?? CAB_AXLES[2]) {
+    addAxle(group, spec, width, z);
   }
+
+  let parent = group;
+  const pivots = [];
+  for (const segment of spec.trailers) {
+    const pivot = new THREE.Group();
+    pivot.position.set(0, 0, segment.hitch);
+    parent.add(pivot);
+    pivots.push(pivot);
+    buildTrailer(pivot, spec, segment, color, dark, width, floor);
+    parent = pivot;
+  }
+  group.userData.trailerPivots = pivots;
   return group;
 }
 
@@ -218,7 +238,7 @@ export class CarManager {
       vy: 0,
       onGround: false,
       jumpTimer: 0,
-      trailerYaw: yaw,
+      trailerYaws: (VEHICLE_BY_ID[kind]?.trailers ?? []).map(() => yaw),
       color: color ?? CAR_COLORS[Math.floor(Math.random() * CAR_COLORS.length)],
     };
     state.cars.push(car);
@@ -297,8 +317,13 @@ export class CarManager {
       if (model) {
         model.position.set(car.x, car.y, car.z);
         model.rotation.y = car.yaw;
-        if (model.userData.trailerPivot) {
-          model.userData.trailerPivot.rotation.y = car.trailerYaw - car.yaw;
+        const pivots = model.userData.trailerPivots;
+        if (pivots) {
+          // Each pivot only needs the angle to the thing in front of it,
+          // because they nest.
+          for (let i = 0; i < pivots.length; i++) {
+            pivots[i].rotation.y = car.trailerYaws[i] - (i === 0 ? car.yaw : car.trailerYaws[i - 1]);
+          }
         }
       }
     }
@@ -421,6 +446,37 @@ function drive(car, dt) {
   }
 }
 
+/**
+ * Drags the trailers along behind the cab.
+ *
+ * How a towed axle actually behaves: it turns at v/L times the sine of the
+ * angle it is being dragged at. Easing it towards the cab instead looked
+ * wrong — it caught up within a few frames and the lorry may as well have been
+ * one rigid brick. This way the bend grows with the steering, settles at an
+ * angle rather than closing, and swings wider the slower you go, which is the
+ * whole character of a lorry.
+ *
+ * Run down the chain, each segment towed by the one in front. **The speed is
+ * scaled by the cosine of each joint on the way back**, which is what makes a
+ * second trailer cut the corner harder than the first rather than simply
+ * copying it — the further back you go, the less of the cab's motion is
+ * pushing you forwards.
+ */
+function followTheCab(car, spec, dt) {
+  let leadYaw = car.yaw;
+  let speed = car.speed;
+  for (let i = 0; i < spec.trailers.length; i++) {
+    const segment = spec.trailers[i];
+    const swing = angleDelta(leadYaw, car.trailerYaws[i]);
+    car.trailerYaws[i] += (speed / segment.length) * Math.sin(swing) * dt;
+    // And never let one fold back into the thing towing it.
+    car.trailerYaws[i] = leadYaw
+      - clamp(angleDelta(leadYaw, car.trailerYaws[i]), -MAX_JACKKNIFE, MAX_JACKKNIFE);
+    speed *= Math.cos(angleDelta(leadYaw, car.trailerYaws[i]));
+    leadYaw = car.trailerYaws[i];
+  }
+}
+
 /** Shortest way round from one heading to another. */
 function angleDelta(to, from) {
   return ((to - from + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
@@ -429,17 +485,8 @@ function angleDelta(to, from) {
 /** One frame of movement: forwards, then down. */
 function stepCar(car, dt) {
   const spec = specFor(car);
-  if (spec.trailer) {
-    // How a towed axle actually behaves: it turns at v/L times the sine of the
-    // angle it is being dragged at. Easing it towards the cab instead looked
-    // wrong — it caught up in a few frames and the rig may as well have been
-    // one rigid brick. This way the bend grows with the steering, settles at
-    // an angle rather than closing, and swings wider the slower you go, which
-    // is the whole character of a lorry.
-    const swing = angleDelta(car.yaw, car.trailerYaw);
-    car.trailerYaw += (car.speed / spec.trailer.length) * Math.sin(swing) * dt;
-    // And never let it fold back into the cab.
-    car.trailerYaw = car.yaw - clamp(angleDelta(car.yaw, car.trailerYaw), -MAX_JACKKNIFE, MAX_JACKKNIFE);
+  if (spec.trailers) {
+    followTheCab(car, spec, dt);
   }
   if (Math.abs(car.speed) > 0.01) {
     const dx = -Math.sin(car.yaw) * car.speed * dt;
