@@ -64,6 +64,8 @@ export const BOOK = [
   { id: "truckjump", title: "Jump a monster truck", hint: "Press jump while you are driving it." },
   { id: "rig", title: "Build a trailer truck", hint: "A monster truck, three iron and two planks.", check: () => has(ITEMS.rig) },
   { id: "semi", title: "Build a semi truck", hint: "Two trailers. Both of them bend.", check: () => has(ITEMS.semi) },
+  { id: "flycar", title: "Build something that flies", hint: "A car and two diamonds is the cheapest way up.", check: () => has(ITEMS.flying_car) || has(ITEMS.helicopter) || has(ITEMS.airplane) },
+  { id: "fly", title: "Get twelve blocks off the ground", hint: "Jump climbs, sneak comes back down." },
   { id: "honk", title: "Honk the horn", hint: "Right-click while you are driving." },
 ];
 

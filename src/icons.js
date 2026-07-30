@@ -261,3 +261,45 @@ registerFlatIcon(ITEMS.semi, "#9b5de5", (ctxGlyph) => {
   ctxGlyph.fillStyle = "#1d1f24";
   for (const x of [1, 8, 13, 20, 25]) ctxGlyph.fillRect(x, 18, 6, 7);
 });
+
+// Flying car: the car silhouette with a fan either side.
+registerFlatIcon(ITEMS.flying_car, "#24b6c9", (ctxGlyph) => {
+  ctxGlyph.fillStyle = "#e9eef5";
+  ctxGlyph.fillRect(8, 13, 16, 7);
+  ctxGlyph.fillRect(12, 8, 8, 6);
+  ctxGlyph.fillStyle = "#8fc8e8";
+  ctxGlyph.fillRect(13, 9, 6, 4);
+  ctxGlyph.fillStyle = "#2b2f36";
+  ctxGlyph.fillRect(1, 14, 7, 4);
+  ctxGlyph.fillRect(24, 14, 7, 4);
+  ctxGlyph.fillStyle = "#7fe3ff";
+  ctxGlyph.fillRect(2, 19, 5, 3);
+  ctxGlyph.fillRect(25, 19, 5, 3);
+});
+
+// Helicopter: a rotor line over a cabin with a boom.
+registerFlatIcon(ITEMS.helicopter, "#e8724c", (ctxGlyph) => {
+  ctxGlyph.fillStyle = "#2b2f36";
+  ctxGlyph.fillRect(2, 6, 28, 2);
+  ctxGlyph.fillRect(15, 8, 2, 4);
+  ctxGlyph.fillStyle = "#e9eef5";
+  ctxGlyph.fillRect(7, 12, 13, 10);
+  ctxGlyph.fillRect(19, 15, 11, 3);
+  ctxGlyph.fillStyle = "#8fc8e8";
+  ctxGlyph.fillRect(8, 14, 5, 5);
+  ctxGlyph.fillStyle = "#2b2f36";
+  ctxGlyph.fillRect(27, 10, 2, 9);
+  ctxGlyph.fillRect(8, 23, 12, 2);
+});
+
+// Airplane: seen from above, wings across.
+registerFlatIcon(ITEMS.airplane, "#f0b429", (ctxGlyph) => {
+  ctxGlyph.fillStyle = "#e9eef5";
+  ctxGlyph.fillRect(14, 3, 4, 26);
+  ctxGlyph.fillRect(1, 13, 30, 5);
+  ctxGlyph.fillRect(8, 24, 16, 3);
+  ctxGlyph.fillStyle = "#8fc8e8";
+  ctxGlyph.fillRect(14, 7, 4, 4);
+  ctxGlyph.fillStyle = "#2b2f36";
+  ctxGlyph.fillRect(9, 1, 14, 2);
+});

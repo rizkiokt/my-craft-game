@@ -210,7 +210,7 @@ you can lay a line of them — or mix kinds and set off a tornado with an earthq
 
 ## Things to Do
 
-Press **B** at any time for a list of thirty-one things worth trying, from breaking your first
+Press **B** at any time for a list of thirty-three things worth trying, from breaking your first
 block to setting off all eight kinds of charge. It ticks itself off as you go — there is nothing
 to hand in and nothing to lose. If you are ever not sure what to do next, that is the page to
 open.
@@ -237,6 +237,26 @@ The **Semi Truck** is ten blocks of it: two trailers on eighteen wheels, **and b
 bend**. The back one cuts the corner harder than the front one, so at a crawl it folds right
 round behind you. It is the slowest thing you can drive and it needs a lot of room. Take it out
 on open ground first.
+
+## Flying
+
+Three of them, and all three start from a **Car**:
+
+| | Craft it from | What it is like |
+|---|---|---|
+| **Flying Car** | a Car + 2 diamonds | Drives like a car, then lifts off. The cheapest way up |
+| **Helicopter** | a Car + 1 diamond + 3 iron | Goes straight up from anywhere and **hovers**. The easiest to fly |
+| **Airplane** | a Car + 1 diamond + 2 iron | Much the fastest, but it has to be **moving** to stay up |
+
+**Jump goes up. Sneak comes down.** And once you are back on the ground, sneak gets you out —
+the same key, and it always means the sensible thing.
+
+The **Helicopter** holds whatever height you leave it at, so you can let go of everything and
+just look around. The **Airplane** needs a run-up: open the throttle along flat ground and pull
+up once you are going fast enough. Cut the throttle in the air and it will sink, so keep it
+moving. It rolls into its turns.
+
+Falling out of the sky costs you nothing at all — same as everything else you can drive.
 
 | | |
 |---|---|

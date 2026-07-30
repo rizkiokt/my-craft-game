@@ -423,6 +423,40 @@ export const TABLE_RECIPES = [
     description: "A second trailer, a coupling and more tyres. Both of them bend.",
   },
   {
+    id: "flying_car",
+    output: ITEMS.flying_car,
+    count: 1,
+    pattern: [
+      [ITEMS.diamond, null, ITEMS.diamond],
+      [null, ITEMS.car, null],
+    ],
+    ingredients: { [ITEMS.car]: 1, [ITEMS.diamond]: 2 },
+    description: "A car with fans on it. Jump to go up, sneak to come down.",
+  },
+  {
+    id: "helicopter",
+    output: ITEMS.helicopter,
+    count: 1,
+    pattern: [
+      [ITEMS.iron_ingot, ITEMS.iron_ingot, ITEMS.iron_ingot],
+      [null, ITEMS.diamond, null],
+      [null, ITEMS.car, null],
+    ],
+    ingredients: { [ITEMS.car]: 1, [ITEMS.iron_ingot]: 3, [ITEMS.diamond]: 1 },
+    description: "Hovers wherever you leave it. The easiest thing to fly.",
+  },
+  {
+    id: "airplane",
+    output: ITEMS.airplane,
+    count: 1,
+    pattern: [
+      [ITEMS.iron_ingot, ITEMS.diamond, ITEMS.iron_ingot],
+      [null, ITEMS.car, null],
+    ],
+    ingredients: { [ITEMS.car]: 1, [ITEMS.iron_ingot]: 2, [ITEMS.diamond]: 1 },
+    description: "Fastest thing there is, but it has to be moving to stay up.",
+  },
+  {
     id: "super_duper_tnt",
     output: BLOCKS.super_duper_tnt,
     count: 1,

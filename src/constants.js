@@ -108,6 +108,9 @@ export const ITEMS = {
   truck: 141,
   rig: 142,
   semi: 143,
+  flying_car: 144,
+  helicopter: 145,
+  airplane: 146,
 };
 
 export const BLOCK_NAMES = {
@@ -166,6 +169,9 @@ export const BLOCK_NAMES = {
   [ITEMS.truck]: "Monster Truck",
   [ITEMS.rig]: "Trailer Truck",
   [ITEMS.semi]: "Semi Truck",
+  [ITEMS.flying_car]: "Flying Car",
+  [ITEMS.helicopter]: "Helicopter",
+  [ITEMS.airplane]: "Airplane",
   [ITEMS.netherite_pickaxe]: "Netherite Pickaxe",
   [ITEMS.iron_helmet]: "Iron Helmet",
   [ITEMS.iron_chestplate]: "Iron Chestplate",
@@ -352,6 +358,9 @@ export const CREATIVE_ITEMS = [
   ITEMS.truck,
   ITEMS.rig,
   ITEMS.semi,
+  ITEMS.flying_car,
+  ITEMS.helicopter,
+  ITEMS.airplane,
   ITEMS.wood_pickaxe,
   ITEMS.stone_pickaxe,
   ITEMS.iron_pickaxe,
@@ -792,6 +801,36 @@ export const VEHICLE_KINDS = {
       // Measured from the trailer in front, because the pivots nest.
       { hitch: 4.2, length: 4.2, height: 1.4, axles: 3 },
     ],
+  },
+
+  // The three that leave the ground. `fly.mode` is the whole difference
+  // between them: "hover" holds whatever height you left it at, "plane" only
+  // stays up while it is going fast enough.
+  [ITEMS.flying_car]: {
+    id: "flycar",
+    name: "Flying Car",
+    accel: 10, brake: 18, maxSpeed: 12, reverse: 4, steer: 1.9,
+    radius: 0.82, long: 1.25, height: 1.5, step: 1, seat: 1,
+    wheel: 0.62, lift: 0.12, jump: 0, wings: true,
+    fly: { mode: "hover", climb: 8, dive: 9, bank: 0.3 },
+  },
+  [ITEMS.helicopter]: {
+    id: "heli",
+    name: "Helicopter",
+    accel: 8, brake: 14, maxSpeed: 14, reverse: 5, steer: 2.3,
+    radius: 0.9, long: 2.4, height: 2.5, step: 1, seat: 1.05,
+    wheel: 0.4, lift: 0.4, jump: 0, heli: true,
+    fly: { mode: "hover", climb: 11, dive: 11, bank: 0.26 },
+  },
+  [ITEMS.airplane]: {
+    id: "plane",
+    name: "Airplane",
+    // Fast, and it turns like an aeroplane rather than a car: the steering
+    // does nothing until it is rolling.
+    accel: 9, brake: 11, maxSpeed: 24, reverse: 2, steer: 1.4,
+    radius: 1, long: 2.7, height: 1.9, step: 1, seat: 0.95,
+    wheel: 0.45, lift: 0.3, jump: 0, plane: true,
+    fly: { mode: "plane", climb: 10, dive: 11, minSpeed: 10, bank: 0.7 },
   },
 };
 

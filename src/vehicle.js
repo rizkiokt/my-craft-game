@@ -60,6 +60,12 @@ function createVehicleModel(spec, color) {
   if (spec.trailers) {
     return createRigModel(spec, color);
   }
+  if (spec.heli) {
+    return createHeliModel(spec, color);
+  }
+  if (spec.plane) {
+    return createPlaneModel(spec, color);
+  }
   const group = new THREE.Group();
   const dark = new THREE.Color(color).multiplyScalar(0.62).getHex();
   const width = spec.radius * 2.18;
@@ -114,6 +120,28 @@ function createVehicleModel(spec, color) {
     const bar = box(width * 0.8, 0.14, 0.14, 0xd2d7de);
     bar.position.set(0, floor + 1.48, length * 0.22);
     group.add(bar);
+  }
+
+  // The flying car is the ordinary car with stub wings and four fans, so it
+  // still reads as the thing you built it from.
+  if (spec.wings) {
+    for (const side of [-1, 1]) {
+      const stub = box(1.1, 0.12, 0.8, 0xe6eaef);
+      stub.position.set(side * (width * 0.5 + 0.5), floor + 0.4, length * 0.05);
+      group.add(stub);
+      for (const end of [-1, 1]) {
+        const fan = box(0.62, 0.18, 0.62, 0x2b2f36);
+        fan.position.set(side * (width * 0.5 + 0.62), floor + 0.34, end * length * 0.3);
+        group.add(fan);
+        const glow = box(0.44, 0.1, 0.44, 0x7fe3ff);
+        glow.position.set(fan.position.x, floor + 0.24, fan.position.z);
+        group.add(glow);
+      }
+    }
+    const tailFin = box(0.12, 0.6, 0.5, 0xe6eaef);
+    tailFin.position.set(0, floor + 1.1, length * 0.48);
+    group.add(tailFin);
+    group.rotation.order = "YXZ";
   }
   return group;
 }
@@ -221,6 +249,132 @@ function createRigModel(spec, color) {
   return group;
 }
 
+/**
+ * The helicopter: a cabin, a boom, and two rotors that actually turn.
+ *
+ * Anything in `userData.spin` is rotated every frame about the axis named in
+ * its own `userData.axis`, which is how one loop drives a main rotor turning
+ * flat and a tail rotor turning on its side.
+ */
+function createHeliModel(spec, color) {
+  const group = new THREE.Group();
+  const dark = new THREE.Color(color).multiplyScalar(0.6).getHex();
+  const floor = spec.lift + 0.35;
+
+  const cabin = box(1.5, 1.3, 2.2, color);
+  cabin.position.set(0, floor + 0.75, -0.3);
+  group.add(cabin);
+
+  const nose = box(1.2, 0.9, 0.7, 0x9fd4ea);
+  nose.position.set(0, floor + 0.8, -1.6);
+  group.add(nose);
+
+  const boom = box(0.42, 0.42, 2.8, dark);
+  boom.position.set(0, floor + 1.05, 2.05);
+  group.add(boom);
+
+  const fin = box(0.16, 0.95, 0.5, color);
+  fin.position.set(0, floor + 1.6, 3.25);
+  group.add(fin);
+
+  // Skids, not wheels — the giveaway that it is not a car.
+  for (const side of [-1, 1]) {
+    const skid = box(0.16, 0.16, 2.6, 0xc8ced8);
+    skid.position.set(side * 0.72, spec.lift * 0.2, -0.2);
+    group.add(skid);
+    for (const z of [-1.1, 0.7]) {
+      const strut = box(0.13, floor, 0.13, 0xc8ced8);
+      strut.position.set(side * 0.72, floor * 0.5, z);
+      group.add(strut);
+    }
+  }
+
+  const mast = box(0.22, 0.5, 0.22, 0xc8ced8);
+  mast.position.set(0, floor + 1.55, -0.3);
+  group.add(mast);
+
+  const rotor = new THREE.Group();
+  rotor.position.set(0, floor + 1.85, -0.3);
+  for (let i = 0; i < 2; i++) {
+    const blade = box(7.4, 0.09, 0.34, 0x2b2f36);
+    blade.rotation.y = i * Math.PI / 2;
+    rotor.add(blade);
+  }
+  rotor.userData.axis = "y";
+  group.add(rotor);
+
+  const tailRotor = new THREE.Group();
+  tailRotor.position.set(0.3, floor + 1.6, 3.3);
+  for (let i = 0; i < 2; i++) {
+    const blade = box(0.08, 1.5, 0.22, 0x2b2f36);
+    blade.rotation.x = i * Math.PI / 2;
+    tailRotor.add(blade);
+  }
+  tailRotor.userData.axis = "x";
+  group.add(tailRotor);
+
+  group.userData.spin = [rotor, tailRotor];
+  group.rotation.order = "YXZ";
+  return group;
+}
+
+/** The aeroplane: fuselage, wings, tail and a propeller on the nose. */
+function createPlaneModel(spec, color) {
+  const group = new THREE.Group();
+  const dark = new THREE.Color(color).multiplyScalar(0.6).getHex();
+  const floor = spec.lift + 0.5;
+
+  const fuselage = box(0.95, 0.95, 4.6, color);
+  fuselage.position.set(0, floor + 0.5, 0.2);
+  group.add(fuselage);
+
+  const canopy = box(0.8, 0.5, 1.2, 0x9fd4ea);
+  canopy.position.set(0, floor + 1.15, -0.5);
+  group.add(canopy);
+
+  const wing = box(6.8, 0.16, 1.3, color);
+  wing.position.set(0, floor + 0.45, 0.1);
+  group.add(wing);
+
+  const stripe = box(6.9, 0.06, 0.34, 0xe6eaef);
+  stripe.position.set(0, floor + 0.55, 0.1);
+  group.add(stripe);
+
+  const tailplane = box(2.6, 0.14, 0.8, color);
+  tailplane.position.set(0, floor + 0.62, 2.2);
+  group.add(tailplane);
+
+  const fin = box(0.14, 1.15, 0.9, dark);
+  fin.position.set(0, floor + 1.1, 2.3);
+  group.add(fin);
+
+  const propeller = new THREE.Group();
+  propeller.position.set(0, floor + 0.5, -2.2);
+  for (let i = 0; i < 2; i++) {
+    const blade = box(0.16, 3, 0.08, 0x2b2f36);
+    blade.rotation.z = i * Math.PI / 2;
+    propeller.add(blade);
+  }
+  propeller.userData.axis = "z";
+  group.add(propeller);
+  const spinner = box(0.3, 0.3, 0.3, 0xe6eaef);
+  spinner.position.set(0, floor + 0.5, -2.3);
+  group.add(spinner);
+
+  for (const [x, z] of [[-1.1, -0.4], [1.1, -0.4], [0, 2.2]]) {
+    const wheel = box(0.18, spec.wheel, spec.wheel, 0x1d1f24);
+    wheel.position.set(x, spec.wheel * 0.5, z);
+    group.add(wheel);
+    const strut = box(0.1, floor, 0.1, 0xc8ced8);
+    strut.position.set(x, floor * 0.6, z);
+    group.add(strut);
+  }
+
+  group.userData.spin = [propeller];
+  group.rotation.order = "YXZ";
+  return group;
+}
+
 export class CarManager {
   constructor() {
     this.root = new THREE.Group();
@@ -239,6 +393,9 @@ export class CarManager {
       onGround: false,
       jumpTimer: 0,
       trailerYaws: (VEHICLE_BY_ID[kind]?.trailers ?? []).map(() => yaw),
+      bank: 0,
+      tilt: 0,
+      rotorSpin: 0,
       color: color ?? CAR_COLORS[Math.floor(Math.random() * CAR_COLORS.length)],
     };
     state.cars.push(car);
@@ -317,6 +474,19 @@ export class CarManager {
       if (model) {
         model.position.set(car.x, car.y, car.z);
         model.rotation.y = car.yaw;
+        if (model.userData.spin) {
+          // Rotors and propellers: fast while somebody is flying it, idling
+          // down to a stop once it is parked.
+          const wanted = state.drivingCar === car || !car.onGround ? 28 : 0;
+          car.rotorSpin += (wanted - car.rotorSpin) * Math.min(1, dt * 2);
+          for (const part of model.userData.spin) {
+            part.rotation[part.userData.axis] += car.rotorSpin * dt;
+          }
+        }
+        if (specFor(car).fly) {
+          model.rotation.z = car.bank;
+          model.rotation.x = car.tilt;
+        }
         const pivots = model.userData.trailerPivots;
         if (pivots) {
           // Each pivot only needs the angle to the thing in front of it,
@@ -406,11 +576,18 @@ function inWater(car) {
 
 /** Reads the driver's controls. Steering only bites once you are moving. */
 function drive(car, dt) {
-  if (isActionDown("sneak")) {
-    leaveCar();
-    return;
-  }
   const spec = specFor(car);
+  if (isActionDown("sneak")) {
+    // In the air, sneak brings you down; on the ground it lets you out. One
+    // key for both, and the meaning is never ambiguous — you cannot step out
+    // at two hundred feet, and there is nothing to descend to on the ground.
+    if (spec.fly && !car.onGround) {
+      car.vy = Math.max(car.vy - spec.fly.dive * 4 * dt, -spec.fly.dive);
+    } else {
+      leaveCar();
+      return;
+    }
+  }
   const throttle = (isActionDown("forward") ? 1 : 0) - (isActionDown("back") ? 1 : 0);
   const steer = (isActionDown("left") ? 1 : 0) - (isActionDown("right") ? 1 : 0);
   const floating = inWater(car);
@@ -431,6 +608,16 @@ function drive(car, dt) {
   // going without having to steer with the mouse as well.
   state.player.yaw += turn;
 
+  if (spec.fly) {
+    climb(car, spec, dt);
+    // Lean into the turn and point the nose where you are going. Both are
+    // eased rather than set, or the model snaps about.
+    const target = -turn / Math.max(dt, 1e-4) * spec.fly.bank * 0.25;
+    car.bank += (clamp(target, -spec.fly.bank, spec.fly.bank) - car.bank) * Math.min(1, dt * 4);
+    car.tilt += (clamp(-car.vy * 0.035, -0.35, 0.35) - car.tilt) * Math.min(1, dt * 3);
+    return;
+  }
+
   // Hold the jump key and it bounces every time the wheels touch down, which
   // is the whole point of a monster truck. Gated on a short cooldown rather
   // than on the key edge: an edge meant that pressing jump a moment before
@@ -443,6 +630,25 @@ function drive(car, dt) {
     soundEngine.jump();
     spawnParticles(car.x, car.y + 0.2, car.z, BLOCKS.dirt, 8, 1.4);
     markDone("truckjump");
+  }
+}
+
+/**
+ * Going up. The helicopter and the flying car just do it; the aeroplane has to
+ * be moving first, which is the only thing that makes it a different machine
+ * rather than a differently shaped helicopter.
+ */
+function climb(car, spec, dt) {
+  if (!isActionDown("jump")) {
+    return;
+  }
+  if (spec.fly.mode === "plane" && Math.abs(car.speed) < spec.fly.minSpeed) {
+    return;
+  }
+  car.vy = Math.min(car.vy + spec.fly.climb * 4 * dt, spec.fly.climb);
+  car.onGround = false;
+  if (car.y - world.getHeightAt(Math.floor(car.x), Math.floor(car.z)) > 12) {
+    markDone("fly");
   }
 }
 
@@ -503,6 +709,24 @@ function stepCar(car, dt) {
   if (inWater(car)) {
     // Floats rather than sinking, so a pond is a thing to drive across.
     car.vy = clamp(car.vy + CAR_FLOAT * dt, -1.4, 2.6) * 0.86;
+  } else if (spec.fly && state.drivingCar === car && !car.onGround) {
+    // Only while somebody is flying it. An empty helicopter is a heavy object
+    // and falls like one, which is also what stops one parked in mid-air from
+    // hanging there for ever.
+    if (spec.fly.mode === "hover") {
+      // It holds the height you left it at. Coming down is a thing you ask
+      // for, which is far easier for a child than trimming a hover. The decay
+      // is quick enough that letting go of climb stops you within a couple of
+      // blocks rather than coasting halfway up again.
+      car.vy *= Math.exp(-dt * 5.5);
+    } else {
+      // Wings: full weight at a standstill, none of it at flying speed.
+      const lift = clamp(Math.abs(car.speed) / spec.fly.minSpeed, 0, 1);
+      car.vy -= GRAVITY * (1 - lift) * dt;
+      if (lift >= 1) {
+        car.vy *= Math.exp(-dt * 1.1);
+      }
+    }
   } else {
     car.vy -= GRAVITY * dt;
   }

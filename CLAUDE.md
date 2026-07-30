@@ -488,7 +488,7 @@ cost.
 
 ### Things to do
 
-`src/book.js` is the only thing in the game that points at what is in it. Thirty-one entries
+`src/book.js` is the only thing in the game that points at what is in it. Thirty-three entries
 covering the whole of it — first block to all eight charges — ticked off as you go, opened with
 **B** or from the pause menu.
 
@@ -519,15 +519,18 @@ a plain object in `state.cars` plus a `THREE.Group` of boxes; `CarManager` mirro
 is the same shape as `PassiveMobManager`, down to `userData.car` letting a raycast hit find its
 way back to the thing it belongs to.
 
-**Four kinds, one set of physics**, described by `VEHICLE_KINDS` exactly as the charges are
-described by `BLAST_KINDS` — a fifth is a table row rather than another file:
+**Seven kinds, one set of physics**, described by `VEHICLE_KINDS` exactly as the charges are
+described by `BLAST_KINDS` — an eighth is a table row rather than another file:
 
-| | Climbs | Top speed | Length | Wheels | Jumps |
-|---|---|---|---|---|---|
-| Car | 1 block | 13 | 2.4 | 4 | no |
-| Monster Truck | 2 blocks | 11 | 2.7 | 4 | 11.5 |
-| Trailer Truck | 2 blocks | 10 | 6.4 | 8 | 8.5 |
-| Semi Truck | 2 blocks | 9 | 10.5 | 18 | 7 |
+| | Top speed | Length | Flight |
+|---|---|---|---|
+| Car | 13 | 2.4 | — |
+| Monster Truck | 11 | 2.7 | jumps 11.5 |
+| Trailer Truck | 10 | 6.4 | jumps 8.5 |
+| Semi Truck | 9 | 10.5 | jumps 7 |
+| Flying Car | 12 | 2.5 | `hover` |
+| Helicopter | 14 | 4.8 | `hover` |
+| Airplane | 24 | 5.4 | `plane`, min speed 10 |
 
 `createVehicleModel()` derives every dimension from the kind's `wheel` and `lift`, so the truck
 is the same drawing sitting much higher on much bigger tyres, plus a roll bar. Anything with a
@@ -586,7 +589,33 @@ Two integration details matter:
   it is still an offset, so you can look out of the side window.
 
 Behind the wheel the right button is the horn and nothing else; `interact()` short-circuits on
-`isDriving()` before it considers a block. Sneak steps out, onto whichever side is clear.
+`isDriving()` before it considers a block.
+
+#### Flight
+
+A `fly` descriptor on the kind, and `fly.mode` is the whole difference between the three:
+
+- **`hover`** — the helicopter and the flying car. Vertical speed decays towards zero while
+  airborne, so it **holds whatever height you left it at**, measured stable to 0.01 blocks over
+  five seconds. Trimming a hover is a skill; holding a height is not, and this game is for a
+  child.
+- **`plane`** — lift is `speed / minSpeed`, so weight comes off the aeroplane as it accelerates.
+  It cannot climb at a standstill at all and sinks when the throttle is cut, which is the only
+  thing that makes it a different machine rather than a differently shaped helicopter.
+
+Three details are load-bearing:
+
+- **Sneak means descend in the air and get out on the ground.** One key, and it can never be
+  ambiguous: you cannot step out at two hundred feet, and there is nothing to descend to on the
+  ground.
+- **Hover physics only apply while somebody is flying it.** An empty helicopter is a heavy
+  object and falls like one — otherwise one parked in mid-air hangs there for ever.
+- **Rotors and propellers are whatever is in `userData.spin`**, each turned about the axis named
+  in its own `userData.axis`. That is how one loop drives a main rotor turning flat and a tail
+  rotor turning on its side. `bank` and `tilt` are eased, not set, and the models use `YXZ`
+  rotation order so the roll composes after the heading.
+
+Sneak steps out, onto whichever side is clear.
 
 ### Growing with level
 
