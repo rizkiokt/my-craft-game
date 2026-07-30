@@ -246,7 +246,8 @@ is standing a frame on the ground with no bottom row. Lighting records **every c
 so standing in one is a lookup rather than a search.
 
 **Placing a frame block that completes a ring lights it**, so there is no separate step to
-explain. Touching a frame only lights it when your hand is empty — otherwise it places, or
+explain. Touching a frame only lights it when the held item is not placeable — a tool or an
+ingot counts, an empty hand is not required — because otherwise it places, or
 the frame would be the one building material you could not stack a second one on top of.
 
 Portals aim at places, not at each other. `listDestinations()` returns the fixed landmarks

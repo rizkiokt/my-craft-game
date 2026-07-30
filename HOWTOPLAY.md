@@ -191,8 +191,12 @@ Each one is a different tool, not just a different size:
 Super Duper Mega TNT needs a netherite ingot, and Fire TNT needs glowstone, so both mean a trip
 to the Ember Deep first. Flood and Blizzard need ice and snow from the snow realm.
 
-**Place any of them**, then **touch it with an empty hand** to light the fuse — if you are holding a
-block you will just place another one, so put your pickaxe away or empty your hand first.
+**Place any of them**, then **touch it while holding something that is not a block** to light
+the fuse. Your pickaxe is the easiest one — just have that in your hand. Holding a *block*
+places another block instead, which is the only thing that does not work.
+
+If every hotbar slot has a block in it, put your pickaxe into one: press the number of the slot
+you want to change, press **E**, click the pickaxe in your bag, press **E** again.
 Then you have about three seconds. Run.
 
 Some of the rubble is left behind to pick up. A charge caught in another blast goes off too, so
@@ -272,7 +276,8 @@ Walking works. Portals are faster.
    will tell you what is wrong with the frame.
 4. **Step in** and stand still for a moment.
 
-Touch a finished portal, or its frame with an empty hand, to send it somewhere else.
+Touch a finished portal, or its frame while holding anything that is not a block (your pickaxe
+will do), to send it somewhere else.
 
 When you arrive, a portal home is built for you on the spot, so you can never strand
 yourself somewhere. Right-click any lit portal to send it somewhere else instead.
