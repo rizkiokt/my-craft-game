@@ -76,6 +76,10 @@ export function getBlockColor(blockType) {
       return [0xb27ce8, 0x7a4fd0];
     case BLOCKS.tnt:
       return [0xd44a35, 0xe8ddd2];
+    case BLOCKS.super_tnt:
+      return [0xb02a1e, 0xf0c246];
+    case BLOCKS.fire_tnt:
+      return [0xff8a2a, 0xffd76a];
     default:
       return [0x6cab57, 0x84c56f];
   }

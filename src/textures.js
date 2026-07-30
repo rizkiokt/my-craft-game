@@ -39,6 +39,8 @@ export function createTextureSet() {
     BLOCKS.portal_frame,
     BLOCKS.portal,
     BLOCKS.tnt,
+    BLOCKS.super_tnt,
+    BLOCKS.fire_tnt,
   ]) {
     textures[blockType] = {
       top: new Uint8Array(16 * 16 * 3),
@@ -453,6 +455,7 @@ export function createTextureSet() {
       ]);
       // The fuse sits on the lid.
       const fuseSpot = Math.abs(x - 8) <= 1 && Math.abs(y - 8) <= 1;
+      const fuseSpotSuper = fuseSpot;
       paint(textures[BLOCKS.tnt].top, x, y, [
         (fuseSpot ? 70 : 158) + tntNoise,
         (fuseSpot ? 62 : 40) + tntNoise * 0.6,
@@ -460,6 +463,37 @@ export function createTextureSet() {
       ]);
       paint(textures[BLOCKS.tnt].bottom, x, y, [
         120 + tntNoise, 34 + tntNoise * 0.6, 30 + tntNoise * 0.5,
+      ]);
+
+      // Super TNT: the same bundle, darker and banded in gold.
+      paint(textures[BLOCKS.super_tnt].side, x, y, [
+        (tntBand ? 240 : tntStrap ? 44 : 122) + tntNoise,
+        (tntBand ? 196 : tntStrap ? 40 : 26) + tntNoise * 0.6,
+        (tntBand ? 70 : tntStrap ? 44 : 30) + tntNoise * 0.5,
+      ]);
+      paint(textures[BLOCKS.super_tnt].top, x, y, [
+        (fuseSpotSuper ? 70 : 116) + tntNoise,
+        (fuseSpotSuper ? 62 : 26) + tntNoise * 0.6,
+        (fuseSpotSuper ? 52 : 28) + tntNoise * 0.5,
+      ]);
+      paint(textures[BLOCKS.super_tnt].bottom, x, y, [
+        92 + tntNoise, 22 + tntNoise * 0.6, 24 + tntNoise * 0.5,
+      ]);
+
+      // Fire TNT: embers, so it does not get confused with the other two.
+      const fireSpeck = hash3(x * 0.7, y * 0.7, 163) > 0.66;
+      paint(textures[BLOCKS.fire_tnt].side, x, y, [
+        (tntBand ? 255 : fireSpeck ? 244 : 168) + tntNoise,
+        (tntBand ? 186 : fireSpeck ? 132 : 62) + tntNoise * 0.6,
+        (tntBand ? 60 : fireSpeck ? 34 : 28) + tntNoise * 0.5,
+      ]);
+      paint(textures[BLOCKS.fire_tnt].top, x, y, [
+        (fireSpeck ? 255 : 176) + tntNoise,
+        (fireSpeck ? 168 : 68) + tntNoise * 0.6,
+        (fireSpeck ? 48 : 30) + tntNoise * 0.5,
+      ]);
+      paint(textures[BLOCKS.fire_tnt].bottom, x, y, [
+        130 + tntNoise, 48 + tntNoise * 0.6, 28 + tntNoise * 0.5,
       ]);
 
       // Portal: swirling violet. Tinted per destination by the mesher.
@@ -642,6 +676,10 @@ export function createAtlasTexture() {
     textureSet[BLOCKS.portal].side,
     textureSet[BLOCKS.tnt].side,
     textureSet[BLOCKS.tnt].top,
+    textureSet[BLOCKS.super_tnt].side,
+    textureSet[BLOCKS.super_tnt].top,
+    textureSet[BLOCKS.fire_tnt].side,
+    textureSet[BLOCKS.fire_tnt].top,
   ];
 
   tileData.forEach((tile, index) => {
@@ -767,6 +805,12 @@ export function getTileIndex(blockType, faceKey) {
   }
   if (blockType === BLOCKS.tnt) {
     return faceKey === "py" || faceKey === "ny" ? 44 : 43;
+  }
+  if (blockType === BLOCKS.super_tnt) {
+    return faceKey === "py" || faceKey === "ny" ? 46 : 45;
+  }
+  if (blockType === BLOCKS.fire_tnt) {
+    return faceKey === "py" || faceKey === "ny" ? 48 : 47;
   }
   return 24;
 }

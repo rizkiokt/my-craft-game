@@ -349,6 +349,30 @@ export const TABLE_RECIPES = [
     ingredients: { [ITEMS.coal]: 5, [BLOCKS.sand]: 4 },
     description: "Blows a hole in the scenery. Harmless to people.",
   },
+  {
+    id: "super_tnt",
+    output: BLOCKS.super_tnt,
+    count: 1,
+    pattern: [
+      [null, BLOCKS.tnt, null],
+      [BLOCKS.tnt, ITEMS.coal, BLOCKS.tnt],
+      [null, BLOCKS.tnt, null],
+    ],
+    ingredients: { [BLOCKS.tnt]: 4, [ITEMS.coal]: 1 },
+    description: "Four charges in one. Twice the reach, still harmless.",
+  },
+  {
+    id: "fire_tnt",
+    output: BLOCKS.fire_tnt,
+    count: 2,
+    pattern: [
+      [null, BLOCKS.glowstone, null],
+      [BLOCKS.glowstone, BLOCKS.tnt, BLOCKS.glowstone],
+      [null, BLOCKS.glowstone, null],
+    ],
+    ingredients: { [BLOCKS.tnt]: 1, [BLOCKS.glowstone]: 4 },
+    description: "Burns off trees and grass, fuses sand to glass, spares stone.",
+  },
 ];
 
 export const FURNACE_RECIPES = [

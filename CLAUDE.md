@@ -426,7 +426,18 @@ first `pointerdown` anywhere — that is what lets the title screen have music a
 
 ### TNT
 
-`src/tnt.js` wrecks the scenery and nothing else. **There is no call to `damagePlayer()` in it,
+`src/tnt.js` wrecks the scenery and nothing else. Three charges share it, described by
+`BLAST_KINDS` in constants — radius, fuse, push, drop rate and a `mode`:
+
+| Charge | Mode | Radius | What it does |
+|---|---|---|---|
+| TNT | break | 4.2 | A bite out of everything |
+| Super TNT | break | 8.4 | The same, twice the reach |
+| Fire TNT | burn | 7.5 | Clears land: burns plants and timber, fuses sand to glass, **leaves stone and brick standing** |
+
+`BURNS_TO` is what makes Fire TNT a different tool rather than a bigger one — anything absent
+from that table is simply not touched, so it clears a forest without taking your house with it.
+Add a charge by adding a `BLAST_KINDS` entry; `isCharge()` picks up the rest. **There is no call to `damagePlayer()` in it,
 and there is not meant to be one** — this game has no fighting in it, so the blast knocks people
 about and takes nothing off them. Nothing touches the friends, the cats or the sheep either;
 `npcs.startle()` only puts a speech bubble over their heads.

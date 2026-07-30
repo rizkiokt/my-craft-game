@@ -71,6 +71,8 @@ export const BLOCKS = {
   portal_frame: 31,
   portal: 32,
   tnt: 33,
+  super_tnt: 34,
+  fire_tnt: 35,
 };
 
 export const ITEMS = {
@@ -134,6 +136,8 @@ export const BLOCK_NAMES = {
   [BLOCKS.portal_frame]: "Portal Frame",
   [BLOCKS.portal]: "Portal",
   [BLOCKS.tnt]: "TNT",
+  [BLOCKS.super_tnt]: "Super TNT",
+  [BLOCKS.fire_tnt]: "Fire TNT",
   [ITEMS.stick]: "Stick",
   [ITEMS.coal]: "Coal",
   [ITEMS.iron_ingot]: "Iron Ingot",
@@ -272,6 +276,8 @@ export const PLACEABLE_BLOCKS = [
   BLOCKS.glowstone,
   BLOCKS.portal_frame,
   BLOCKS.tnt,
+  BLOCKS.super_tnt,
+  BLOCKS.fire_tnt,
 ];
 
 /** Everything the creative palette hands out, in build-menu order. */
@@ -306,6 +312,8 @@ export const CREATIVE_ITEMS = [
   BLOCKS.cactus,
   BLOCKS.portal_frame,
   BLOCKS.tnt,
+  BLOCKS.super_tnt,
+  BLOCKS.fire_tnt,
   ITEMS.stick,
   ITEMS.coal,
   ITEMS.iron_ingot,
@@ -484,14 +492,43 @@ export const FIXED_DESTINATIONS = [
 
 /** Seconds between lighting it and the bang. Long enough to run. */
 export const TNT_FUSE = 3.4;
-/** How far the blast reaches, before the ragged edge is rolled. */
-export const TNT_RADIUS = 4.2;
-/** Chance a destroyed block leaves something to pick up. */
-export const TNT_DROP_CHANCE = 0.28;
 /** Hard cap on drops, so levelling a hillside cannot bury the frame rate. */
 export const TNT_MAX_DROPS = 24;
-/** How hard the blast shoves you. It does no damage at all. */
-export const TNT_PUSH = 13;
+
+/**
+ * What each charge does. `mode` is "break" for the ones that take a bite out
+ * of the world, and "burn" for the one that clears the land without knocking
+ * anybody's house down.
+ */
+export const BLAST_KINDS = {
+  [BLOCKS.tnt]: {
+    name: "TNT",
+    mode: "break",
+    radius: 4.2,
+    fuse: TNT_FUSE,
+    push: 13,
+    dropChance: 0.28,
+    sparkColor: BLOCKS.tnt,
+  },
+  [BLOCKS.super_tnt]: {
+    name: "Super TNT",
+    mode: "break",
+    radius: 8.4,
+    fuse: TNT_FUSE + 0.8,
+    push: 22,
+    dropChance: 0.16,
+    sparkColor: BLOCKS.super_tnt,
+  },
+  [BLOCKS.fire_tnt]: {
+    name: "Fire TNT",
+    mode: "burn",
+    radius: 7.5,
+    fuse: TNT_FUSE - 0.6,
+    push: 6,
+    dropChance: 0.4,
+    sparkColor: BLOCKS.fire_tnt,
+  },
+};
 
 /* ------------------------------------------------------------------ *
  * Portals

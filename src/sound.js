@@ -82,6 +82,9 @@ const BLOCK_MATERIAL = {
   [BLOCKS.glowstone]: "glass",
   [BLOCKS.lava]: "ember",
   [BLOCKS.torch]: "wood",
+  [BLOCKS.tnt]: "cloth",
+  [BLOCKS.super_tnt]: "cloth",
+  [BLOCKS.fire_tnt]: "cloth",
 };
 
 function materialFor(block) {
@@ -424,7 +427,19 @@ export class SoundEngine {
   }
 
   /** The bang: a low thump under a long, dark roll of debris. */
-  explosion() {
+  explosion(burning = false) {
+    if (burning) {
+      // Fire is a whoosh rather than a crack: less thump, far more air.
+      this.noise({ gain: 0.2, decay: 1.4, highpass: 300, lowpass: 5200, sweep: 0.18, wet: 1 });
+      this.pulse({ frequency: 150, type: "sawtooth", gain: 0.1, decay: 1, bend: 0.4, wet: 1 });
+      for (let i = 0; i < 6; i++) {
+        this.noise({
+          gain: 0.035, decay: 0.3, highpass: 900 * vary(0.5), lowpass: 8000,
+          time: 0.1 + i * 0.13 + Math.random() * 0.1, wet: 1,
+        });
+      }
+      return;
+    }
     this.pulse({ frequency: 110, type: "sine", gain: 0.24, attack: 0.006, decay: 0.7, bend: 0.28, wet: 1 });
     this.pulse({ frequency: 62, type: "triangle", gain: 0.18, attack: 0.01, decay: 1.1, bend: 0.35, wet: 1 });
     this.noise({ gain: 0.22, decay: 0.9, highpass: 90, lowpass: 3200, sweep: 0.2, wet: 1 });

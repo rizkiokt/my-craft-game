@@ -122,7 +122,8 @@ export function getBreakHardness(blockType) {
   if (blockType === BLOCKS.cactus || blockType === BLOCKS.mud) {
     return 1.6;
   }
-  if (blockType === BLOCKS.tnt) {
+  if (blockType === BLOCKS.tnt || blockType === BLOCKS.super_tnt
+    || blockType === BLOCKS.fire_tnt) {
     return 1.2;
   }
   if (blockType === BLOCKS.leaves || blockType === BLOCKS.pine_leaves || blockType === BLOCKS.glass || blockType === BLOCKS.ice) {

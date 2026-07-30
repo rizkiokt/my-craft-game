@@ -166,10 +166,18 @@ Your current seed is shown on the title screen and is saved with the world.
 
 ## TNT
 
-**Craft it** at a crafting table: five coal and four sand, laid out like a checkerboard, makes
-two.
+There are three kinds, and they are for different jobs.
 
-**Place it**, then **touch it with an empty hand** to light the fuse — if you are holding a
+| | Craft it from | What it does |
+|---|---|---|
+| **TNT** | 5 coal + 4 sand, checkerboard | Takes a bite out of whatever is around it |
+| **Super TNT** | 4 TNT round 1 coal | The same, but twice as far across |
+| **Fire TNT** | 1 TNT round 4 glowstone | Burns away trees and grass over a wide area, turns sand into glass — **and leaves stone and brick alone** |
+
+Fire TNT is the one for clearing a forest without flattening your house. Glowstone comes from
+the Ember Deep, so you will need to have been there.
+
+**Place any of them**, then **touch it with an empty hand** to light the fuse — if you are holding a
 block you will just place another one, so put your pickaxe away or empty your hand first.
 Then you have about three seconds. Run.
 

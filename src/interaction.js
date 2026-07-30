@@ -12,7 +12,7 @@ import { CAT_COATS, passiveMobs } from "./mobs.js";
 import { npcs } from "./npcs.js";
 import { spawnHearts, spawnParticles } from "./particles.js";
 import { clearPortalAt, describeFrameProblem, extinguishAround, lightPortal } from "./portals.js";
-import { lightTnt } from "./tnt.js";
+import { isCharge, lightTnt } from "./tnt.js";
 import { applyPlayerToCamera, eyePosition, hasCollision, lookDirection } from "./player.js";
 import { scene } from "./scene.js";
 import { soundEngine } from "./sound.js";
@@ -317,13 +317,14 @@ export function interact(breaking, isPress = false) {
     // Right-clicking a station opens it; sneak to place a block against it.
     // Touching TNT with a free hand lights the fuse. Holding a block still
     // places, exactly as it does for a portal frame.
-    if (state.target.block.type === BLOCKS.tnt
+    if (isCharge(state.target.block.type)
       && !state.sneaking
       && !isPlaceableItem(getSelectedItem())) {
       if (isPress) {
         state.usePressed = false;
-        if (lightTnt(state.target.block.x, state.target.block.y, state.target.block.z)) {
-          showToast("Lit! Stand back");
+        const name = lightTnt(state.target.block.x, state.target.block.y, state.target.block.z);
+        if (name) {
+          showToast(`${name} lit — stand back`);
         }
       }
       return;
