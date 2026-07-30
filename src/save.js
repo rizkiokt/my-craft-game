@@ -12,6 +12,7 @@ import {
 } from "./constants.js";
 import { getSelectedItem, isPlaceableItem } from "./items.js";
 import { passiveMobs } from "./mobs.js";
+import { cars } from "./vehicle.js";
 import { npcs } from "./npcs.js";
 import { clamp, getWorldSeed, seedFromText, setWorldSeed } from "./math.js";
 import { settings } from "./settings.js";
@@ -51,6 +52,7 @@ export function buildPayload() {
     chests: serializeChests(),
     portals: state.portals,
     pets: passiveMobs.serializePets(),
+    cars: cars.serialize(),
     npcs: npcs.serialize(),
     armor: state.armor,
     enchantments: state.enchantments,
@@ -166,6 +168,9 @@ export function loadGame() {
     state.xp = Number.isFinite(payload.xp) ? payload.xp : state.xp;
     state.health = Number.isFinite(payload.health) ? payload.health : state.health;
     restoredNpcs = npcs.restore(payload.npcs);
+    if (Array.isArray(payload.cars)) {
+      cars.restore(payload.cars);
+    }
     if (Array.isArray(payload.pets)) {
       passiveMobs.restorePets(payload.pets);
     }

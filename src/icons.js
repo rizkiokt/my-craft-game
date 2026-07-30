@@ -201,3 +201,16 @@ for (const [itemId, info] of Object.entries(ARMOR_ITEMS)) {
     ARMOR_GLYPHS[info.slot](ctxGlyph);
   });
 }
+
+// The car: a little side-on silhouette, so it reads at hotbar size.
+registerFlatIcon(ITEMS.car, "#2f7fd4", (ctxGlyph) => {
+  ctxGlyph.fillStyle = "#e9eef5";
+  ctxGlyph.fillRect(5, 15, 22, 7);
+  ctxGlyph.fillRect(10, 10, 12, 6);
+  ctxGlyph.fillStyle = "#8fc8e8";
+  ctxGlyph.fillRect(12, 11, 4, 4);
+  ctxGlyph.fillRect(17, 11, 4, 4);
+  ctxGlyph.fillStyle = "#1d1f24";
+  ctxGlyph.fillRect(8, 21, 5, 5);
+  ctxGlyph.fillRect(19, 21, 5, 5);
+});

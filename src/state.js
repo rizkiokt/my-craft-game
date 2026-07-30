@@ -28,6 +28,11 @@ export const state = {
   portalPicker: null,
   /** Charges counting down. Not saved: a lit fuse should not survive a reload. */
   litTnt: [],
+  /** Parked and driven cars. Saved; which one you are in is not. */
+  cars: [],
+  nextCarId: 1,
+  drivingCar: null,
+  carTarget: null,
   /** Seconds of no fall damage after a blast has thrown you. */
   blastGrace: 0,
   /** A decaying shove, added on top of walking rather than replaced by it. */

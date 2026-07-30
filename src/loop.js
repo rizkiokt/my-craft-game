@@ -21,6 +21,7 @@ import { passiveMobs } from "./mobs.js";
 import { npcs } from "./npcs.js";
 import { updatePortalTravel } from "./portals.js";
 import { updateTnt } from "./tnt.js";
+import { updateVehicles } from "./vehicle.js";
 import { spawnParticles, updateParticles } from "./particles.js";
 import { applyPlayerToCamera, getFootstepBlockType, getSubmersion, handlePlayerDeath, hasCollision, movePlayerAxis, updateSafeAnchor } from "./player.js";
 import { saveGame } from "./save.js";
@@ -177,6 +178,10 @@ export function update(dt, shouldRender = true) {
     movePlayerAxis("z", state.player.vz * dt);
     state.player.onGround = false;
     movePlayerAxis("y", state.player.vy * dt);
+
+    // After the walking, because a driver is put back in the seat every frame
+    // and whatever their legs were doing is thrown away.
+    updateVehicles(dt);
 
     // Touching down ends creative flight, the same as Minecraft.
     if (state.flying && state.player.onGround && state.player.vy <= 0) {

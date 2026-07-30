@@ -374,6 +374,18 @@ export const TABLE_RECIPES = [
     description: "Burns off trees and grass, fuses sand to glass, spares stone.",
   },
   {
+    id: "car",
+    output: ITEMS.car,
+    count: 1,
+    pattern: [
+      [null, ITEMS.iron_ingot, null],
+      [ITEMS.iron_ingot, ITEMS.iron_ingot, ITEMS.iron_ingot],
+      [ITEMS.coal, null, ITEMS.coal],
+    ],
+    ingredients: { [ITEMS.iron_ingot]: 4, [ITEMS.coal]: 2 },
+    description: "Drive it. Right-click to get in, shift to get out, right-click again to honk.",
+  },
+  {
     id: "super_duper_tnt",
     output: BLOCKS.super_duper_tnt,
     count: 1,

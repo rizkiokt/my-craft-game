@@ -764,6 +764,62 @@ export class SoundEngine {
   }
 
   /** A few sparse pentatonic notes, so the quiet is not empty. */
+  /**
+   * The engine: one drone whose pitch and level follow the speed. Built once
+   * and left running at zero gain, because starting an oscillator per frame
+   * would click.
+   */
+  engine(active, throttle = 0) {
+    const context = this.ensureContext();
+    if (!context || !this.master) {
+      return;
+    }
+    if (!this.engineGain) {
+      if (!active) {
+        return;
+      }
+      this.engineOsc = context.createOscillator();
+      this.engineOsc.type = "sawtooth";
+      this.engineOsc.frequency.value = 58;
+      const shape = context.createBiquadFilter();
+      shape.type = "lowpass";
+      shape.frequency.value = 420;
+      shape.Q.value = 3;
+      this.engineGain = context.createGain();
+      this.engineGain.gain.value = 0;
+      this.engineOsc.connect(shape);
+      shape.connect(this.engineGain);
+      this.engineGain.connect(this.dry);
+      this.engineOsc.start();
+    }
+    const now = context.currentTime;
+    const level = active ? 0.05 + throttle * 0.1 : 0;
+    this.engineGain.gain.setTargetAtTime(level * VOICE * 0.16, now, 0.12);
+    this.engineOsc.frequency.setTargetAtTime(52 + throttle * 118, now, 0.14);
+  }
+
+  /** Two tones, the second a fifth up. Unmistakably a car. */
+  horn() {
+    const context = this.ensureContext();
+    if (!context || !this.master) {
+      return;
+    }
+    const now = context.currentTime;
+    for (const [frequency, offset] of [[392, 0], [523, 0.005]]) {
+      const osc = context.createOscillator();
+      osc.type = "square";
+      osc.frequency.value = frequency;
+      const gain = context.createGain();
+      gain.gain.setValueAtTime(0.0001, now + offset);
+      gain.gain.exponentialRampToValueAtTime(0.16 * VOICE * 0.2, now + offset + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.36);
+      osc.connect(gain);
+      this.send(gain, 0.35);
+      osc.start(now + offset);
+      osc.stop(now + offset + 0.4);
+    }
+  }
+
   chime() {
     const scale = [392, 440, 523.25, 587.33, 659.25, 783.99];
     const root = scale[Math.floor(Math.random() * scale.length)];

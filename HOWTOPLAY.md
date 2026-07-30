@@ -208,6 +208,26 @@ you can lay a line of them — or mix kinds and set off a tornado with an earthq
 
 ---
 
+## Cars
+
+Build one at a crafting table: **four iron ingots and two coal** — iron for the body, coal for
+the wheels.
+
+| | |
+|---|---|
+| **Park it** | Hold the car and right-click the ground |
+| **Get in** | Right-click the car |
+| **Drive** | Your normal movement keys. The view turns with the car |
+| **Honk** | Right-click while driving |
+| **Get out** | Sneak (Shift) |
+
+It **climbs a whole block**, so kerbs, garden walls and steps are all driveable — you can drive
+right up to your front door. It **floats**, so ponds and rivers are things to cross rather than
+things to lose your car in.
+
+And it cannot hurt you. Drive it off the tallest cliff you can find: the car takes the landing,
+you do not.
+
 ## Growing Up
 
 You start small and grow as you level up, and the two go at different speeds.

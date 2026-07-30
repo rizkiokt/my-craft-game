@@ -34,7 +34,7 @@ Modules are layered; a module may only import from a layer below it. `src/ui/*` 
 | 1 | `settings.js`, `bindings.js`, `state.js`, `recipes.js` | Options, control scheme, mutable state, recipe tables |
 | 2 | `worldgen.js`, `textures.js`, `world.js`, `items.js`, `enchanting.js` | Terrain, atlas, voxel storage, item rules, XP |
 | 3 | `scene.js`, `icons.js`, `chunkMesh.js`, `sound.js`, `mobs.js`, `particles.js`, `playerModel.js` | Three.js resources and singletons |
-| 4 | `player.js`, `interaction.js`, `crafting.js`, `combat.js`, `drops.js`, `portals.js`, `pointerLock.js`, `fullscreen.js`, `save.js` | Gameplay systems |
+| 4 | `player.js`, `interaction.js`, `crafting.js`, `combat.js`, `drops.js`, `portals.js`, `tnt.js`, `vehicle.js`, `pointerLock.js`, `fullscreen.js`, `save.js` | Gameplay systems |
 | 5 | `ui/hud.js`, `ui/inventory.js`, `ui/screens.js`, `ui/controlsScreen.js`, `ui/options.js`, `ui/menus.js`, `ui/worlds.js`, `ui/portals.js` | Screens and overlays |
 | 6 | `actions.js`, `input.js`, `touch.js`, `loop.js`, `debugApi.js` | Input routing and the frame loop |
 
@@ -484,6 +484,35 @@ charge caught in a blast lights its own short fuse, so chains work.
 An explosion costs 2.5–6.9 ms, and the re-mesh it causes rides the normal `MESH_BUDGET_MS`.
 The worst single frame while one lands is 13–24 ms — one hitch during a bang, not a sustained
 cost.
+
+### Cars
+
+`src/vehicle.js` owns the only thing in the game that moves you without your feet. A car is a
+plain object in `state.cars` plus a `THREE.Group` of boxes; `CarManager` mirrors the two and is
+the same shape as `PassiveMobManager`, down to `userData.car` letting a raycast hit find its way
+back to the thing it belongs to.
+
+Three rules make it fun rather than fiddly, and each is deliberate:
+
+- **It climbs a whole block, not a step.** `slide()` retries one block up before giving up, so
+  kerbs, garden walls and the odd staircase are all driveable. A car that stopped at a kerb
+  would be useless anywhere you had actually built something.
+- **It floats.** `CAR_FLOAT` pushes up while the car is in water, so a pond is something to
+  drive across rather than a way to lose your car.
+- **It cannot hurt you.** `sitInSeat()` clears `state.fallStartY` every frame, so the car takes
+  the landing and you do not — verified at forty blocks, which is twice lethal on foot.
+
+Two integration details matter:
+
+- **`updateVehicles()` runs after `movePlayerAxis()`, not before.** The driver is put back in
+  the seat every frame and whatever `handleInput()` did to their legs is thrown away, so
+  driving needs no special case anywhere in the walking code.
+- **Steering turns `state.player.yaw` by the same delta as the car.** The view swings round with
+  the car, so you keep facing where you are going without steering with the mouse as well — but
+  it is still an offset, so you can look out of the side window.
+
+Behind the wheel the right button is the horn and nothing else; `interact()` short-circuits on
+`isDriving()` before it considers a block. Sneak steps out, onto whichever side is clear.
 
 ### Growing with level
 

@@ -2,7 +2,7 @@
 
 import * as THREE from "../node_modules/three/build/three.module.js";
 import { chunkMeshes } from "./chunkMesh.js";
-import { BLOCKS, BLOCK_NAMES, INTERACTION_RANGE, MAX_BUILD_HEIGHT, MIN_WORLD_Y, PLAYER_HEIGHT, PLAYER_RADIUS } from "./constants.js";
+import { BLOCKS, BLOCK_NAMES, INTERACTION_RANGE, ITEMS, MAX_BUILD_HEIGHT, MIN_WORLD_Y, PLAYER_HEIGHT, PLAYER_RADIUS } from "./constants.js";
 import { getLevel, getXpForBlock, grantXp } from "./enchanting.js";
 import { getBodyHeight, getBodyRadius, getReach } from "./growth.js";
 import { addItem, canMineBlock, consumeItem, getBreakDamage, getBreakHardness, getDropCount, getDropForBlock, getInteractionCooldown, getItemCount, getRequiredToolName, getSelectedItem, isCollectibleBlock, isCreative, isPlaceableItem } from "./items.js";
@@ -13,6 +13,7 @@ import { npcs } from "./npcs.js";
 import { spawnHearts, spawnParticles } from "./particles.js";
 import { clearPortalAt, describeFrameProblem, extinguishAround, lightPortal } from "./portals.js";
 import { isCharge, lightTnt } from "./tnt.js";
+import { cars, enterCar, honk, isDriving } from "./vehicle.js";
 import { applyPlayerToCamera, eyePosition, hasCollision, lookDirection } from "./player.js";
 import { scene } from "./scene.js";
 import { soundEngine } from "./sound.js";
@@ -136,9 +137,14 @@ export function updateTarget() {
   const creature = passiveMobs.raycast(raycaster, reach);
   const friend = npcs.raycast(raycaster, reach);
   // Whichever of the two is nearer takes the crosshair.
+  const carHit = cars.raycast(raycaster, reach);
   const friendFirst = friend && (!creature || friend.distance <= creature.distance);
-  state.npcTarget = friendFirst ? friend.npc : null;
-  state.entityTarget = !friendFirst && creature ? creature.entity : null;
+  const nearestBody = friendFirst ? friend.distance : creature?.distance ?? Infinity;
+  // A car is a body like the others: nearest one under the crosshair wins.
+  const carFirst = carHit && carHit.distance <= nearestBody;
+  state.carTarget = carFirst ? carHit.car : null;
+  state.npcTarget = !carFirst && friendFirst ? friend.npc : null;
+  state.entityTarget = !carFirst && !friendFirst && creature ? creature.entity : null;
 
   if (!hit || !hit.face) {
     state.target = null;
@@ -191,6 +197,28 @@ function tryLightPortal(x, y, z) {
 
 export function interact(breaking, isPress = false) {
   updateTarget();
+
+  // Behind the wheel the right button is the horn and nothing else: reaching
+  // out to place a block from the driving seat only ever went wrong.
+  if (isDriving() && !breaking) {
+    if (isPress) {
+      state.usePressed = false;
+      honk();
+    }
+    return;
+  }
+
+  // A car is greeted before any block too, and for the same reason as the
+  // animals: one parked against open sky has no block behind it to fall back
+  // on, so this has to run before the no-target bail below.
+  if (!breaking && state.carTarget) {
+    if (isPress) {
+      state.usePressed = false;
+      enterCar(state.carTarget);
+      showToast("Driving — steer with your movement keys, sneak to get out");
+    }
+    return;
+  }
 
   // Someone under the crosshair is greeted before any block is considered.
   const friend = state.npcTarget;
@@ -365,6 +393,17 @@ export function interact(breaking, isPress = false) {
     }
 
     const selectedItem = getSelectedItem();
+    if (selectedItem === ITEMS.car) {
+      if (isPress && getItemCount(ITEMS.car) > 0) {
+        const spot = state.target.place;
+        cars.spawn(spot.x + 0.5, spot.y, spot.z + 0.5, state.player.yaw);
+        consumeItem(ITEMS.car, 1);
+        soundEngine.place(BLOCKS.stone);
+        showToast("Parked a car — touch it to drive");
+        state.saveDirty = true;
+      }
+      return;
+    }
     if (!isPlaceableItem(selectedItem)) {
       return;
     }

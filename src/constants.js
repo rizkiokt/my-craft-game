@@ -104,6 +104,7 @@ export const ITEMS = {
   netherite_chestplate: 129,
   netherite_leggings: 130,
   netherite_boots: 131,
+  car: 140,
 };
 
 export const BLOCK_NAMES = {
@@ -158,6 +159,7 @@ export const BLOCK_NAMES = {
   [ITEMS.diamond_pickaxe]: "Diamond Pickaxe",
   [ITEMS.netherite_scrap]: "Netherite Scrap",
   [ITEMS.netherite_ingot]: "Netherite Ingot",
+  [ITEMS.car]: "Car",
   [ITEMS.netherite_pickaxe]: "Netherite Pickaxe",
   [ITEMS.iron_helmet]: "Iron Helmet",
   [ITEMS.iron_chestplate]: "Iron Chestplate",
@@ -340,6 +342,7 @@ export const CREATIVE_ITEMS = [
   ITEMS.diamond,
   ITEMS.netherite_scrap,
   ITEMS.netherite_ingot,
+  ITEMS.car,
   ITEMS.wood_pickaxe,
   ITEMS.stone_pickaxe,
   ITEMS.iron_pickaxe,
@@ -728,4 +731,24 @@ export const FACE_DEFS = [
       [1, 0, 0],
     ],
   },
+];
+
+/**
+ * The car. Fast enough to be worth building and slow enough to steer, which is
+ * roughly three times a walk. It climbs a whole block rather than a step,
+ * because a car that stops at a kerb is no use in a place you have built.
+ */
+export const CAR_ACCEL = 11;
+export const CAR_BRAKE = 20;
+export const CAR_MAX_SPEED = 13;
+export const CAR_REVERSE_SPEED = 5;
+export const CAR_STEER = 2.1;
+export const CAR_RADIUS = 0.78;
+export const CAR_HEIGHT = 1.35;
+export const CAR_STEP = 1;
+export const CAR_SEAT_HEIGHT = 0.95;
+/** Upward push in water: it floats, so a pond is something to drive across. */
+export const CAR_FLOAT = 26;
+export const CAR_COLORS = [
+  0xd8402c, 0x2f7fd4, 0xf0b429, 0x3fa65c, 0x9b5de5, 0xe8724c, 0x24b6c9, 0xe4e6ea,
 ];
