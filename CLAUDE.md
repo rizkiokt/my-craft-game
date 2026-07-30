@@ -426,18 +426,37 @@ first `pointerdown` anywhere — that is what lets the title screen have music a
 
 ### TNT
 
-`src/tnt.js` wrecks the scenery and nothing else. Three charges share it, described by
-`BLAST_KINDS` in constants — radius, fuse, push, drop rate and a `mode`:
+`src/tnt.js` wrecks the scenery and nothing else. Eight charges share it, described by
+`BLAST_KINDS` in constants — radius, shape, fuse, push, drop rate and a `mode`:
 
-| Charge | Mode | Radius | What it does |
-|---|---|---|---|
-| TNT | break | 4.2 | A bite out of everything |
-| Super TNT | break | 8.4 | The same, twice the reach |
-| Fire TNT | burn | 7.5 | Clears land: burns plants and timber, fuses sand to glass, **leaves stone and brick standing** |
+| Charge | Mode | Shape | Radius | What it does |
+|---|---|---|---|---|
+| TNT | break | ball | 4.2 | A bite out of everything |
+| Super TNT | break | ball | 8.4 | The same, twice the reach |
+| Super Duper Mega TNT | break | ball | 16 | Levels a small neighbourhood |
+| Fire TNT | burn | ball | 7.5 | Burns plants and timber, fuses sand to glass, spares stone |
+| Flood TNT | flood | ball | 7 | Washes the top out, fills the bottom with water |
+| Tornado TNT | wind | column | 8 | Lifts the loose things, leaves the masonry |
+| Earthquake TNT | quake | disc | 9 | Churns wide flat ground into cracked rock |
+| Blizzard TNT | freeze | ball | 9 | Freezes water, lays snow, **removes nothing at all** |
 
-`BURNS_TO` is what makes Fire TNT a different tool rather than a bigger one — anything absent
-from that table is simply not touched, so it clears a forest without taking your house with it.
-Add a charge by adding a `BLAST_KINDS` entry; `isCharge()` picks up the rest. **There is no call to `damagePlayer()` in it,
+Three tables do most of the work, and each is what stops its charge from being merely a
+different size: `BURNS_TO` (what fire takes), `LOOSE` (what wind can lift), `KEEP` (portals,
+never drowned or frozen over). Anything absent from a mode's table is simply not touched.
+Add a charge by adding a `BLAST_KINDS` entry and a `MODES` function; `isCharge()` picks up the
+rest.
+
+Two pieces of machinery serve all of them:
+
+- **`blastOffsets(radius, shape)`** returns every cell in range, sorted nearest-first, cached per
+  shape and radius. Ball, column and disc are one ellipsoid at different proportions, and the
+  distance it stores is normalised 0..1 so the ragged-edge test is shape-independent.
+- **Waves.** Nearest-first order is what lets a blast travel. Small charges finish in the call;
+  a kind marked `staged` gets through `BLAST_CELLS_PER_FRAME` cells a frame instead. Super Duper
+  Mega TNT is 17,000 cells — one frame's worth of that is a visible stall, and an expanding wall
+  of dust looks better than a hole appearing all at once anyway.
+
+**There is no call to `damagePlayer()` in it,
 and there is not meant to be one** — this game has no fighting in it, so the blast knocks people
 about and takes nothing off them. Nothing touches the friends, the cats or the sheep either;
 `npcs.startle()` only puts a speech bubble over their heads.
@@ -452,11 +471,18 @@ Three details are load-bearing:
   exactly that.
 - **Drops are capped at `TNT_MAX_DROPS`.** Levelling a hillside would otherwise spawn hundreds of
   pickups in one frame.
+- **`floodCeiling()` keeps a flood below the feet of anyone caught in it**, and tops their air up.
+  Filling over the player's head drowns them, which is the charge hurting them by the back door;
+  the cap has to be two below the feet, not one, or the block they are standing on turns to water
+  and drops them in. Grace scales with `lift` too, since a tornado throws you far higher than the
+  rest and 5 seconds is not always enough to come down.
 
 Liquids and lit portals are blast-proof; a destroyed portal frame extinguishes its portal. A
 charge caught in a blast lights its own short fuse, so chains work.
 
-An explosion costs 1.4–2.8 ms, and the re-mesh it causes rides the normal `MESH_BUDGET_MS`.
+An explosion costs 2.5–6.9 ms, and the re-mesh it causes rides the normal `MESH_BUDGET_MS`.
+The worst single frame while one lands is 13–24 ms — one hitch during a bang, not a sustained
+cost.
 
 ### Growing with level
 

@@ -1,6 +1,14 @@
 // Item identity, stack maths and mining rules.
 
-import { BLOCKS, BLOCK_TIER, CREATIVE_STACK, ITEMS, PLACEABLE_BLOCKS, TOOL_STATS } from "./constants.js";
+import {
+  BLAST_KINDS,
+  BLOCKS,
+  BLOCK_TIER,
+  CREATIVE_STACK,
+  ITEMS,
+  PLACEABLE_BLOCKS,
+  TOOL_STATS,
+} from "./constants.js";
 import { getHeldEnchantLevel } from "./enchanting.js";
 import { state } from "./state.js";
 export function isCollectibleBlock(blockType) {
@@ -122,8 +130,7 @@ export function getBreakHardness(blockType) {
   if (blockType === BLOCKS.cactus || blockType === BLOCKS.mud) {
     return 1.6;
   }
-  if (blockType === BLOCKS.tnt || blockType === BLOCKS.super_tnt
-    || blockType === BLOCKS.fire_tnt) {
+  if (BLAST_KINDS[blockType]) {
     return 1.2;
   }
   if (blockType === BLOCKS.leaves || blockType === BLOCKS.pine_leaves || blockType === BLOCKS.glass || blockType === BLOCKS.ice) {

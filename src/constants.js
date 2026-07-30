@@ -73,6 +73,11 @@ export const BLOCKS = {
   tnt: 33,
   super_tnt: 34,
   fire_tnt: 35,
+  super_duper_tnt: 36,
+  flood_tnt: 37,
+  tornado_tnt: 38,
+  quake_tnt: 39,
+  blizzard_tnt: 40,
 };
 
 export const ITEMS = {
@@ -138,6 +143,11 @@ export const BLOCK_NAMES = {
   [BLOCKS.tnt]: "TNT",
   [BLOCKS.super_tnt]: "Super TNT",
   [BLOCKS.fire_tnt]: "Fire TNT",
+  [BLOCKS.super_duper_tnt]: "Super Duper Mega TNT",
+  [BLOCKS.flood_tnt]: "Flood TNT",
+  [BLOCKS.tornado_tnt]: "Tornado TNT",
+  [BLOCKS.quake_tnt]: "Earthquake TNT",
+  [BLOCKS.blizzard_tnt]: "Blizzard TNT",
   [ITEMS.stick]: "Stick",
   [ITEMS.coal]: "Coal",
   [ITEMS.iron_ingot]: "Iron Ingot",
@@ -278,6 +288,11 @@ export const PLACEABLE_BLOCKS = [
   BLOCKS.tnt,
   BLOCKS.super_tnt,
   BLOCKS.fire_tnt,
+  BLOCKS.super_duper_tnt,
+  BLOCKS.flood_tnt,
+  BLOCKS.tornado_tnt,
+  BLOCKS.quake_tnt,
+  BLOCKS.blizzard_tnt,
 ];
 
 /** Everything the creative palette hands out, in build-menu order. */
@@ -314,6 +329,11 @@ export const CREATIVE_ITEMS = [
   BLOCKS.tnt,
   BLOCKS.super_tnt,
   BLOCKS.fire_tnt,
+  BLOCKS.super_duper_tnt,
+  BLOCKS.flood_tnt,
+  BLOCKS.tornado_tnt,
+  BLOCKS.quake_tnt,
+  BLOCKS.blizzard_tnt,
   ITEMS.stick,
   ITEMS.coal,
   ITEMS.iron_ingot,
@@ -528,7 +548,69 @@ export const BLAST_KINDS = {
     dropChance: 0.4,
     sparkColor: BLOCKS.fire_tnt,
   },
+  [BLOCKS.super_duper_tnt]: {
+    name: "Super Duper Mega TNT",
+    mode: "break",
+    radius: 16,
+    fuse: TNT_FUSE + 2.6,
+    push: 34,
+    dropChance: 0.05,
+    sparkColor: BLOCKS.super_duper_tnt,
+    /**
+     * Seventeen thousand cells is far too many for one frame, so this one
+     * travels outwards over about a third of a second instead. It is faster
+     * and it looks better: a wall of dust going out, rather than a hole
+     * appearing all at once.
+     */
+    staged: true,
+  },
+  [BLOCKS.flood_tnt]: {
+    name: "Flood TNT",
+    mode: "flood",
+    radius: 7,
+    fuse: TNT_FUSE,
+    push: 9,
+    dropChance: 0.1,
+    sparkColor: BLOCKS.water,
+  },
+  [BLOCKS.tornado_tnt]: {
+    name: "Tornado TNT",
+    mode: "wind",
+    // A tall thin column rather than a ball, so it strips the treetops.
+    shape: "column",
+    radius: 8,
+    fuse: TNT_FUSE - 0.4,
+    push: 16,
+    // Mostly straight up. Landing costs nothing, so this is pure fun.
+    lift: 2.2,
+    dropChance: 0.45,
+    sparkColor: BLOCKS.leaves,
+  },
+  [BLOCKS.quake_tnt]: {
+    name: "Earthquake TNT",
+    mode: "quake",
+    // Wide and flat: it runs along the ground instead of digging a pit.
+    shape: "disc",
+    radius: 9,
+    fuse: TNT_FUSE + 0.6,
+    push: 11,
+    dropChance: 0.12,
+    shake: 0.9,
+    sparkColor: BLOCKS.stone,
+  },
+  [BLOCKS.blizzard_tnt]: {
+    name: "Blizzard TNT",
+    mode: "freeze",
+    radius: 9,
+    fuse: TNT_FUSE,
+    push: 7,
+    dropChance: 0,
+    sparkColor: BLOCKS.snow,
+  },
 };
+
+/** How many cells a travelling blast gets through per frame. */
+export const BLAST_CELLS_PER_FRAME = 1400;
 
 /* ------------------------------------------------------------------ *
  * Portals

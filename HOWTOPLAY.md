@@ -166,23 +166,37 @@ Your current seed is shown on the title screen and is saved with the world.
 
 ## TNT
 
-There are three kinds, and they are for different jobs.
+There are eight kinds, and they are for different jobs.
 
 | | Craft it from | What it does |
 |---|---|---|
 | **TNT** | 5 coal + 4 sand, checkerboard | Takes a bite out of whatever is around it |
 | **Super TNT** | 4 TNT round 1 coal | The same, but twice as far across |
-| **Fire TNT** | 1 TNT round 4 glowstone | Burns away trees and grass over a wide area, turns sand into glass — **and leaves stone and brick alone** |
+| **Super Duper Mega TNT** | 4 Super TNT round 1 netherite ingot | The big one. Flattens everything for sixteen blocks, and you can watch the blast travel outwards |
+| **Fire TNT** | 1 TNT round 4 glowstone | Burns away trees and grass, turns sand into glass — **leaves stone and brick alone** |
+| **Flood TNT** | 1 TNT round 4 ice | Washes everything out and leaves a pond behind |
+| **Tornado TNT** | 1 TNT round 4 leaves | A tall spinning column. Rips up trees, sand and snow, **leaves buildings standing** — and throws you very high |
+| **Earthquake TNT** | 1 TNT round 4 stone | Runs along the ground instead of digging down. Churns a wide flat patch into cracked rock |
+| **Blizzard TNT** | 1 TNT round 4 snow | Freezes ponds solid and lays snow over everything. **Takes nothing away at all** |
 
-Fire TNT is the one for clearing a forest without flattening your house. Glowstone comes from
-the Ember Deep, so you will need to have been there.
+Each one is a different tool, not just a different size:
+
+- **Fire TNT** clears a forest without flattening your house.
+- **Tornado TNT** does the same but leaves the trees' stumps and takes the sand — and launches
+  you into the sky, which is worth doing on its own.
+- **Earthquake TNT** is flat and wide, so it changes the ground without touching the treetops.
+- **Blizzard TNT** is the only completely safe one: it never removes a block, so you can set it
+  off next to something you built and just get a snowy version of it.
+
+Super Duper Mega TNT needs a netherite ingot, and Fire TNT needs glowstone, so both mean a trip
+to the Ember Deep first. Flood and Blizzard need ice and snow from the snow realm.
 
 **Place any of them**, then **touch it with an empty hand** to light the fuse — if you are holding a
 block you will just place another one, so put your pickaxe away or empty your hand first.
 Then you have about three seconds. Run.
 
-It takes a big bite out of whatever is around it, and some of the rubble is left behind to pick
-up. A charge caught in another blast goes off too, so you can lay a line of them.
+Some of the rubble is left behind to pick up. A charge caught in another blast goes off too, so
+you can lay a line of them — or mix kinds and set off a tornado with an earthquake.
 
 > **It cannot hurt anybody.** Not you, not your friends, not the cats or the sheep. Standing
 > right next to one will throw you across the field and you will not lose a single heart — not

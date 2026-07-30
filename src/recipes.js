@@ -373,6 +373,66 @@ export const TABLE_RECIPES = [
     ingredients: { [BLOCKS.tnt]: 1, [BLOCKS.glowstone]: 4 },
     description: "Burns off trees and grass, fuses sand to glass, spares stone.",
   },
+  {
+    id: "super_duper_tnt",
+    output: BLOCKS.super_duper_tnt,
+    count: 1,
+    pattern: [
+      [null, BLOCKS.super_tnt, null],
+      [BLOCKS.super_tnt, ITEMS.netherite_ingot, BLOCKS.super_tnt],
+      [null, BLOCKS.super_tnt, null],
+    ],
+    ingredients: { [BLOCKS.super_tnt]: 4, [ITEMS.netherite_ingot]: 1 },
+    description: "The big one. Six seconds of fuse, and you will want them.",
+  },
+  {
+    id: "flood_tnt",
+    output: BLOCKS.flood_tnt,
+    count: 2,
+    pattern: [
+      [null, BLOCKS.ice, null],
+      [BLOCKS.ice, BLOCKS.tnt, BLOCKS.ice],
+      [null, BLOCKS.ice, null],
+    ],
+    ingredients: { [BLOCKS.tnt]: 1, [BLOCKS.ice]: 4 },
+    description: "Washes out a crater and leaves a lake behind.",
+  },
+  {
+    id: "tornado_tnt",
+    output: BLOCKS.tornado_tnt,
+    count: 2,
+    pattern: [
+      [null, BLOCKS.leaves, null],
+      [BLOCKS.leaves, BLOCKS.tnt, BLOCKS.leaves],
+      [null, BLOCKS.leaves, null],
+    ],
+    ingredients: { [BLOCKS.tnt]: 1, [BLOCKS.leaves]: 4 },
+    description: "Rips up a tall column of loose things. Masonry stands.",
+  },
+  {
+    id: "quake_tnt",
+    output: BLOCKS.quake_tnt,
+    count: 2,
+    pattern: [
+      [null, BLOCKS.stone, null],
+      [BLOCKS.stone, BLOCKS.tnt, BLOCKS.stone],
+      [null, BLOCKS.stone, null],
+    ],
+    ingredients: { [BLOCKS.tnt]: 1, [BLOCKS.stone]: 4 },
+    description: "Churns a wide patch of ground into cracked rock.",
+  },
+  {
+    id: "blizzard_tnt",
+    output: BLOCKS.blizzard_tnt,
+    count: 2,
+    pattern: [
+      [null, BLOCKS.snow, null],
+      [BLOCKS.snow, BLOCKS.tnt, BLOCKS.snow],
+      [null, BLOCKS.snow, null],
+    ],
+    ingredients: { [BLOCKS.tnt]: 1, [BLOCKS.snow]: 4 },
+    description: "Freezes water solid and lays snow over everything.",
+  },
 ];
 
 export const FURNACE_RECIPES = [

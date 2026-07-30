@@ -80,6 +80,16 @@ export function getBlockColor(blockType) {
       return [0xb02a1e, 0xf0c246];
     case BLOCKS.fire_tnt:
       return [0xff8a2a, 0xffd76a];
+    case BLOCKS.super_duper_tnt:
+      return [0xffdd44, 0x2a2a30];
+    case BLOCKS.flood_tnt:
+      return [0x3f8fd8, 0x9ad8f5];
+    case BLOCKS.tornado_tnt:
+      return [0xc8d4de, 0x8a99a6];
+    case BLOCKS.quake_tnt:
+      return [0xb09a72, 0x6f6052];
+    case BLOCKS.blizzard_tnt:
+      return [0xdaf0fb, 0x8fc4de];
     default:
       return [0x6cab57, 0x84c56f];
   }

@@ -85,6 +85,11 @@ const BLOCK_MATERIAL = {
   [BLOCKS.tnt]: "cloth",
   [BLOCKS.super_tnt]: "cloth",
   [BLOCKS.fire_tnt]: "cloth",
+  [BLOCKS.super_duper_tnt]: "metal",
+  [BLOCKS.flood_tnt]: "cloth",
+  [BLOCKS.tornado_tnt]: "cloth",
+  [BLOCKS.quake_tnt]: "cloth",
+  [BLOCKS.blizzard_tnt]: "cloth",
 };
 
 function materialFor(block) {

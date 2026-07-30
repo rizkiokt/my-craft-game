@@ -3,6 +3,25 @@
 import * as THREE from "../node_modules/three/build/three.module.js";
 import { BLOCKS } from "./constants.js";
 import { clamp, hash3, lerp } from "./math.js";
+/**
+ * Water, wind, rock and ice charges share the TNT casing and differ only in
+ * colour, so they are a table rather than four near-identical blocks of code.
+ */
+const ELEMENTAL_TNT = [
+  { block: BLOCKS.flood_tnt, seed: 167, band: [70, 150, 232], core: [150, 220, 255], body: [34, 74, 128] },
+  { block: BLOCKS.tornado_tnt, seed: 171, band: [206, 220, 232], core: [246, 250, 255], body: [96, 112, 126] },
+  { block: BLOCKS.quake_tnt, seed: 173, band: [176, 150, 112], core: [214, 196, 158], body: [86, 74, 62] },
+  { block: BLOCKS.blizzard_tnt, seed: 179, band: [186, 226, 246], core: [246, 252, 255], body: [92, 138, 168] },
+];
+
+/** Side tile per elemental charge; the top tile is always the next one along. */
+const ELEMENTAL_TILES = {
+  [BLOCKS.flood_tnt]: 51,
+  [BLOCKS.tornado_tnt]: 53,
+  [BLOCKS.quake_tnt]: 55,
+  [BLOCKS.blizzard_tnt]: 57,
+};
+
 export function createTextureSet() {
   const textures = {};
   for (const blockType of [
@@ -41,6 +60,11 @@ export function createTextureSet() {
     BLOCKS.tnt,
     BLOCKS.super_tnt,
     BLOCKS.fire_tnt,
+    BLOCKS.super_duper_tnt,
+    BLOCKS.flood_tnt,
+    BLOCKS.tornado_tnt,
+    BLOCKS.quake_tnt,
+    BLOCKS.blizzard_tnt,
   ]) {
     textures[blockType] = {
       top: new Uint8Array(16 * 16 * 3),
@@ -496,6 +520,37 @@ export function createTextureSet() {
         130 + tntNoise, 48 + tntNoise * 0.6, 28 + tntNoise * 0.5,
       ]);
 
+      // Super Duper Mega TNT: black casing, hazard stripes, glowing core.
+      const stripe = (x + y) % 6 < 3;
+      const core = Math.abs(x - 8) <= 2 && Math.abs(y - 8) <= 2;
+      paint(textures[BLOCKS.super_duper_tnt].side, x, y, [
+        (tntBand ? (stripe ? 250 : 30) : core ? 255 : 38) + tntNoise,
+        (tntBand ? (stripe ? 208 : 28) : core ? 120 : 34) + tntNoise * 0.6,
+        (tntBand ? (stripe ? 40 : 32) : core ? 60 : 40) + tntNoise * 0.5,
+      ]);
+      paint(textures[BLOCKS.super_duper_tnt].top, x, y, [
+        (core ? 255 : stripe ? 208 : 34) + tntNoise,
+        (core ? 150 : stripe ? 170 : 30) + tntNoise * 0.6,
+        (core ? 60 : stripe ? 42 : 36) + tntNoise * 0.5,
+      ]);
+      paint(textures[BLOCKS.super_duper_tnt].bottom, x, y, [
+        30 + tntNoise, 28 + tntNoise * 0.6, 32 + tntNoise * 0.5,
+      ]);
+
+      // The elemental charges: one casing, four coats of paint.
+      const channels = [0, 1, 2];
+      const shade = [tntNoise, tntNoise * 0.6, tntNoise * 0.5];
+      for (const charge of ELEMENTAL_TNT) {
+        const speck = hash3(x * 0.7, y * 0.7, charge.seed) > 0.62;
+        paint(textures[charge.block].side, x, y, channels.map((c) =>
+          (tntBand ? charge.band[c] : tntStrap ? charge.body[c] * 0.6
+            : speck ? charge.core[c] : charge.body[c]) + shade[c]));
+        paint(textures[charge.block].top, x, y, channels.map((c) =>
+          (speck ? charge.core[c] : charge.band[c]) + shade[c]));
+        paint(textures[charge.block].bottom, x, y, channels.map((c) =>
+          charge.body[c] * 0.7 + shade[c]));
+      }
+
       // Portal: swirling violet. Tinted per destination by the mesher.
       const swirl = Math.sin((x + y * 1.7) * 0.9) * 0.5 + 0.5;
       const sparkle = hash3(x * 1.3, y * 1.3, 151) > 0.86 ? 60 : 0;
@@ -680,6 +735,12 @@ export function createAtlasTexture() {
     textureSet[BLOCKS.super_tnt].top,
     textureSet[BLOCKS.fire_tnt].side,
     textureSet[BLOCKS.fire_tnt].top,
+    textureSet[BLOCKS.super_duper_tnt].side,
+    textureSet[BLOCKS.super_duper_tnt].top,
+    ...ELEMENTAL_TNT.flatMap((charge) => [
+      textureSet[charge.block].side,
+      textureSet[charge.block].top,
+    ]),
   ];
 
   tileData.forEach((tile, index) => {
@@ -811,6 +872,13 @@ export function getTileIndex(blockType, faceKey) {
   }
   if (blockType === BLOCKS.fire_tnt) {
     return faceKey === "py" || faceKey === "ny" ? 48 : 47;
+  }
+  if (blockType === BLOCKS.super_duper_tnt) {
+    return faceKey === "py" || faceKey === "ny" ? 50 : 49;
+  }
+  const elemental = ELEMENTAL_TILES[blockType];
+  if (elemental !== undefined) {
+    return faceKey === "py" || faceKey === "ny" ? elemental + 1 : elemental;
   }
   return 24;
 }
