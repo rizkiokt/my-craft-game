@@ -75,7 +75,7 @@ if (!hasRestoredNpcs()) {
   npcs.spawnRoster(DEFAULT_SPAWN.x, DEFAULT_SPAWN.z);
 }
 world.updateLoadedChunks(state.player.x, state.player.z);
-chunkMeshes.syncLoadedChunks();
+chunkMeshes.syncLoadedChunks({ budgetMs: Infinity });
 passiveMobs.syncLoadedChunks();
 updateTarget();
 updateHotbar();

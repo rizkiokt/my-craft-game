@@ -13,7 +13,7 @@ function lightToBrightness(level) {
 }
 import { scene } from "./scene.js";
 import { atlasInfo, atlasUv, getTileIndex } from "./textures.js";
-import { world } from "./world.js";
+import { isSolidType, world } from "./world.js";
 export class ChunkMeshManager {
   constructor(world, scene, material, atlasInfo) {
     this.world = world;
@@ -22,6 +22,7 @@ export class ChunkMeshManager {
     this.atlasInfo = atlasInfo;
     this.meshes = new Map();
     this.waterMeshes = new Map();
+    this.uvCache = new Map();
     this.dirty = new Set();
   }
 
@@ -51,12 +52,24 @@ export class ChunkMeshManager {
     }
   }
 
-  syncLoadedChunks() {
+  /**
+   * Rebuilds what needs rebuilding, but only for as long as a frame can spare.
+   *
+   * Meshing a chunk costs milliseconds, and walking into new country can leave
+   * half a dozen of them wanting one at once. Doing them all in a single frame
+   * is a visible stall; spreading them over a few frames is not noticeable at
+   * all, because the chunk was not on screen a moment ago anyway.
+   */
+  syncLoadedChunks({ budgetMs = MESH_BUDGET_MS } = {}) {
+    const started = performance.now();
     for (const key of this.world.loadedKeys) {
       if ((!this.meshes.has(key) && !this.waterMeshes.has(key)) || this.dirty.has(key)) {
         const [cx, cz] = key.split(",").map(Number);
         this.rebuildChunk(cx, cz);
         this.dirty.delete(key);
+        if (performance.now() - started > budgetMs) {
+          break;
+        }
       }
     }
 
@@ -124,6 +137,25 @@ export class ChunkMeshManager {
     }
   }
 
+  /**
+   * The four UV pairs for a tile. They were recomputed for every quad in the
+   * world, which is four divisions and eight lerps per face for an answer that
+   * never changes.
+   */
+  tileUvs(tileIndex) {
+    let cached = this.uvCache.get(tileIndex);
+    if (!cached) {
+      cached = [
+        atlasUv(this.atlasInfo.columns, this.atlasInfo.rows, tileIndex, 0, 0),
+        atlasUv(this.atlasInfo.columns, this.atlasInfo.rows, tileIndex, 0, 1),
+        atlasUv(this.atlasInfo.columns, this.atlasInfo.rows, tileIndex, 1, 1),
+        atlasUv(this.atlasInfo.columns, this.atlasInfo.rows, tileIndex, 1, 0),
+      ];
+      this.uvCache.set(tileIndex, cached);
+    }
+    return cached;
+  }
+
   buildGeometry(cx, cz) {
     // Water is collected separately so it can be drawn translucent, after the
     // solid world, with what is behind it showing through.
@@ -132,17 +164,36 @@ export class ChunkMeshManager {
     let bucket = solid;
     const maxY = this.world.getChunkMaxY(cx, cz);
     // Light must be current before any face samples it.
-    this.world.ensureLight(cx, cz);
+    const chunk = this.world.ensureLight(cx, cz);
+
+    /*
+     * Inside its own chunk a block is a straight array index. Going through
+     * world.getBlock() means a floor, two moduli, a Map lookup and a bounds
+     * check for every one of the six faces of every block -- and seven eighths
+     * of a chunk's neighbours are inside the chunk.
+     */
+    const blocks = chunk.blocks;
+    const rows = chunk.blockCeil - chunk.blockFloor + 1;
+    const floorY = chunk.blockFloor;
+    const ceilY = chunk.blockCeil;
+    const noEdits = chunk.edits.size === 0;
+    const blockAt = (lx, wy, lz) => {
+      if (noEdits && blocks && lx >= 0 && lx < CHUNK_SIZE && lz >= 0 && lz < CHUNK_SIZE) {
+        if (wy < floorY) {
+          return BLOCKS.stone;
+        }
+        if (wy > ceilY) {
+          return BLOCKS.air;
+        }
+        return blocks[(lz * CHUNK_SIZE + lx) * rows + wy - floorY];
+      }
+      return this.world.getBlock(cx * CHUNK_SIZE + lx, wy, cz * CHUNK_SIZE + lz);
+    };
 
     /** Pushes one quad with a flat brightness taken from the light volume. */
     const pushQuad = (corners, normal, tileIndex, brightness, origin, scale, drop = 0) => {
       const { positions, normals, uvs, colors, indices } = bucket;
-      const quadUvs = [
-        atlasUv(this.atlasInfo.columns, this.atlasInfo.rows, tileIndex, 0, 0),
-        atlasUv(this.atlasInfo.columns, this.atlasInfo.rows, tileIndex, 0, 1),
-        atlasUv(this.atlasInfo.columns, this.atlasInfo.rows, tileIndex, 1, 1),
-        atlasUv(this.atlasInfo.columns, this.atlasInfo.rows, tileIndex, 1, 0),
-      ];
+      const quadUvs = this.tileUvs(tileIndex);
       for (let i = 0; i < 4; i++) {
         const corner = corners[i];
         positions.push(
@@ -170,7 +221,7 @@ export class ChunkMeshManager {
         for (let x = 0; x < CHUNK_SIZE; x++) {
           const wx = cx * CHUNK_SIZE + x;
           const wz = cz * CHUNK_SIZE + z;
-          const blockType = this.world.getBlock(wx, y, wz);
+          const blockType = blockAt(x, y, z);
           if (blockType === BLOCKS.air) {
             continue;
           }
@@ -178,7 +229,7 @@ export class ChunkMeshManager {
           bucket = isWater ? liquid : solid;
           // A surface below the block top is what makes a shoreline read as
           // water rather than as blue stone, and lets you see over the edge.
-          const drop = isWater && this.world.getBlock(wx, y + 1, wz) !== BLOCKS.water
+          const drop = isWater && blockAt(x, y + 1, z) !== BLOCKS.water
             ? WATER_DROP
             : 0;
 
@@ -205,12 +256,14 @@ export class ChunkMeshManager {
             const nx = face.normal[0];
             const ny = face.normal[1];
             const nz = face.normal[2];
-            const neighbour = this.world.getBlock(wx + nx, y + ny, wz + nz);
-            // Faces between two of the same liquid are never seen.
-            if (neighbour === blockType && !this.world.isSolid(wx, y, wz)) {
+            // One read, then decided from the type: asking isSolid() here would
+            // read the same block a second time.
+            const neighbour = blockAt(x + nx, y + ny, z + nz);
+            if (isSolidType(neighbour)) {
               continue;
             }
-            if (this.world.isSolid(wx + nx, y + ny, wz + nz)) {
+            // Faces between two of the same liquid are never seen.
+            if (neighbour === blockType && !isSolidType(blockType)) {
               continue;
             }
 
@@ -237,6 +290,12 @@ export class ChunkMeshManager {
     return [...this.meshes.values()];
   }
 }
+
+/**
+ * How long a frame may spend building chunk meshes. Roughly a third of a 60Hz
+ * frame, so the rest of the loop still has room.
+ */
+const MESH_BUDGET_MS = 6;
 
 /** How far below the block top the water surface sits. */
 const WATER_DROP = 0.12;

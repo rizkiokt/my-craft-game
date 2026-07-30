@@ -24,6 +24,20 @@ import {
  * Lighting helpers
  * ------------------------------------------------------------------ */
 
+/**
+ * Whether a block stops you, decided from the type alone. Callers that have
+ * already read the block use this rather than isSolid(), which would read it
+ * again -- and in the mesher that doubling was thousands of reads per chunk.
+ */
+export function isSolidType(blockType) {
+  return blockType !== BLOCKS.air
+    && blockType !== BLOCKS.water
+    && blockType !== BLOCKS.torch
+    // You walk into lava rather than onto it, and straight through a portal.
+    && blockType !== BLOCKS.lava
+    && blockType !== BLOCKS.portal;
+}
+
 /** Blocks you can see through do not stop light. */
 export function blocksLight(blockType) {
   return blockType !== BLOCKS.air
@@ -135,6 +149,10 @@ export class World {
       // The biome per column, worked out once: getGeneratedBlock runs per
       // block and the site search is far too much to repeat that often.
       biomes: new Array(CHUNK_SIZE * CHUNK_SIZE).fill(null),
+      // Filled by fillBlockCache once the terrain is decided.
+      blocks: null,
+      blockFloor: 0,
+      blockCeil: 0,
       fauna: [],
       light: null,
       lightDirty: true,
@@ -312,8 +330,11 @@ export class World {
       }
     }
 
+    // Registered before the block cache is filled: getGeneratedBlock() asks
+    // ensureChunk() for this very chunk, and would recurse forever otherwise.
     this.chunks.set(key, chunk);
     this.totalGenerated++;
+    this.fillBlockCache(chunk);
     return chunk;
   }
 
@@ -776,6 +797,34 @@ export class World {
     return chunk.edits.has(this.getEditKey(lx, wy, lz));
   }
 
+  /**
+   * Every block in a chunk's terrain, worked out once.
+   *
+   * Without this, reading a block meant re-deriving it from noise -- cave
+   * fields, structures, ore hashes, the tree list -- and the mesher alone reads
+   * well over a hundred thousand blocks per chunk. Only the range the terrain
+   * actually occupies is stored; anything above is air by definition.
+   */
+  fillBlockCache(chunk) {
+    const floor = MIN_WORLD_Y;
+    const ceiling = Math.min(MAX_WORLD_Y, chunk.maxBuildY + 2);
+    const rows = ceiling - floor + 1;
+    chunk.blockFloor = floor;
+    chunk.blockCeil = ceiling;
+    chunk.blocks = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE * rows);
+
+    for (let lz = 0; lz < CHUNK_SIZE; lz++) {
+      const wz = chunk.cz * CHUNK_SIZE + lz;
+      for (let lx = 0; lx < CHUNK_SIZE; lx++) {
+        const wx = chunk.cx * CHUNK_SIZE + lx;
+        const column = (lz * CHUNK_SIZE + lx) * rows;
+        for (let wy = floor; wy <= ceiling; wy++) {
+          chunk.blocks[column + wy - floor] = this.getGeneratedBlock(wx, wy, wz);
+        }
+      }
+    }
+  }
+
   getBlock(wx, wy, wz) {
     if (wy > MAX_WORLD_Y) {
       return BLOCKS.air;
@@ -785,9 +834,18 @@ export class World {
     const chunk = this.ensureChunk(cx, cz);
     const lx = ((wx % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
     const lz = ((wz % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
-    const editKey = this.getEditKey(lx, wy, lz);
-    if (chunk.edits.has(editKey)) {
-      return chunk.edits.get(editKey);
+
+    // Only build the string key when there is something to find, which for
+    // most of the world is never.
+    if (chunk.edits.size > 0) {
+      const edited = chunk.edits.get(this.getEditKey(lx, wy, lz));
+      if (edited !== undefined) {
+        return edited;
+      }
+    }
+    if (chunk.blocks && wy >= chunk.blockFloor && wy <= chunk.blockCeil) {
+      const rows = chunk.blockCeil - chunk.blockFloor + 1;
+      return chunk.blocks[(lz * CHUNK_SIZE + lx) * rows + wy - chunk.blockFloor];
     }
     return this.getGeneratedBlock(wx, wy, wz);
   }
@@ -819,13 +877,7 @@ export class World {
   }
 
   isSolid(wx, wy, wz) {
-    const blockType = this.getBlock(wx, wy, wz);
-    return blockType !== BLOCKS.air
-      && blockType !== BLOCKS.water
-      && blockType !== BLOCKS.torch
-      // You walk into lava rather than onto it, and straight through a portal.
-      && blockType !== BLOCKS.lava
-      && blockType !== BLOCKS.portal;
+    return isSolidType(this.getBlock(wx, wy, wz));
   }
 
   getChunkMaxY(cx, cz) {

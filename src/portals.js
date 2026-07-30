@@ -386,7 +386,8 @@ export function travelTo(destinationId) {
 
   teleportTo(spot.x, spot.z, spot.y);
   buildReturnPortal(spot, from.id === destination.id ? "home" : from.id);
-  chunkMeshes.syncLoadedChunks();
+  // Arriving somewhere new should not show a hole where the world will be.
+  chunkMeshes.syncLoadedChunks({ budgetMs: Infinity });
 
   state.portalCooldown = PORTAL_COOLDOWN;
   state.portalTimer = 0;

@@ -127,6 +127,19 @@ directly; touching the ground clears the flag.
 
 `World.getHeightAt(wx, wz)` is the single source of truth for surface height — it uses layered Perlin noise and is called at both generation time and spawn/respawn time. `World.ensureChunk()` lazily generates chunks on first access. Block reads/writes go through `World.getBlock()` / `World.setBlock()`.
 
+**Blocks are cached per chunk.** `fillBlockCache()` fills a `Uint8Array` covering
+`MIN_WORLD_Y..maxBuildY + 2` once, at the end of `ensureChunk()`, and `getBlock()` reads that.
+Without it every read re-derived the block from noise — cave fields, structures, ore hashes, the
+tree list — and the mesher alone reads well over a hundred thousand blocks per chunk. Two rules
+come with it:
+
+- **`fillBlockCache()` must run after the chunk is in `this.chunks`.** `getGeneratedBlock()` calls
+  `ensureChunk()` for the chunk it is filling, and recurses forever otherwise.
+- **Edits are still the authority.** `getBlock()` checks `chunk.edits` first, but only when the
+  map is non-empty, which skips building a string key for most of the world.
+
+`isSolidType(blockType)` exists so callers that have already read a block do not read it again.
+
 **Coordinate system:** origin near spawn; x = east-west, y = up, z = north-south. Chunks are 16 × 16 columns. Load/unload radii live on the `World` instance (`world.loadRadius` / `world.unloadRadius`) and are driven by the Render Distance option via `world.setRenderDistance()`; default is 2.
 
 ### Lighting
@@ -245,6 +258,18 @@ destination marked `underground` arrives in the highest sheltered pocket instead
 surface, which is what puts you inside the Ember Deep rather than on the hill over it.
 
 ### Rendering
+
+**`syncLoadedChunks()` works to a time budget** (`MESH_BUDGET_MS`, ~6 ms). Meshing a chunk costs
+milliseconds and walking into new country can leave half a dozen wanting one at once; doing them
+all in a frame is a visible stall, and spreading them over a few frames is not noticeable because
+the chunk was off screen a moment ago anyway. Boot and portal arrival pass
+`{ budgetMs: Infinity }`, since a hole where the world should be is worse than a pause.
+
+Inside `buildGeometry()` the chunk's own blocks and light are read **straight from the chunk
+arrays**, not through `world.getBlock()`. Seven eighths of a chunk's face neighbours are inside
+the chunk, and going through the world costs a floor, two moduli and a Map lookup each time.
+`tileUvs()` memoises the four UV pairs per tile, which were being recomputed for every face in
+the world.
 
 `ChunkMeshManager` rebuilds face-culled geometry for dirty chunks using a single shared `MeshLambertMaterial` and a procedurally generated texture atlas (`getTileCanvas` → canvas-drawn per-block tile → `DataTexture`). `getTileIndex(blockType, faceKey)` maps block faces to atlas tiles. Adding a new block type requires entries there and in `getBlockColor()` (used for particles).
 
