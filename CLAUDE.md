@@ -488,7 +488,7 @@ cost.
 
 ### Things to do
 
-`src/book.js` is the only thing in the game that points at what is in it. Twenty-nine entries
+`src/book.js` is the only thing in the game that points at what is in it. Thirty entries
 covering the whole of it — first block to all eight charges — ticked off as you go, opened with
 **B** or from the pause menu.
 
@@ -519,16 +519,31 @@ a plain object in `state.cars` plus a `THREE.Group` of boxes; `CarManager` mirro
 is the same shape as `PassiveMobManager`, down to `userData.car` letting a raycast hit find its
 way back to the thing it belongs to.
 
-**Two kinds, one set of physics**, described by `VEHICLE_KINDS` exactly as the charges are
-described by `BLAST_KINDS` — a third would be a table row rather than another file:
+**Three kinds, one set of physics**, described by `VEHICLE_KINDS` exactly as the charges are
+described by `BLAST_KINDS` — a fourth is a table row rather than another file:
 
-| | Climbs | Top speed | Jumps |
-|---|---|---|---|
-| Car | 1 block | 13 | no |
-| Monster Truck | 2 blocks | 11 | 11.5 |
+| | Climbs | Top speed | Length | Jumps |
+|---|---|---|---|---|
+| Car | 1 block | 13 | 2.4 | no |
+| Monster Truck | 2 blocks | 11 | 2.7 | 11.5 |
+| Trailer Truck | 2 blocks | 10 | 6.4 | 8.5 |
 
 `createVehicleModel()` derives every dimension from the kind's `wheel` and `lift`, so the truck
-is the same drawing sitting much higher on much bigger tyres, plus a roll bar.
+is the same drawing sitting much higher on much bigger tyres, plus a roll bar. The rig has its
+own builder — a cab, and a container hung off a **pivot at the hitch** so it can swing.
+
+**The trailer follows the kinematic model, not an ease.** A towed axle turns at `v/L · sin(θ)`
+where θ is the angle it is being dragged at. Easing the trailer towards the cab instead was
+tried first and looked wrong: it caught up within a few frames, so the rig may as well have been
+one rigid brick. The real model makes the bend grow with the steering, settle at an angle rather
+than closing, and swing wider the slower you go, which is the whole character of a lorry.
+`MAX_JACKKNIFE` stops it folding into the cab.
+
+**`footprint(spec, yaw)` samples along the vehicle's own forward axis and turns with it.** A
+square footprint was fine while everything was about as long as it was wide; a six-block rig
+would otherwise drive through a wall side-on and jam on nothing at all when straight. The
+trailer's swing is deliberately not modelled in the footprint — close enough while going
+forwards, which is when a collision matters.
 
 Three rules make them fun rather than fiddly, and each is deliberate:
 

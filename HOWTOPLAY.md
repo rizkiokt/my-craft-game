@@ -210,24 +210,27 @@ you can lay a line of them — or mix kinds and set off a tornado with an earthq
 
 ## Things to Do
 
-Press **B** at any time for a list of twenty-nine things worth trying, from breaking your first
+Press **B** at any time for a list of thirty things worth trying, from breaking your first
 block to setting off all eight kinds of charge. It ticks itself off as you go — there is nothing
 to hand in and nothing to lose. If you are ever not sure what to do next, that is the page to
 open.
 
 ## Cars and Trucks
 
-Build a **Car** at a crafting table from **four iron ingots and two coal** — iron for the body,
-coal for the wheels. Then put **four more coal around the car** to make a **Monster Truck**:
-four big tyres.
+Three of them, each built from the one before:
 
-| | Climbs | Speed | Jumps? |
-|---|---|---|---|
-| **Car** | one block | quicker | no |
-| **Monster Truck** | **two blocks** | a bit slower | **yes — press jump** |
+| | Craft it from | Climbs | Speed | Jumps? |
+|---|---|---|---|---|
+| **Car** | 4 iron ingots + 2 coal | one block | quickest | no |
+| **Monster Truck** | a Car + 4 coal (big tyres) | **two blocks** | a bit slower | **yes** |
+| **Trailer Truck** | a Monster Truck + 3 iron + 2 planks | two blocks | slowest | yes, a little |
 
-The truck is the one for rough ground. It walks up two-block ledges the car simply stops at, and
-**holding the jump key bounces it every time the wheels touch down**.
+The **Monster Truck** is the one for rough ground. It walks up two-block ledges the car simply
+stops at, and **holding the jump key bounces it every time the wheels touch down**.
+
+The **Trailer Truck** is a cab pulling a long container on the same big tyres. It is slow and it
+turns wide — and **the trailer bends behind you as you go round a corner**, swinging out further
+the slower you are going, exactly like a real lorry. Give it room.
 
 | | |
 |---|---|

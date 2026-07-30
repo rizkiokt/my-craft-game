@@ -230,3 +230,19 @@ registerFlatIcon(ITEMS.truck, "#3fa65c", (ctxGlyph) => {
   ctxGlyph.fillRect(6, 20, 4, 4);
   ctxGlyph.fillRect(22, 20, 4, 4);
 });
+
+// The trailer truck: a small cab and a long box, side on.
+registerFlatIcon(ITEMS.rig, "#e8724c", (ctxGlyph) => {
+  ctxGlyph.fillStyle = "#e9eef5";
+  ctxGlyph.fillRect(2, 7, 10, 10);
+  ctxGlyph.fillStyle = "#8fc8e8";
+  ctxGlyph.fillRect(3, 9, 6, 4);
+  ctxGlyph.fillStyle = "#d5dbe4";
+  ctxGlyph.fillRect(13, 4, 17, 13);
+  ctxGlyph.fillStyle = "#9aa3b0";
+  ctxGlyph.fillRect(13, 11, 17, 2);
+  ctxGlyph.fillStyle = "#1d1f24";
+  ctxGlyph.fillRect(3, 18, 8, 8);
+  ctxGlyph.fillRect(15, 18, 8, 8);
+  ctxGlyph.fillRect(23, 18, 7, 8);
+});

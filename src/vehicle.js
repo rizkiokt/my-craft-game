@@ -36,6 +36,9 @@ const DEFAULT_KIND = VEHICLE_KINDS[Object.keys(VEHICLE_KINDS)[0]];
 /** Shortest gap between two bounces. Long enough not to double-fire. */
 const JUMP_COOLDOWN = 0.28;
 
+/** How far a trailer may swing out before it stops folding. */
+const MAX_JACKKNIFE = 1.2;
+
 function specFor(car) {
   return VEHICLE_BY_ID[car.kind] ?? DEFAULT_KIND;
 }
@@ -54,6 +57,9 @@ const box = (w, h, d, color) => new THREE.Mesh(
  * so "forwards" means the same thing for both.
  */
 function createVehicleModel(spec, color) {
+  if (spec.trailer) {
+    return createRigModel(spec, color);
+  }
   const group = new THREE.Group();
   const dark = new THREE.Color(color).multiplyScalar(0.62).getHex();
   const width = spec.radius * 2.18;
@@ -112,6 +118,89 @@ function createVehicleModel(spec, color) {
   return group;
 }
 
+/** Four wheels on one axle line, at the given distance back from the middle. */
+function addAxle(group, spec, width, z) {
+  const axle = spec.wheel * 0.5;
+  for (const side of [-1, 1]) {
+    const wheel = box(spec.wheel * 0.48, spec.wheel, spec.wheel, 0x1d1f24);
+    wheel.position.set(side * (width * 0.5 + 0.03), axle, z);
+    group.add(wheel);
+    const hub = box(spec.wheel * 0.54, spec.wheel * 0.34, spec.wheel * 0.34, 0xb9c0cb);
+    hub.position.copy(wheel.position);
+    group.add(hub);
+  }
+}
+
+/**
+ * The rig: a cab up front and a container behind it, on the truck's tyres.
+ *
+ * The trailer hangs off a pivot at the hitch rather than being part of the
+ * body, so it can swing. Without that it is a very long brick, and the whole
+ * appeal of an articulated lorry is watching it bend round a corner.
+ */
+function createRigModel(spec, color) {
+  const group = new THREE.Group();
+  const dark = new THREE.Color(color).multiplyScalar(0.6).getHex();
+  const width = spec.radius * 2.1;
+  const axle = spec.wheel * 0.5;
+  const floor = axle + spec.lift;
+
+  // Cab. Forward is -z, so the nose is the most negative end.
+  const chassis = box(width, 0.4, 2, color);
+  chassis.position.set(0, floor + 0.2, -2.2);
+  group.add(chassis);
+
+  const cab = box(width * 0.92, 1.25, 1.5, color);
+  cab.position.set(0, floor + 1.02, -2.5);
+  group.add(cab);
+
+  const windscreen = box(width * 0.82, 0.55, 0.08, 0x9fd4ea);
+  windscreen.position.set(0, floor + 1.22, -3.22);
+  group.add(windscreen);
+
+  for (const side of [-1, 1]) {
+    const stack = box(0.16, 1.05, 0.16, 0xc8ced8);
+    stack.position.set(side * width * 0.44, floor + 1.55, -1.75);
+    group.add(stack);
+    const lamp = box(0.26, 0.22, 0.1, 0xfff2c4);
+    lamp.position.set(side * width * 0.28, floor + 0.45, -3.24);
+    group.add(lamp);
+  }
+
+  addAxle(group, spec, width, -2.9);
+  addAxle(group, spec, width, -1.6);
+
+  // Trailer, on its own pivot at the hitch.
+  const pivot = new THREE.Group();
+  pivot.position.set(0, 0, spec.trailer.hitch);
+  group.add(pivot);
+  group.userData.trailerPivot = pivot;
+
+  const deck = box(width * 0.94, 0.3, spec.trailer.length, dark);
+  deck.position.set(0, floor + 0.15, spec.trailer.length * 0.5);
+  pivot.add(deck);
+
+  const container = box(width * 1.02, spec.trailer.height, spec.trailer.length - 0.2, color);
+  container.position.set(0, floor + 0.3 + spec.trailer.height * 0.5, spec.trailer.length * 0.5);
+  pivot.add(container);
+
+  // A pale band along the side, or a big box reads as a wall rather than a
+  // trailer at any distance.
+  const band = box(width * 1.04, 0.22, spec.trailer.length - 0.6, 0xe6eaef);
+  band.position.set(0, floor + 0.3 + spec.trailer.height * 0.72, spec.trailer.length * 0.5);
+  pivot.add(band);
+
+  addAxle(pivot, spec, width, spec.trailer.length - 0.9);
+  addAxle(pivot, spec, width, spec.trailer.length - 1.9);
+
+  for (const side of [-1, 1]) {
+    const tail = box(0.24, 0.2, 0.1, 0xd8402c);
+    tail.position.set(side * width * 0.3, floor + 0.5, spec.trailer.length + 0.02);
+    pivot.add(tail);
+  }
+  return group;
+}
+
 export class CarManager {
   constructor() {
     this.root = new THREE.Group();
@@ -129,6 +218,7 @@ export class CarManager {
       vy: 0,
       onGround: false,
       jumpTimer: 0,
+      trailerYaw: yaw,
       color: color ?? CAR_COLORS[Math.floor(Math.random() * CAR_COLORS.length)],
     };
     state.cars.push(car);
@@ -207,6 +297,9 @@ export class CarManager {
       if (model) {
         model.position.set(car.x, car.y, car.z);
         model.rotation.y = car.yaw;
+        if (model.userData.trailerPivot) {
+          model.userData.trailerPivot.rotation.y = car.trailerYaw - car.yaw;
+        }
       }
     }
     if (state.drivingCar) {
@@ -222,13 +315,39 @@ export class CarManager {
 
 export const cars = new CarManager();
 
-/** True if a vehicle-sized box at this spot would be inside the world. */
-function carBlocked(spec, x, y, z) {
+/**
+ * The cells a vehicle covers, in world offsets, for a given heading.
+ *
+ * A square footprint was fine while everything was roughly as long as it was
+ * wide. The rig is six blocks long, so it has to be sampled along its own
+ * forward axis and turned with it — otherwise it would drive through a wall
+ * side-on and jam on nothing at all when straight.
+ *
+ * The trailer's swing is not modelled here. It is close enough while the rig
+ * is going forwards, which is when a collision matters.
+ */
+function footprint(spec, yaw) {
+  const r = spec.radius;
+  const half = spec.long ?? r;
+  const sin = Math.sin(yaw);
+  const cos = Math.cos(yaw);
+  const steps = Math.max(1, Math.round(half / 0.8));
+  const points = [];
+  for (let i = -steps; i <= steps; i++) {
+    const along = (i / steps) * half;
+    for (const across of [-r, 0, r]) {
+      points.push([across * cos + along * sin, -across * sin + along * cos]);
+    }
+  }
+  return points;
+}
+
+/** True if a vehicle-shaped box at this spot would be inside the world. */
+function carBlocked(car, spec, x, y, z) {
   if (y < MIN_WORLD_Y || y > MAX_WORLD_Y) {
     return true;
   }
-  const r = spec.radius;
-  for (const [ox, oz] of [[-r, -r], [r, -r], [-r, r], [r, r], [0, 0]]) {
+  for (const [ox, oz] of footprint(spec, car.yaw)) {
     for (let dy = 0.1; dy < spec.height; dy += 0.55) {
       if (world.isSolid(Math.floor(x + ox), Math.floor(y + dy), Math.floor(z + oz))) {
         return true;
@@ -247,9 +366,8 @@ function carBlocked(spec, x, y, z) {
  * then snap back — which read as a wobble and, worse, meant `onGround` was
  * false on most frames.
  */
-function groundBelow(spec, x, y, z) {
-  const r = spec.radius;
-  for (const [ox, oz] of [[-r, -r], [r, -r], [-r, r], [r, r], [0, 0]]) {
+function groundBelow(car, spec, x, y, z) {
+  for (const [ox, oz] of footprint(spec, car.yaw)) {
     if (world.isSolid(Math.floor(x + ox), Math.floor(y - 0.05), Math.floor(z + oz))) {
       return true;
     }
@@ -303,9 +421,26 @@ function drive(car, dt) {
   }
 }
 
+/** Shortest way round from one heading to another. */
+function angleDelta(to, from) {
+  return ((to - from + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+}
+
 /** One frame of movement: forwards, then down. */
 function stepCar(car, dt) {
   const spec = specFor(car);
+  if (spec.trailer) {
+    // How a towed axle actually behaves: it turns at v/L times the sine of the
+    // angle it is being dragged at. Easing it towards the cab instead looked
+    // wrong — it caught up in a few frames and the rig may as well have been
+    // one rigid brick. This way the bend grows with the steering, settles at
+    // an angle rather than closing, and swings wider the slower you go, which
+    // is the whole character of a lorry.
+    const swing = angleDelta(car.yaw, car.trailerYaw);
+    car.trailerYaw += (car.speed / spec.trailer.length) * Math.sin(swing) * dt;
+    // And never let it fold back into the cab.
+    car.trailerYaw = car.yaw - clamp(angleDelta(car.yaw, car.trailerYaw), -MAX_JACKKNIFE, MAX_JACKKNIFE);
+  }
   if (Math.abs(car.speed) > 0.01) {
     const dx = -Math.sin(car.yaw) * car.speed * dt;
     const dz = -Math.cos(car.yaw) * car.speed * dt;
@@ -326,7 +461,7 @@ function stepCar(car, dt) {
   }
 
   const ny = car.y + car.vy * dt;
-  if (car.vy <= 0 && groundBelow(spec, car.x, ny, car.z)) {
+  if (car.vy <= 0 && groundBelow(car, spec, car.x, ny, car.z)) {
     const landing = car.vy;
     car.y = Math.floor(ny - 0.05) + 1;
     car.onGround = true;
@@ -337,7 +472,7 @@ function stepCar(car, dt) {
       spawnParticles(car.x, car.y + 0.1, car.z, BLOCKS.dirt, 8, 1.2);
       soundEngine.land(-landing);
     }
-  } else if (car.vy > 0 && carBlocked(spec, car.x, ny, car.z)) {
+  } else if (car.vy > 0 && carBlocked(car, spec, car.x, ny, car.z)) {
     car.vy = 0;
   } else {
     car.y = ny;
@@ -351,7 +486,7 @@ function stepCar(car, dt) {
  */
 function slide(car, spec, dx, dz) {
   const tryMove = (nx, nz) => {
-    if (!carBlocked(spec, nx, car.y, nz)) {
+    if (!carBlocked(car, spec, nx, car.y, nz)) {
       car.x = nx;
       car.z = nz;
       return true;
@@ -360,7 +495,7 @@ function slide(car, spec, dx, dz) {
     // to be driveable or a vehicle is useless anywhere you have built. The
     // truck's bigger wheels take twice as much.
     for (let rise = 1; rise <= spec.step; rise++) {
-      if (car.onGround && !carBlocked(spec, nx, car.y + rise, nz)) {
+      if (car.onGround && !carBlocked(car, spec, nx, car.y + rise, nz)) {
         car.x = nx;
         car.z = nz;
         car.y += rise;

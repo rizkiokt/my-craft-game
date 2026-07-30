@@ -106,6 +106,7 @@ export const ITEMS = {
   netherite_boots: 131,
   car: 140,
   truck: 141,
+  rig: 142,
 };
 
 export const BLOCK_NAMES = {
@@ -162,6 +163,7 @@ export const BLOCK_NAMES = {
   [ITEMS.netherite_ingot]: "Netherite Ingot",
   [ITEMS.car]: "Car",
   [ITEMS.truck]: "Monster Truck",
+  [ITEMS.rig]: "Trailer Truck",
   [ITEMS.netherite_pickaxe]: "Netherite Pickaxe",
   [ITEMS.iron_helmet]: "Iron Helmet",
   [ITEMS.iron_chestplate]: "Iron Chestplate",
@@ -346,6 +348,7 @@ export const CREATIVE_ITEMS = [
   ITEMS.netherite_ingot,
   ITEMS.car,
   ITEMS.truck,
+  ITEMS.rig,
   ITEMS.wood_pickaxe,
   ITEMS.stone_pickaxe,
   ITEMS.iron_pickaxe,
@@ -747,7 +750,7 @@ export const VEHICLE_KINDS = {
     id: "car",
     name: "Car",
     accel: 11, brake: 20, maxSpeed: 13, reverse: 5, steer: 2.1,
-    radius: 0.78, height: 1.35, step: 1, seat: 0.95,
+    radius: 0.78, long: 1.2, height: 1.35, step: 1, seat: 0.95,
     wheel: 0.62, lift: 0, jump: 0,
   },
   [ITEMS.truck]: {
@@ -756,8 +759,19 @@ export const VEHICLE_KINDS = {
     // Heavier off the line and slower flat out, which is the trade for
     // climbing a two-block ledge and bouncing off the landing.
     accel: 9, brake: 18, maxSpeed: 11, reverse: 4.5, steer: 1.8,
-    radius: 0.92, height: 2.1, step: 2, seat: 1.55,
+    radius: 0.92, long: 1.35, height: 2.1, step: 2, seat: 1.55,
     wheel: 1.2, lift: 0.5, jump: 11.5, rollBar: true,
+  },
+  [ITEMS.rig]: {
+    id: "rig",
+    name: "Trailer Truck",
+    // Slow, wide-turning and very long, on the same tyres as the truck. The
+    // trailer bends at the hitch, so `long` is the whole rig laid out straight
+    // — near enough while it is going forwards, which is when it matters.
+    accel: 6.5, brake: 15, maxSpeed: 10, reverse: 3.5, steer: 1.15,
+    radius: 1, long: 3.2, height: 2.9, step: 2, seat: 1.9,
+    wheel: 1.2, lift: 0.5, jump: 8.5,
+    trailer: { hitch: -1.2, length: 4.2, height: 1.5 },
   },
 };
 

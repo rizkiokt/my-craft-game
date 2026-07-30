@@ -398,6 +398,17 @@ export const TABLE_RECIPES = [
     description: "Four big tyres on a car. Climbs two blocks, and jumps.",
   },
   {
+    id: "rig",
+    output: ITEMS.rig,
+    count: 1,
+    pattern: [
+      [ITEMS.iron_ingot, ITEMS.iron_ingot, ITEMS.iron_ingot],
+      [ITEMS.truck, BLOCKS.planks, BLOCKS.planks],
+    ],
+    ingredients: { [ITEMS.truck]: 1, [ITEMS.iron_ingot]: 3, [BLOCKS.planks]: 2 },
+    description: "A cab and a trailer on monster tyres. Long, slow, and it bends.",
+  },
+  {
     id: "super_duper_tnt",
     output: BLOCKS.super_duper_tnt,
     count: 1,
