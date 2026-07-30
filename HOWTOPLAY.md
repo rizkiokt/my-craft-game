@@ -164,6 +164,24 @@ Your current seed is shown on the title screen and is saved with the world.
 
 ---
 
+## TNT
+
+**Craft it** at a crafting table: five coal and four sand, laid out like a checkerboard, makes
+two.
+
+**Place it**, then **touch it with an empty hand** to light the fuse — if you are holding a
+block you will just place another one, so put your pickaxe away or empty your hand first.
+Then you have about three seconds. Run.
+
+It takes a big bite out of whatever is around it, and some of the rubble is left behind to pick
+up. A charge caught in another blast goes off too, so you can lay a line of them.
+
+> **It cannot hurt anybody.** Not you, not your friends, not the cats or the sheep. Standing
+> right next to one will throw you across the field and you will not lose a single heart — not
+> from the blast, and not from the landing either. It only breaks blocks.
+
+---
+
 ## Growing Up
 
 You start small and grow as you level up, and the two go at different speeds.

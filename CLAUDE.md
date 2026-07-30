@@ -424,6 +424,29 @@ first `pointerdown` anywhere — that is what lets the title screen have music a
 
 `settings.ambience` drives the bed and the music together, separately from `settings.volume`.
 
+### TNT
+
+`src/tnt.js` wrecks the scenery and nothing else. **There is no call to `damagePlayer()` in it,
+and there is not meant to be one** — this game has no fighting in it, so the blast knocks people
+about and takes nothing off them. Nothing touches the friends, the cats or the sheep either;
+`npcs.startle()` only puts a speech bubble over their heads.
+
+Three details are load-bearing:
+
+- **The shove is a decaying impulse in `state.knockX/knockZ`, added on top of walking.** Writing
+  it into `player.vx` directly does nothing: `handleInput()` assigns `vx` and `vz` outright every
+  frame and erases it.
+- **`state.blastGrace` suppresses fall damage for a few seconds afterwards.** Being thrown into
+  the air and then hurt by the landing is still TNT hurting you, and the first version did
+  exactly that.
+- **Drops are capped at `TNT_MAX_DROPS`.** Levelling a hillside would otherwise spawn hundreds of
+  pickups in one frame.
+
+Liquids and lit portals are blast-proof; a destroyed portal frame extinguishes its portal. A
+charge caught in a blast lights its own short fuse, so chains work.
+
+An explosion costs 1.4–2.8 ms, and the re-mesh it causes rides the normal `MESH_BUDGET_MS`.
+
 ### Growing with level
 
 `src/growth.js` derives **everything about the body** from the level, which it recomputes from

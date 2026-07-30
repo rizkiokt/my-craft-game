@@ -149,6 +149,11 @@ function isStandingInLava() {
  * by Feather Falling. Called with the height the fall started from.
  */
 export function applyFallDamage(fallDistance) {
+  // Being thrown by a blast must not hurt on the way down either. TNT knocks
+  // people about and takes nothing off them, and the landing is part of that.
+  if (state.blastGrace > 0) {
+    return 0;
+  }
   const feather = getArmorEnchantLevel("feather_falling");
   const softened = fallDistance - SAFE_FALL_DISTANCE - feather * 0.6;
   if (softened <= 0) {
@@ -163,6 +168,7 @@ export function applyFallDamage(fallDistance) {
  */
 export function updateVitals(dt) {
   const player = state.player;
+  state.blastGrace = Math.max(0, state.blastGrace - dt);
 
   if (isCreative()) {
     state.air = MAX_AIR;

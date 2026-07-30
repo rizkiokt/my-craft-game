@@ -70,6 +70,7 @@ export const BLOCKS = {
   lava: 30,
   portal_frame: 31,
   portal: 32,
+  tnt: 33,
 };
 
 export const ITEMS = {
@@ -132,6 +133,7 @@ export const BLOCK_NAMES = {
   [BLOCKS.lava]: "Lava",
   [BLOCKS.portal_frame]: "Portal Frame",
   [BLOCKS.portal]: "Portal",
+  [BLOCKS.tnt]: "TNT",
   [ITEMS.stick]: "Stick",
   [ITEMS.coal]: "Coal",
   [ITEMS.iron_ingot]: "Iron Ingot",
@@ -269,6 +271,7 @@ export const PLACEABLE_BLOCKS = [
   BLOCKS.netherrack,
   BLOCKS.glowstone,
   BLOCKS.portal_frame,
+  BLOCKS.tnt,
 ];
 
 /** Everything the creative palette hands out, in build-menu order. */
@@ -302,6 +305,7 @@ export const CREATIVE_ITEMS = [
   BLOCKS.torch,
   BLOCKS.cactus,
   BLOCKS.portal_frame,
+  BLOCKS.tnt,
   ITEMS.stick,
   ITEMS.coal,
   ITEMS.iron_ingot,
@@ -469,6 +473,25 @@ export const FIXED_DESTINATIONS = [
     z: 66,
   },
 ];
+
+/* ------------------------------------------------------------------ *
+ * TNT
+ *
+ * Wrecks the scenery and nothing else. It cannot hurt the player, the
+ * friends, the cats or the sheep -- the worst it does to a person is
+ * knock them off their feet.
+ * ------------------------------------------------------------------ */
+
+/** Seconds between lighting it and the bang. Long enough to run. */
+export const TNT_FUSE = 3.4;
+/** How far the blast reaches, before the ragged edge is rolled. */
+export const TNT_RADIUS = 4.2;
+/** Chance a destroyed block leaves something to pick up. */
+export const TNT_DROP_CHANCE = 0.28;
+/** Hard cap on drops, so levelling a hillside cannot bury the frame rate. */
+export const TNT_MAX_DROPS = 24;
+/** How hard the blast shoves you. It does no damage at all. */
+export const TNT_PUSH = 13;
 
 /* ------------------------------------------------------------------ *
  * Portals

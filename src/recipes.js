@@ -337,6 +337,18 @@ export const TABLE_RECIPES = [
     ingredients: { [BLOCKS.stone]: 8, [ITEMS.iron_ingot]: 1 },
     description: "Frame blocks for a portal. Ten builds the smallest one.",
   },
+  {
+    id: "tnt",
+    output: BLOCKS.tnt,
+    count: 2,
+    pattern: [
+      [ITEMS.coal, BLOCKS.sand, ITEMS.coal],
+      [BLOCKS.sand, ITEMS.coal, BLOCKS.sand],
+      [ITEMS.coal, BLOCKS.sand, ITEMS.coal],
+    ],
+    ingredients: { [ITEMS.coal]: 5, [BLOCKS.sand]: 4 },
+    description: "Blows a hole in the scenery. Harmless to people.",
+  },
 ];
 
 export const FURNACE_RECIPES = [

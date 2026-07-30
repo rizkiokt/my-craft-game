@@ -417,6 +417,25 @@ export class SoundEngine {
     this.pulse({ frequency: 90, type: "sawtooth", gain: 0.035, decay: 0.45, bend: 0.7, wet: 0.6 });
   }
 
+  /** The fuse: a short bright tick, so you know the clock is running. */
+  fuse() {
+    this.noise({ gain: 0.02, decay: 0.05, highpass: 2600, lowpass: 11000, sweep: 0.6, wet: 0.5 });
+    this.pulse({ frequency: 1500 * vary(0.15), type: "sine", gain: 0.01, decay: 0.04, wet: 0.4 });
+  }
+
+  /** The bang: a low thump under a long, dark roll of debris. */
+  explosion() {
+    this.pulse({ frequency: 110, type: "sine", gain: 0.24, attack: 0.006, decay: 0.7, bend: 0.28, wet: 1 });
+    this.pulse({ frequency: 62, type: "triangle", gain: 0.18, attack: 0.01, decay: 1.1, bend: 0.35, wet: 1 });
+    this.noise({ gain: 0.22, decay: 0.9, highpass: 90, lowpass: 3200, sweep: 0.2, wet: 1 });
+    for (let i = 0; i < 4; i++) {
+      this.noise({
+        gain: 0.05, decay: 0.35, highpass: 200 * vary(0.4), lowpass: 1800,
+        sweep: 0.3, time: 0.12 + i * 0.11 + Math.random() * 0.08, wet: 1,
+      });
+    }
+  }
+
   ui(opening = true) {
     this.resume();
     this.pulse({

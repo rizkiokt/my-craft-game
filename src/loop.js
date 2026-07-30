@@ -20,6 +20,7 @@ import { clamp } from "./math.js";
 import { passiveMobs } from "./mobs.js";
 import { npcs } from "./npcs.js";
 import { updatePortalTravel } from "./portals.js";
+import { updateTnt } from "./tnt.js";
 import { spawnParticles, updateParticles } from "./particles.js";
 import { applyPlayerToCamera, getFootstepBlockType, getSubmersion, handlePlayerDeath, hasCollision, movePlayerAxis, updateSafeAnchor } from "./player.js";
 import { saveGame } from "./save.js";
@@ -158,6 +159,20 @@ export function update(dt, shouldRender = true) {
       stuck += 1;
     }
 
+    // A blast shove rides on top of whatever you are doing, because
+    // handleInput assigns vx and vz outright every frame and would erase it.
+    if (state.knockX !== 0 || state.knockZ !== 0) {
+      state.player.vx += state.knockX;
+      state.player.vz += state.knockZ;
+      const decay = Math.exp(-dt * 3.2);
+      state.knockX *= decay;
+      state.knockZ *= decay;
+      if (Math.hypot(state.knockX, state.knockZ) < 0.05) {
+        state.knockX = 0;
+        state.knockZ = 0;
+      }
+    }
+
     movePlayerAxis("x", state.player.vx * dt);
     movePlayerAxis("z", state.player.vz * dt);
     state.player.onGround = false;
@@ -187,6 +202,7 @@ export function update(dt, shouldRender = true) {
     updateSafeAnchor(dt);
     updateVitals(dt);
     updatePortalTravel(dt);
+    updateTnt(dt);
 
     if (isOutOfHealth()) {
       handlePlayerDeath(state.lastDamageCause || "injury");

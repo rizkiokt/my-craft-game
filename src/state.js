@@ -26,6 +26,13 @@ export const state = {
   portalTimer: 0,
   portalCooldown: 0,
   portalPicker: null,
+  /** Charges counting down. Not saved: a lit fuse should not survive a reload. */
+  litTnt: [],
+  /** Seconds of no fall damage after a blast has thrown you. */
+  blastGrace: 0,
+  /** A decaying shove, added on top of walking rather than replaced by it. */
+  knockX: 0,
+  knockZ: 0,
   health: MAX_HEALTH,
   air: MAX_AIR,
   armor: { helmet: null, chestplate: null, leggings: null, boots: null },

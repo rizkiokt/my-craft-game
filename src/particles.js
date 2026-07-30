@@ -74,6 +74,8 @@ export function getBlockColor(blockType) {
       return [0x4a4a5e, 0x6f6a86];
     case BLOCKS.portal:
       return [0xb27ce8, 0x7a4fd0];
+    case BLOCKS.tnt:
+      return [0xd44a35, 0xe8ddd2];
     default:
       return [0x6cab57, 0x84c56f];
   }

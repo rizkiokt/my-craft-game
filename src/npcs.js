@@ -301,6 +301,16 @@ export class NpcManager {
     return null;
   }
 
+  /** Something went bang nearby, so they say so. Nobody is hurt by it. */
+  startle(x, z) {
+    const lines = ["Whoa!", "What was that?!", "Mind the noise!", "Ha! Again!"];
+    for (const npc of this.npcs) {
+      if (Math.hypot(npc.x - x, npc.z - z) < 18 && Math.random() < 0.7) {
+        this.say(npc, lines[Math.floor(Math.random() * lines.length)]);
+      }
+    }
+  }
+
   /** Shows a speech bubble for a few seconds. */
   say(npc, text) {
     npc.group.remove(npc.bubble);

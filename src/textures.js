@@ -38,6 +38,7 @@ export function createTextureSet() {
     BLOCKS.lava,
     BLOCKS.portal_frame,
     BLOCKS.portal,
+    BLOCKS.tnt,
   ]) {
     textures[blockType] = {
       top: new Uint8Array(16 * 16 * 3),
@@ -441,6 +442,26 @@ export function createTextureSet() {
         ]);
       }
 
+      // TNT: a red stick bundle with a pale band round the middle.
+      const tntBand = y >= 6 && y <= 9;
+      const tntStrap = y === 5 || y === 10;
+      const tntNoise = hash3(x * 0.8, y * 0.8, 157) * 16 - 8;
+      paint(textures[BLOCKS.tnt].side, x, y, [
+        (tntBand ? 226 : tntStrap ? 62 : 168) + tntNoise,
+        (tntBand ? 216 : tntStrap ? 58 : 44) + tntNoise * 0.6,
+        (tntBand ? 206 : tntStrap ? 58 : 38) + tntNoise * 0.5,
+      ]);
+      // The fuse sits on the lid.
+      const fuseSpot = Math.abs(x - 8) <= 1 && Math.abs(y - 8) <= 1;
+      paint(textures[BLOCKS.tnt].top, x, y, [
+        (fuseSpot ? 70 : 158) + tntNoise,
+        (fuseSpot ? 62 : 40) + tntNoise * 0.6,
+        (fuseSpot ? 52 : 34) + tntNoise * 0.5,
+      ]);
+      paint(textures[BLOCKS.tnt].bottom, x, y, [
+        120 + tntNoise, 34 + tntNoise * 0.6, 30 + tntNoise * 0.5,
+      ]);
+
       // Portal: swirling violet. Tinted per destination by the mesher.
       const swirl = Math.sin((x + y * 1.7) * 0.9) * 0.5 + 0.5;
       const sparkle = hash3(x * 1.3, y * 1.3, 151) > 0.86 ? 60 : 0;
@@ -619,6 +640,8 @@ export function createAtlasTexture() {
     textureSet[BLOCKS.lava].side,
     textureSet[BLOCKS.portal_frame].side,
     textureSet[BLOCKS.portal].side,
+    textureSet[BLOCKS.tnt].side,
+    textureSet[BLOCKS.tnt].top,
   ];
 
   tileData.forEach((tile, index) => {
@@ -741,6 +764,9 @@ export function getTileIndex(blockType, faceKey) {
   }
   if (blockType === BLOCKS.portal) {
     return 42;
+  }
+  if (blockType === BLOCKS.tnt) {
+    return faceKey === "py" || faceKey === "ny" ? 44 : 43;
   }
   return 24;
 }
