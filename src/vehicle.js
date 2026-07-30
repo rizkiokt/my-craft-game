@@ -21,11 +21,18 @@ import {
   MAX_WORLD_Y,
   MIN_WORLD_Y,
   VEHICLE_BY_ID,
+  VEHICLE_CRASH_SAFE,
+  VEHICLE_CRASH_SCALE,
+  VEHICLE_FALL_SAFE,
+  VEHICLE_FALL_SCALE,
   VEHICLE_KINDS,
+  VEHICLE_REPAIR,
 } from "./constants.js";
 import { clamp } from "./math.js";
 import { npcs } from "./npcs.js";
+import { spawnDrop } from "./drops.js";
 import { spawnParticles } from "./particles.js";
+import { TABLE_RECIPES } from "./recipes.js";
 import { scene } from "./scene.js";
 import { soundEngine } from "./sound.js";
 import { state } from "./state.js";
@@ -396,6 +403,7 @@ export class CarManager {
       bank: 0,
       tilt: 0,
       rotorSpin: 0,
+      hearts: VEHICLE_BY_ID[kind]?.hearts ?? 6,
       color: color ?? CAR_COLORS[Math.floor(Math.random() * CAR_COLORS.length)],
     };
     state.cars.push(car);
@@ -448,7 +456,8 @@ export class CarManager {
 
   serialize() {
     return state.cars.map((car) => ({
-      x: car.x, y: car.y, z: car.z, yaw: car.yaw, kind: car.kind, color: car.color,
+      x: car.x, y: car.y, z: car.z, yaw: car.yaw,
+      kind: car.kind, color: car.color, hearts: car.hearts,
     }));
   }
 
@@ -458,7 +467,9 @@ export class CarManager {
     }
     for (const entry of list ?? []) {
       // Saves from before there was more than one kind carry no `kind` field.
-      this.spawn(entry.x, entry.y, entry.z, entry.yaw ?? 0, entry.kind ?? "car", entry.color);
+      const car = this.spawn(entry.x, entry.y, entry.z, entry.yaw ?? 0, entry.kind ?? "car", entry.color);
+      // Saves from before vehicles could be damaged come back in one piece.
+      car.hearts = entry.hearts ?? car.hearts;
     }
   }
 
@@ -697,13 +708,28 @@ function stepCar(car, dt) {
   if (Math.abs(car.speed) > 0.01) {
     const dx = -Math.sin(car.yaw) * car.speed * dt;
     const dz = -Math.cos(car.yaw) * car.speed * dt;
+    const fromX = car.x;
+    const fromZ = car.z;
+    slide(car, spec, dx, dz);
+    const travelled = Math.hypot(car.x - fromX, car.z - fromZ);
     if (state.drivingCar === car) {
-      state.stats.driven += Math.hypot(dx, dz);
+      state.stats.driven += travelled;
     }
-    if (!slide(car, spec, dx, dz) && Math.abs(car.speed) > 3.5) {
+
+    /*
+     * Damage is the speed *lost into* whatever was in the way, not the speed
+     * being carried. Asking whether the move failed outright does not work:
+     * driving straight at a wall still slides a hair sideways, which counts as
+     * a successful move, and nothing was ever damaged. This way a head-on hit
+     * loses the lot and hurts, while scraping along a wall loses almost
+     * nothing and costs nothing.
+     */
+    const lost = (Math.hypot(dx, dz) - travelled) / Math.max(dt, 1e-4);
+    if (lost > 4) {
       spawnParticles(car.x, car.y + 0.6, car.z, BLOCKS.stone, 6, 1.6);
       soundEngine.land(6);
     }
+    damageVehicle(car, (lost - VEHICLE_CRASH_SAFE) / VEHICLE_CRASH_SCALE, "hit something");
   }
 
   if (inWater(car)) {
@@ -743,6 +769,8 @@ function stepCar(car, dt) {
       spawnParticles(car.x, car.y + 0.1, car.z, BLOCKS.dirt, 8, 1.2);
       soundEngine.land(-landing);
     }
+    // A kerb costs nothing; coming off a cliff costs plenty.
+    damageVehicle(car, (-landing - VEHICLE_FALL_SAFE) / VEHICLE_FALL_SCALE, "a heavy landing");
   } else if (car.vy > 0 && carBlocked(car, spec, car.x, ny, car.z)) {
     car.vy = 0;
   } else {
@@ -798,6 +826,74 @@ function sitInSeat(car) {
   player.onGround = true;
   // However far it just fell, the landing is the vehicle's problem.
   state.fallStartY = null;
+}
+
+/**
+ * Takes hearts off a vehicle and wrecks it at zero.
+ *
+ * `state.uiMessage` is set directly rather than through `showToast`, because
+ * that lives in `ui/hud.js` a layer above this one. It is the same two fields.
+ */
+export function damageVehicle(car, amount, cause) {
+  if (amount <= 0 || car.hearts <= 0) {
+    return;
+  }
+  car.hearts = Math.max(0, car.hearts - amount);
+  spawnParticles(car.x, car.y + 0.8, car.z, BLOCKS.stone, 6, 2.2);
+  soundEngine.hit(BLOCKS.stone, false);
+  if (car.hearts <= 0) {
+    wreck(car, cause);
+  } else if (state.drivingCar === car) {
+    state.uiMessage = `${specFor(car).name} damaged — ${car.hearts.toFixed(1)} left`;
+    state.uiMessageTimer = 1.6;
+  }
+  state.saveDirty = true;
+}
+
+/**
+ * What a wreck leaves behind: about half of what it was built from, so a bad
+ * landing is a setback rather than a punishment. Read straight off the recipe,
+ * which means it can never drift out of step with what the thing costs.
+ */
+function wreck(car, cause) {
+  const spec = specFor(car);
+  const recipe = TABLE_RECIPES.find((entry) => entry.output === spec.item);
+  if (state.drivingCar === car) {
+    // Out first, and unhurt: the vehicle is what the crash costs, never you.
+    leaveCar();
+    state.uiMessage = `${spec.name} wrecked${cause ? ` — ${cause}` : ""}`;
+    state.uiMessageTimer = 2.6;
+  }
+  spawnParticles(car.x, car.y + 0.8, car.z, BLOCKS.stone, 26, 4.5);
+  soundEngine.explosion(false);
+  for (const [itemId, count] of Object.entries(recipe?.ingredients ?? {})) {
+    const salvage = Math.max(1, Math.floor(count / 2));
+    for (let i = 0; i < salvage; i++) {
+      spawnDrop(
+        Number(itemId), car.x, car.y + 0.6, car.z,
+        (Math.random() - 0.5) * 3, 2 + Math.random() * 2, (Math.random() - 0.5) * 3,
+      );
+    }
+  }
+  cars.remove(car);
+  state.saveDirty = true;
+}
+
+/** An iron ingot mends a couple of hearts. Returns false if it is already whole. */
+export function repairVehicle(car) {
+  const spec = specFor(car);
+  if (car.hearts >= spec.hearts) {
+    return false;
+  }
+  car.hearts = Math.min(spec.hearts, car.hearts + VEHICLE_REPAIR);
+  spawnParticles(car.x, car.y + 0.8, car.z, BLOCKS.iron_ore, 8, 2);
+  soundEngine.craft();
+  state.saveDirty = true;
+  return true;
+}
+
+export function vehicleHearts(car) {
+  return { hearts: car.hearts, max: specFor(car).hearts };
 }
 
 export function isDriving() {

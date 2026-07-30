@@ -2072,3 +2072,21 @@ body.is-touch .item-name {
   font-size: 12px;
   color: #97a1b0;
 }
+
+/* Mechanical hearts: a cog, so it never reads as your own health. */
+.pip-gear {
+  clip-path: polygon(
+    38% 0%, 62% 0%, 68% 14%, 86% 14%, 86% 32%, 100% 38%, 100% 62%, 86% 68%,
+    86% 86%, 68% 86%, 62% 100%, 38% 100%, 32% 86%, 14% 86%, 14% 68%, 0% 62%,
+    0% 38%, 14% 32%, 14% 14%, 32% 14%
+  );
+  background: #1e2733;
+}
+
+.pip-gear.is-full {
+  background: linear-gradient(180deg, #8fd0ff, #3d86c9);
+}
+
+.pip-gear.is-half {
+  background: linear-gradient(90deg, #8fd0ff 50%, #1e2733 50%);
+}

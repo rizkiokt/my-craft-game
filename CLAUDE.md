@@ -569,6 +569,28 @@ Three rules make them fun rather than fiddly, and each is deliberate:
 - **They cannot hurt you.** `sitInSeat()` clears `state.fallStartY` every frame, so the vehicle
   takes the landing and you do not — verified at forty-five blocks, twice lethal on foot.
 
+#### Damage
+
+The counterpart to that last rule: the landing that costs you nothing costs the vehicle
+something. Each kind has a `hearts` durability (car 6, monster truck 9, semi 11, aeroplane 4 —
+the aircraft are the fragile ones), shown while driving as a row of **cogs**, deliberately not
+heart-shaped so it can never be mistaken for your own health.
+
+**Impact damage is the speed lost *into* the obstacle, not the speed being carried.** Asking
+whether the move failed does not work: driving straight at a wall still slides a hair sideways,
+which counts as a successful move, and nothing was ever damaged. Comparing intended displacement
+against actual gets it right in every case at once — a head-on hit loses the lot and costs 1.75
+hearts at full speed, while scraping along a wall loses almost nothing and costs nothing at all
+(measured: five seconds of scraping, no damage).
+
+Two more details:
+
+- **A wreck ejects the driver first, unhurt**, then drops **half of what the recipe called for**,
+  read straight off `TABLE_RECIPES` so salvage can never drift out of step with cost. A bad
+  landing is a setback, not a punishment.
+- **An iron ingot in hand repairs instead of entering.** Without a way to mend one this is just a
+  tax on experimenting, which is the opposite of what the game is for.
+
 Two bugs found by the truck are worth not reintroducing:
 
 - **`groundBelow()` is a separate test from `carBlocked()`.** The latter samples the body from

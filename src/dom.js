@@ -12,6 +12,7 @@ export const vitals = document.getElementById("vitals");
 export const healthRow = document.getElementById("health-row");
 export const armorRow = document.getElementById("armor-row");
 export const airRow = document.getElementById("air-row");
+export const vehicleRow = document.getElementById("vehicle-row");
 export const xpBar = document.getElementById("xp-bar");
 export const xpFill = document.getElementById("xp-fill");
 export const xpLevel = document.getElementById("xp-level");

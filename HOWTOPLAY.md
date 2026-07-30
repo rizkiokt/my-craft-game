@@ -258,6 +258,20 @@ moving. It rolls into its turns.
 
 Falling out of the sky costs you nothing at all — same as everything else you can drive.
 
+## Looking After Your Vehicle
+
+Everything you drive has **mechanical hearts** — a row of blue cogs under your own hearts,
+shown only while you are in something. They are the vehicle's condition, never yours.
+
+- **A hard landing costs hearts.** A short drop is free. Thirty blocks takes most of a car.
+- **Driving into a wall costs hearts** — about a heart and three quarters at full speed. Scraping
+  along one costs nothing, so you do not have to drive like glass.
+- **At zero it is wrecked.** You are thrown clear without a scratch, and about half the materials
+  are left on the ground to pick up.
+
+**To mend one, hold an iron ingot and touch it.** Each ingot is worth two hearts. The aeroplane
+and the helicopter are the most fragile things you can build, and the semi truck the toughest.
+
 | | |
 |---|---|
 | **Park it** | Hold it and right-click the ground |

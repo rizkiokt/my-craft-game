@@ -2,7 +2,7 @@
 
 import * as THREE from "../node_modules/three/build/three.module.js";
 import { chunkMeshes } from "./chunkMesh.js";
-import { BLOCKS, BLOCK_NAMES, INTERACTION_RANGE, MAX_BUILD_HEIGHT, MIN_WORLD_Y, PLAYER_HEIGHT, PLAYER_RADIUS, VEHICLE_ITEMS } from "./constants.js";
+import { BLOCKS, BLOCK_NAMES, INTERACTION_RANGE, ITEMS, MAX_BUILD_HEIGHT, MIN_WORLD_Y, PLAYER_HEIGHT, PLAYER_RADIUS, VEHICLE_ITEMS } from "./constants.js";
 import { getLevel, getXpForBlock, grantXp } from "./enchanting.js";
 import { getBodyHeight, getBodyRadius, getReach } from "./growth.js";
 import { addItem, canMineBlock, consumeItem, getBreakDamage, getBreakHardness, getDropCount, getDropForBlock, getInteractionCooldown, getItemCount, getRequiredToolName, getSelectedItem, isCollectibleBlock, isCreative, isPlaceableItem } from "./items.js";
@@ -14,7 +14,7 @@ import { spawnHearts, spawnParticles } from "./particles.js";
 import { clearPortalAt, describeFrameProblem, extinguishAround, lightPortal } from "./portals.js";
 import { isCharge, lightTnt } from "./tnt.js";
 import { markDone } from "./book.js";
-import { cars, enterCar, honk, isDriving, vehicleName } from "./vehicle.js";
+import { cars, enterCar, honk, isDriving, repairVehicle, vehicleName } from "./vehicle.js";
 import { applyPlayerToCamera, eyePosition, hasCollision, lookDirection } from "./player.js";
 import { scene } from "./scene.js";
 import { soundEngine } from "./sound.js";
@@ -216,6 +216,16 @@ export function interact(breaking, isPress = false) {
     if (isPress) {
       state.usePressed = false;
       const name = vehicleName(state.carTarget);
+      // An ingot in your hand means you came to mend it, not to drive it.
+      if (getSelectedItem() === ITEMS.iron_ingot && getItemCount(ITEMS.iron_ingot) > 0) {
+        if (repairVehicle(state.carTarget)) {
+          consumeItem(ITEMS.iron_ingot, 1);
+          showToast(`Patched up the ${name}`);
+          return;
+        }
+        showToast(`The ${name} is not damaged`);
+        return;
+      }
       enterCar(state.carTarget);
       showToast(`Driving the ${name} — sneak to get out`);
     }

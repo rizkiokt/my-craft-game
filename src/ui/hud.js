@@ -2,7 +2,7 @@
 
 import { BLOCK_NAMES, CHUNK_SIZE, CITY_PLAN, HOTBAR_SIZE, MAX_AIR, MAX_HEALTH, SNOW_REALM, SUBURB_PLAN } from "../constants.js";
 import { getArmorPoints, getDamageReduction } from "../combat.js";
-import { airRow, armorRow, damageFlashEl, debugLeft, debugOverlay, debugRight, healthRow, hotbar, hudLayer, underwaterEl, itemNameLabel, modeBanner, toastLabel, vitals, xpBar, xpFill, xpLevel } from "../dom.js";
+import { airRow, armorRow, vehicleRow, damageFlashEl, debugLeft, debugOverlay, debugRight, healthRow, hotbar, hudLayer, underwaterEl, itemNameLabel, modeBanner, toastLabel, vitals, xpBar, xpFill, xpLevel } from "../dom.js";
 import { describeEnchantments, getLevel, getLevelProgress } from "../enchanting.js";
 import { itemIcons } from "../icons.js";
 import { getItemCount, getSelectedItem, isCreative } from "../items.js";
@@ -11,6 +11,7 @@ import { passiveMobs } from "../mobs.js";
 import { getGrowth, getMaxHearts, getMaxHealth } from "../growth.js";
 import { soundEngine } from "../sound.js";
 import { state } from "../state.js";
+import { vehicleHearts } from "../vehicle.js";
 import { world } from "../world.js";
 export function buildHotbar() {
   hotbar.replaceChildren();
@@ -143,6 +144,12 @@ function updateVitalsHud() {
   // Bubbles only appear while your head is under water, as in Minecraft.
   const airPips = state.air >= MAX_AIR ? 0 : Math.ceil(state.air);
   renderPips(airRow, "pip-air", airPips, airPips);
+
+  // Cogs, and only while you are in something. They are the vehicle's
+  // condition, never yours, so they must not look like hearts.
+  const driven = state.drivingCar;
+  const condition = driven ? vehicleHearts(driven) : null;
+  renderPips(vehicleRow, "pip-gear", condition?.hearts ?? 0, condition?.max ?? 0);
 }
 
 /**

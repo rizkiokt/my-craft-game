@@ -760,6 +760,8 @@ export const FACE_DEFS = [
 export const VEHICLE_KINDS = {
   [ITEMS.car]: {
     id: "car",
+    item: ITEMS.car,
+    hearts: 6,
     name: "Car",
     accel: 11, brake: 20, maxSpeed: 13, reverse: 5, steer: 2.1,
     radius: 0.78, long: 1.2, height: 1.35, step: 1, seat: 0.95,
@@ -767,6 +769,8 @@ export const VEHICLE_KINDS = {
   },
   [ITEMS.truck]: {
     id: "truck",
+    item: ITEMS.truck,
+    hearts: 9,
     name: "Monster Truck",
     // Heavier off the line and slower flat out, which is the trade for
     // climbing a two-block ledge and bouncing off the landing.
@@ -776,6 +780,8 @@ export const VEHICLE_KINDS = {
   },
   [ITEMS.rig]: {
     id: "rig",
+    item: ITEMS.rig,
+    hearts: 9,
     name: "Trailer Truck",
     // Slow, wide-turning and very long, on the same tyres as the truck. The
     // trailer bends at the hitch, so `long` is the whole rig laid out straight
@@ -788,6 +794,8 @@ export const VEHICLE_KINDS = {
   },
   [ITEMS.semi]: {
     id: "semi",
+    item: ITEMS.semi,
+    hearts: 11,
     name: "Semi Truck",
     // Eleven blocks of lorry on fourteen wheels, and two hitches rather than
     // one — each trailer follows the thing in front of it, so the back of it
@@ -808,6 +816,8 @@ export const VEHICLE_KINDS = {
   // stays up while it is going fast enough.
   [ITEMS.flying_car]: {
     id: "flycar",
+    item: ITEMS.flying_car,
+    hearts: 5,
     name: "Flying Car",
     accel: 10, brake: 18, maxSpeed: 12, reverse: 4, steer: 1.9,
     radius: 0.82, long: 1.25, height: 1.5, step: 1, seat: 1,
@@ -816,6 +826,8 @@ export const VEHICLE_KINDS = {
   },
   [ITEMS.helicopter]: {
     id: "heli",
+    item: ITEMS.helicopter,
+    hearts: 5,
     name: "Helicopter",
     accel: 8, brake: 14, maxSpeed: 14, reverse: 5, steer: 2.3,
     radius: 0.9, long: 2.4, height: 2.5, step: 1, seat: 1.05,
@@ -824,6 +836,8 @@ export const VEHICLE_KINDS = {
   },
   [ITEMS.airplane]: {
     id: "plane",
+    item: ITEMS.airplane,
+    hearts: 4,
     name: "Airplane",
     // Fast, and it turns like an aeroplane rather than a car: the steering
     // does nothing until it is rolling.
@@ -849,3 +863,15 @@ export const CAR_FLOAT = 26;
 export const CAR_COLORS = [
   0xd8402c, 0x2f7fd4, 0xf0b429, 0x3fa65c, 0x9b5de5, 0xe8724c, 0x24b6c9, 0xe4e6ea,
 ];
+
+/**
+ * Vehicle damage. A vehicle takes what the driver does not: the landing that
+ * costs you nothing costs it something, which is what makes flying carelessly
+ * expensive without ever being dangerous.
+ */
+export const VEHICLE_FALL_SAFE = 15;
+export const VEHICLE_FALL_SCALE = 5;
+export const VEHICLE_CRASH_SAFE = 6;
+export const VEHICLE_CRASH_SCALE = 4;
+/** An iron ingot mends this much. */
+export const VEHICLE_REPAIR = 2;
