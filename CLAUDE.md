@@ -32,10 +32,10 @@ Modules are layered; a module may only import from a layer below it. `src/ui/*` 
 |---|---|---|
 | 0 | `constants.js`, `dom.js`, `math.js` | Tables, element handles, noise/util maths. No imports. |
 | 1 | `settings.js`, `bindings.js`, `state.js`, `recipes.js` | Options, control scheme, mutable state, recipe tables |
-| 2 | `worldgen.js`, `textures.js`, `world.js`, `items.js`, `enchanting.js` | Terrain, atlas, voxel storage, item rules, XP |
-| 3 | `scene.js`, `icons.js`, `chunkMesh.js`, `sound.js`, `mobs.js`, `particles.js`, `playerModel.js` | Three.js resources and singletons |
+| 2 | `worldgen.js`, `textures.js`, `world.js`, `items.js`, `enchanting.js`, `growth.js` | Terrain, atlas, voxel storage, item rules, XP, body size |
+| 3 | `scene.js`, `icons.js`, `chunkMesh.js`, `sound.js`, `mobs.js`, `particles.js`, `playerModel.js`, `book.js` | Three.js resources, singletons, the goal list |
 | 4 | `player.js`, `interaction.js`, `crafting.js`, `combat.js`, `drops.js`, `portals.js`, `tnt.js`, `vehicle.js`, `pointerLock.js`, `fullscreen.js`, `save.js` | Gameplay systems |
-| 5 | `ui/hud.js`, `ui/inventory.js`, `ui/screens.js`, `ui/controlsScreen.js`, `ui/options.js`, `ui/menus.js`, `ui/worlds.js`, `ui/portals.js` | Screens and overlays |
+| 5 | `ui/hud.js`, `ui/inventory.js`, `ui/screens.js`, `ui/controlsScreen.js`, `ui/options.js`, `ui/menus.js`, `ui/worlds.js`, `ui/portals.js`, `ui/book.js` | Screens and overlays |
 | 6 | `actions.js`, `input.js`, `touch.js`, `loop.js`, `debugApi.js` | Input routing and the frame loop |
 
 **The import graph is acyclic — keep it that way.** Three places would otherwise close a loop and all use dependency inversion instead:
@@ -43,8 +43,9 @@ Modules are layered; a module may only import from a layer below it. `src/ui/*` 
 - `pointerLock.js` cannot import `ui/screens.js`, so it exposes `onUnexpectedUnlock(handler)` and `main.js` registers `openPauseMenu`.
 - `actions.js` cannot import `loop.js`, so `takeScreenshot()` sets `state.screenshotRequested` and `render()` performs the capture (the drawing buffer is not preserved, so it must happen in the same task as the draw).
 - `ui/options.js` cannot import `touch.js`, so it exposes `onTouchSettingChanged(handler)` and `main.js` registers `syncTouchControls`.
+- `book.js` cannot import `ui/hud.js`, so ticking something off pushes its title onto `state.bookToast` and `updateHud()` drains one per frame.
 
-DOM listeners are never attached at module scope. Each wiring module exports an `install*Handlers()` function that `main.js` calls once: `installMenuHandlers`, `installWorldsHandlers`, `installPortalHandlers`, `installOptionsHandlers`, `installInputHandlers`, `installTouchHandlers`, `installDebugApi`.
+DOM listeners are never attached at module scope. Each wiring module exports an `install*Handlers()` function that `main.js` calls once: `installMenuHandlers`, `installBookHandlers`, `installWorldsHandlers`, `installPortalHandlers`, `installOptionsHandlers`, `installInputHandlers`, `installTouchHandlers`, `installDebugApi`.
 
 Because `state.player.y` needs the world to know where the ground is, `state.js` declares `y: 0` and `main.js` sets the real spawn height during boot.
 
@@ -484,6 +485,32 @@ charge caught in a blast lights its own short fuse, so chains work.
 An explosion costs 2.5–6.9 ms, and the re-mesh it causes rides the normal `MESH_BUDGET_MS`.
 The worst single frame while one lands is 13–24 ms — one hitch during a bang, not a sustained
 cost.
+
+### Things to do
+
+`src/book.js` is the only thing in the game that points at what is in it. Twenty-seven entries
+covering the whole of it — first block to all eight charges — ticked off as you go, opened with
+**B** or from the pause menu.
+
+**Most entries are a predicate polled two or three times a second, not a call planted where the
+thing happens.** A predicate cannot be forgotten when the code around it moves, and most goals
+are already visible in the state: `has(ITEMS.diamond)`, `getPlayerLevel() >= 10`,
+`state.player.y <= 6`. Only five leave no trace and are marked by hand — taming a cat, asking a
+friend to follow, lighting a portal, travelling through one, and honking.
+
+Three details are load-bearing:
+
+- **`book.js` sits at layer 3 so the layer-4 systems can mark into it**, which is also why it
+  cannot announce anything itself: `markDone()` pushes onto `state.bookToast` and `updateHud()`
+  shows one per frame.
+- **You wake up inside the city**, so "find the city" ticked itself off before the player had
+  done anything. It is "climb to the roof of a city tower" instead, which needs the rectangle
+  *and* a height.
+- **`updateBook()` polls on a timer, not every frame**, because `getBiomeAt()` is a nine-site
+  search and nothing on the list is urgent.
+
+Adding an entry is one row in `BOOK`, with a `check` if the state already shows it and a
+`markDone("id")` at the event site if it does not.
 
 ### Cars
 

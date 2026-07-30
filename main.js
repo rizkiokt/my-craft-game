@@ -30,6 +30,7 @@ import { updateTarget } from "./src/interaction.js";
 import { buildHotbar, updateHotbar } from "./src/ui/hud.js";
 import { updateInventoryPanel } from "./src/ui/inventory.js";
 import { buildControlsScreen, buildHelpControls } from "./src/ui/controlsScreen.js";
+import { installBookHandlers } from "./src/ui/book.js";
 import { installMenuHandlers } from "./src/ui/menus.js";
 import { installPortalHandlers } from "./src/ui/portals.js";
 import { installWorldsHandlers } from "./src/ui/worlds.js";
@@ -92,6 +93,7 @@ onUnexpectedUnlock(openPauseMenu);
 onTouchSettingChanged(syncTouchControls);
 
 installMenuHandlers();
+installBookHandlers();
 installWorldsHandlers();
 installPortalHandlers();
 installOptionsHandlers();

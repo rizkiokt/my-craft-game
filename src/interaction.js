@@ -13,6 +13,7 @@ import { npcs } from "./npcs.js";
 import { spawnHearts, spawnParticles } from "./particles.js";
 import { clearPortalAt, describeFrameProblem, extinguishAround, lightPortal } from "./portals.js";
 import { isCharge, lightTnt } from "./tnt.js";
+import { markDone } from "./book.js";
 import { cars, enterCar, honk, isDriving } from "./vehicle.js";
 import { applyPlayerToCamera, eyePosition, hasCollision, lookDirection } from "./player.js";
 import { scene } from "./scene.js";
@@ -226,6 +227,9 @@ export function interact(breaking, isPress = false) {
     if (isPress) {
       state.usePressed = false;
       const following = npcs.greet(friend);
+      if (following) {
+        markDone("friend");
+      }
       showToast(following ? `${friend.name} is coming with you` : `${friend.name} waits here`);
       soundEngine.ui(following);
       state.saveDirty = true;
@@ -245,6 +249,7 @@ export function interact(breaking, isPress = false) {
         spawnHearts(creature.x, creature.y + 0.5, creature.z);
         soundEngine.meow();
         showToast(`${CAT_COATS[creature.coatIndex]?.name ?? "The"} cat is your friend now`);
+        markDone("cat");
       } else {
         const sitting = passiveMobs.toggleSit(creature);
         soundEngine.meow();
@@ -336,6 +341,7 @@ export function interact(breaking, isPress = false) {
         2.2,
       );
       soundEngine.hit(brokenType, true);
+      state.stats.broken += 1;
       state.saveDirty = true;
     }
     resetBreakState();
@@ -422,6 +428,7 @@ export function interact(breaking, isPress = false) {
           1.6,
         );
         soundEngine.place(selectedItem);
+        state.stats.placed += 1;
         state.saveDirty = true;
         // The block that completes a frame lights it, so nobody has to be
         // told there is a separate step.

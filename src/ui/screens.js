@@ -56,7 +56,7 @@ export function showScreen(name) {
 }
 
 /** Screens you back out of, rather than places you can be. */
-export const SUB_SCREENS = new Set(["controls", "options", "help", "worlds", "portal"]);
+export const SUB_SCREENS = new Set(["controls", "options", "help", "worlds", "portal", "book"]);
 
 export function openSubScreen(name) {
   // Hopping between sub-screens must not lose where you came in from.

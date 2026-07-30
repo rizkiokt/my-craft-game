@@ -19,6 +19,7 @@ import {
 } from "./constants.js";
 import { teleportTo } from "./player.js";
 import { soundEngine } from "./sound.js";
+import { markDone } from "./book.js";
 import { state } from "./state.js";
 import { world } from "./world.js";
 import { findNearestBiome } from "./worldgen.js";
@@ -212,6 +213,7 @@ export function lightPortal(fx, fy, fz) {
     state.portals[portalKey(x, y, z)] = destinationId;
   }
   state.saveDirty = true;
+  markDone("portal");
   return { cells: opening.cells, destinationId };
 }
 
@@ -392,6 +394,7 @@ export function travelTo(destinationId) {
   state.portalCooldown = PORTAL_COOLDOWN;
   state.portalTimer = 0;
   soundEngine.portal(true);
+  markDone("travel");
   toast(`Arrived at ${destination.name}`);
   state.saveDirty = true;
 }

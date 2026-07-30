@@ -236,6 +236,9 @@
             </div>
             <div class="btn-row">
               <button id="btn-pause-help" class="mc-btn" type="button">How to Play</button>
+              <button id="btn-pause-book" class="mc-btn" type="button">Things to Do</button>
+            </div>
+            <div class="btn-row">
               <button id="btn-pause-mode" class="mc-btn" type="button">Mode: Survival</button>
             </div>
             <button id="btn-unstuck" class="mc-btn mc-btn-wide" type="button">
@@ -356,6 +359,17 @@
       <!-- ---------------------------------------------------------------- -->
       <!-- How to play                                                       -->
       <!-- ---------------------------------------------------------------- -->
+      <div id="screen-book" class="screen screen-blur is-hidden">
+        <div class="screen-panel screen-panel-wide">
+          <h2 class="screen-title-text">Things to Do</h2>
+          <p id="book-count" class="book-count"></p>
+          <ul id="book-list" class="book-list"></ul>
+          <div class="menu-buttons">
+            <button id="btn-book-back" class="mc-btn mc-btn-primary" type="button">Done</button>
+          </div>
+        </div>
+      </div>
+
       <div id="screen-help" class="screen screen-blur is-hidden">
         <div class="screen-panel screen-panel-wide">
           <h2 class="screen-title-text">How to Play</h2>
@@ -372,6 +386,13 @@
                 <li>A <b>Wood Pickaxe</b> mines stone; a <b>Stone Pickaxe</b> mines iron ore.</li>
                 <li>Place a <b>Furnace</b> and look at it to smelt iron ore with coal.</li>
                 <li>Stone and ores need the right tool &mdash; the HUD tells you when you need better gear.</li>
+              </ul>
+            </section>
+            <section>
+              <h3>Things to Do</h3>
+              <ul class="help-list">
+                <li>Press <b>B</b> for a list of things worth trying, from your first block to driving a car.</li>
+                <li>It ticks itself off as you go &mdash; there is nothing to hand in.</li>
               </ul>
             </section>
             <section>

@@ -5,6 +5,7 @@
 // the fun part and costs nothing. That is deliberate, not an oversight: this
 // game has no fighting in it.
 
+import { noteCharge } from "./book.js";
 import { chunkMeshes } from "./chunkMesh.js";
 import {
   BLAST_CELLS_PER_FRAME,
@@ -276,6 +277,7 @@ export function explode(cx, cy, cz, blockType = BLOCKS.tnt) {
   }
   shovePlayer(cx, cy, cz, kind);
   npcs.startle(cx, cz);
+  noteCharge(kind.name);
   state.saveDirty = true;
 
   if (kind.staged) {

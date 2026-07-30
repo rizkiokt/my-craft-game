@@ -53,6 +53,8 @@ export function buildPayload() {
     portals: state.portals,
     pets: passiveMobs.serializePets(),
     cars: cars.serialize(),
+    book: state.book,
+    stats: state.stats,
     npcs: npcs.serialize(),
     armor: state.armor,
     enchantments: state.enchantments,
@@ -168,6 +170,14 @@ export function loadGame() {
     state.xp = Number.isFinite(payload.xp) ? payload.xp : state.xp;
     state.health = Number.isFinite(payload.health) ? payload.health : state.health;
     restoredNpcs = npcs.restore(payload.npcs);
+    if (payload.book) {
+      state.book = payload.book;
+    }
+    if (payload.stats) {
+      // Merged rather than replaced, so a save from before a counter existed
+      // does not leave it undefined.
+      state.stats = { ...state.stats, ...payload.stats };
+    }
     if (Array.isArray(payload.cars)) {
       cars.restore(payload.cars);
     }

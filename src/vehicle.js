@@ -9,6 +9,7 @@
 
 import * as THREE from "../node_modules/three/build/three.module.js";
 import { isActionDown } from "./bindings.js";
+import { markDone } from "./book.js";
 import {
   BLOCKS,
   CAR_ACCEL,
@@ -235,6 +236,9 @@ function stepCar(car, dt) {
   if (Math.abs(car.speed) > 0.01) {
     const dx = -Math.sin(car.yaw) * car.speed * dt;
     const dz = -Math.cos(car.yaw) * car.speed * dt;
+    if (state.drivingCar === car) {
+      state.stats.driven += Math.hypot(dx, dz);
+    }
     if (!slide(car, dx, dz) && Math.abs(car.speed) > 3.5) {
       spawnParticles(car.x, car.y + 0.6, car.z, BLOCKS.stone, 6, 1.6);
       soundEngine.land(6);
@@ -349,6 +353,7 @@ export function honk() {
   }
   soundEngine.horn();
   npcs.startle(car.x, car.z);
+  markDone("honk");
 }
 
 export function updateVehicles(dt) {

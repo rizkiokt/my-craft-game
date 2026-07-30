@@ -28,6 +28,10 @@ export const state = {
   portalPicker: null,
   /** Charges counting down. Not saved: a lit fuse should not survive a reload. */
   litTnt: [],
+  /** Things ticked off in the book, and the counters a few of them need. */
+  book: {},
+  bookToast: [],
+  stats: { broken: 0, placed: 0, driven: 0, biomes: {}, places: {}, charges: [] },
   /** Parked and driven cars. Saved; which one you are in is not. */
   cars: [],
   nextCarId: 1,

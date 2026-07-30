@@ -208,6 +208,13 @@ you can lay a line of them — or mix kinds and set off a tornado with an earthq
 
 ---
 
+## Things to Do
+
+Press **B** at any time for a list of twenty-seven things worth trying, from breaking your first
+block to setting off all eight kinds of charge. It ticks itself off as you go — there is nothing
+to hand in and nothing to lose. If you are ever not sure what to do next, that is the page to
+open.
+
 ## Cars
 
 Build one at a crafting table: **four iron ingots and two coal** — iron for the body, coal for

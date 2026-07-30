@@ -9,6 +9,7 @@ import { getItemCount, getSelectedItem, isCreative } from "../items.js";
 import { clamp, isInsideRect } from "../math.js";
 import { passiveMobs } from "../mobs.js";
 import { getGrowth, getMaxHearts, getMaxHealth } from "../growth.js";
+import { soundEngine } from "../sound.js";
 import { state } from "../state.js";
 import { world } from "../world.js";
 export function buildHotbar() {
@@ -166,7 +167,22 @@ function syncHudStackHeight() {
   hudLayer.style.setProperty("--hud-stack", `${fromBottom}px`);
 }
 
+/**
+ * Anything ticked off in the book since the last frame. It is queued rather
+ * than announced on the spot because `book.js` sits below this module and
+ * cannot call into it.
+ */
+function drainBookToasts() {
+  if (state.bookToast.length === 0) {
+    return;
+  }
+  const title = state.bookToast.shift();
+  showToast(`Ticked off: ${title}`, 2.6);
+  soundEngine.craft();
+}
+
 export function updateHud() {
+  drainBookToasts();
   hudLayer.classList.toggle("is-hidden", !state.hudVisible);
   underwaterEl.classList.toggle("is-visible", state.submerged);
   updateVitalsHud();

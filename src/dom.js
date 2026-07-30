@@ -59,6 +59,7 @@ export const screenElements = {
   controls: document.getElementById("screen-controls"),
   options: document.getElementById("screen-options"),
   help: document.getElementById("screen-help"),
+  book: document.getElementById("screen-book"),
   worlds: document.getElementById("screen-worlds"),
   portal: document.getElementById("screen-portal"),
 };

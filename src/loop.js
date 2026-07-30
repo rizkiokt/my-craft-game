@@ -21,6 +21,7 @@ import { passiveMobs } from "./mobs.js";
 import { npcs } from "./npcs.js";
 import { updatePortalTravel } from "./portals.js";
 import { updateTnt } from "./tnt.js";
+import { updateBook } from "./book.js";
 import { updateVehicles } from "./vehicle.js";
 import { spawnParticles, updateParticles } from "./particles.js";
 import { applyPlayerToCamera, getFootstepBlockType, getSubmersion, handlePlayerDeath, hasCollision, movePlayerAxis, updateSafeAnchor } from "./player.js";
@@ -208,6 +209,7 @@ export function update(dt, shouldRender = true) {
     updateVitals(dt);
     updatePortalTravel(dt);
     updateTnt(dt);
+    updateBook(dt);
 
     if (isOutOfHealth()) {
       handlePlayerDeath(state.lastDamageCause || "injury");

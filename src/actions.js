@@ -12,6 +12,7 @@ import { getEyeHeight, getLookDirection } from "./player.js";
 import { soundEngine } from "./sound.js";
 import { state } from "./state.js";
 import { announceHeldItem, showToast, updateHotbar, updateModeBanner } from "./ui/hud.js";
+import { openBook } from "./ui/book.js";
 import { toggleInventory, updateInventoryPanel } from "./ui/inventory.js";
 import { closeSubScreen, openPauseMenu, resumeGame, setGameMode } from "./ui/screens.js";
 export function selectHotbarSlot(index) {
@@ -160,6 +161,7 @@ export function handleEscape() {
     case "help":
     case "worlds":
     case "portal":
+    case "book":
       closeSubScreen();
       break;
     default:
@@ -187,6 +189,9 @@ export function handleActionPress(action, event) {
       if (!state.isDead) {
         toggleInventory();
       }
+      return;
+    case "book":
+      openBook();
       return;
     case "toggleHud":
       state.hudVisible = !state.hudVisible;

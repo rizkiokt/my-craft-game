@@ -2005,3 +2005,70 @@ body.is-touch .item-name {
 .underwater.is-visible {
   opacity: 1;
 }
+
+/* Things to Do */
+.book-count {
+  margin: 0 0 10px;
+  text-align: center;
+  color: #b9c2cf;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+}
+
+.book-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 4px;
+  max-height: 52vh;
+  overflow-y: auto;
+  display: grid;
+  gap: 6px;
+}
+
+.book-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  background: rgba(12, 14, 19, 0.55);
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+}
+
+.book-item.is-done {
+  background: rgba(46, 92, 52, 0.42);
+  border-color: rgba(126, 214, 134, 0.4);
+}
+
+.book-tick {
+  flex: 0 0 20px;
+  text-align: center;
+  color: #8ee89a;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.book-item:not(.is-done) .book-tick::before {
+  content: "\2022";
+  color: #5c6675;
+}
+
+.book-text {
+  display: grid;
+  gap: 2px;
+}
+
+.book-text b {
+  font-size: 14px;
+  color: #eef2f7;
+  font-weight: 600;
+}
+
+.book-item.is-done .book-text b {
+  color: #cfe9d3;
+}
+
+.book-text small {
+  font-size: 12px;
+  color: #97a1b0;
+}

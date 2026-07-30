@@ -24,6 +24,7 @@ export const DEFAULT_BINDINGS = {
   pick: "Mouse1",
   drop: "KeyQ",
   inventory: "KeyE",
+  book: "KeyB",
   hotbar1: "Digit1",
   hotbar2: "Digit2",
   hotbar3: "Digit3",
@@ -55,6 +56,7 @@ export const BINDING_LABELS = {
   pick: "Pick Block",
   drop: "Drop Item",
   inventory: "Inventory / Crafting",
+  book: "Things to Do",
   hotbar1: "Hotbar Slot 1",
   hotbar2: "Hotbar Slot 2",
   hotbar3: "Hotbar Slot 3",
@@ -80,7 +82,7 @@ export const BINDING_GROUPS = [
   },
   {
     title: "Gameplay",
-    actions: ["attack", "use", "pick", "drop", "inventory"],
+    actions: ["attack", "use", "pick", "drop", "inventory", "book"],
   },
   {
     title: "Hotbar",
