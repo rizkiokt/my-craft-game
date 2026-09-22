@@ -24,7 +24,7 @@ const CITY_TOWER_TOP = CITY_PLAN.baseHeight + 13;
 /** Five: forest, dunes, swamp, canyon and the Ember Deep. */
 const BIOME_COUNT = BIOME_TYPES.length;
 
-/** Seven, from the Bonekin to the Void Wyrm. */
+/** Eight, from the Bonekin to the Tempest Maw. */
 const CREATURE_COUNT = Object.keys(CREATURE_KINDS).length;
 
 /**
@@ -49,7 +49,8 @@ export const BOOK = [
   { id: "creature", title: "Meet one of the wandering creatures", hint: "None of them bite. Walk up and look.", check: () => countMet() >= 1 },
   { id: "tagalong", title: "Get a creature to follow you", hint: "Stand near one a while, or just touch it.", check: () => state.stats.followed },
   { id: "wyrm", title: "Find the Void Wyrm", hint: "Look up. It circles, high and rarely.", check: () => Boolean(state.stats.met.voidwyrm) },
-  { id: "creatures", title: "Meet all seven wandering creatures", hint: "Two of them only walk the ground above the Ember Deep.", check: () => countMet() >= CREATURE_COUNT },
+  { id: "maw", title: "Find the Tempest Maw", hint: "The biggest thing there is. You will hear it first.", check: () => Boolean(state.stats.met.tempestmaw) },
+  { id: "creatures", title: "Meet all eight wandering creatures", hint: "Two of them only walk the ground above the Ember Deep.", check: () => countMet() >= CREATURE_COUNT },
   { id: "fizzle", title: "Watch a Fizzler go off", hint: "They do it by themselves. It swells and flashes first.", check: () => (state.stats.blasts ?? 0) >= 1 },
 
   { id: "level10", title: "Reach level 10", hint: "Mining ore is the quick way.", check: () => getPlayerLevel() >= 10 },

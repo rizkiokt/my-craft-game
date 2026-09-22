@@ -328,6 +328,16 @@ export const CREATURE_KINDS = {
     ribs: true, armLength: 0.48,
     spawn: { seed: 151, threshold: 0.9, minHeight: 14, maxHeight: 33, biome: "ember" },
   },
+  tempestmaw: {
+    name: "Tempest Maw",
+    blurb: "A mountain of storm with a mouth in it, adrift over the country",
+    build: "maw", voice: "storm",
+    skin: 0x2c2b3a, cloth: 0x1b1a26, dark: 0x0b0a12, glow: 0x9d7bff,
+    height: 13, bulk: 1, speed: 2.4, roam: 22, curiosity: 0.6,
+    /** It drifts rather than banks, and hangs low enough to loom. */
+    fly: { cruise: 3.5, dive: 2, bank: 0.05 },
+    spawn: { seed: 171, threshold: 0.99, minHeight: 8, maxHeight: 26, allowSand: true },
+  },
   voidwyrm: {
     name: "Void Wyrm",
     blurb: "Circles overhead and comes down to see who you are",

@@ -533,6 +533,15 @@ export class SoundEngine {
       this.noise({ gain: 0.01, decay: 1.2, highpass: 40, lowpass: 320, sweep: 0.6, wet: 0.9 });
       return;
     }
+    if (voice === "storm") {
+      // The Tempest Maw: no call, just weather. A slow swell of wind with a
+      // subsonic floor under it, so it is heard before it is seen.
+      this.noise({ gain: 0.03, decay: 2.6, highpass: 70, lowpass: 700, sweep: 0.5, wet: 0.95 });
+      this.pulse({ frequency: 32 * vary(0.06), type: "sine", gain: 0.055, decay: 2.8, bend: 0.8, wet: 0.95 });
+      this.pulse({ frequency: 58 * vary(0.08), type: "triangle", gain: 0.02, decay: 2.2, bend: 0.75, time: 0.3, wet: 0.95 });
+      this.noise({ gain: 0.012, decay: 1.6, highpass: 600, lowpass: 3600, sweep: 0.35, time: 0.6, wet: 0.95 });
+      return;
+    }
     // The wyrm: a long call that falls away, heard from a long way off.
     const base = 150 * vary(0.1);
     this.pulse({ frequency: base, type: "sawtooth", gain: 0.03, decay: 1.2, bend: 0.55, wet: 0.9 });

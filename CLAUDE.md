@@ -363,7 +363,7 @@ Two ordering rules in `interact()` matter:
 
 ### Wandering creatures
 
-`src/creatures.js` draws seven creatures and `PassiveMobManager` walks them, the same
+`src/creatures.js` draws eight creatures and `PassiveMobManager` walks them, the same
 split as `playerModel.js` and `npcs.js`. They are ordinary chunk fauna alongside the
 sheep — `chunk.fauna` entries with a `kind` that appears in `CREATURE_KINDS`.
 
@@ -386,6 +386,7 @@ size are hard to judge distance against, and the one you want to be sure about a
 glance is the one with the bigger blast.
 | Gloomstrider | 3.4 | the ground over the Ember Deep, rare | readily |
 | Void Wyrm | 2.4 | rare, flies | almost always |
+| Tempest Maw | 13 | very rare, drifts overhead | often |
 
 Four things carry the weight:
 
@@ -401,11 +402,13 @@ Four things carry the weight:
   usually does not. Touching one asks it directly, and an asked follow lasts much longer.
   A follow that gets nowhere for six seconds is dropped, so nothing treads against a wall
   for the rest of its turn.
-- **The Void Wyrm flies on rails.** It holds a circle around a centre that eases from its
+- **The two fliers fly on rails.** Each holds a circle around a centre that eases from its
   home towards the player when it takes an interest, so the whole orbit slides across
   rather than snapping, and its height is measured from the ground under it so it clears
-  hills instead of flying into them. Its roll is applied with `rotation.order = "YXZ"`, or
-  a banked turn screws it round its own length.
+  hills instead of flying into them. Roll is applied with `rotation.order = "YXZ"`, or
+  a banked turn screws the model round its own length. `fly.bank` is the difference
+  between them: the Wyrm leans hard into its turn, the Tempest Maw is far too big to and
+  drifts round almost level.
 - **`disposeEntity()` disposes creature geometry.** Sheep, villagers and cats share one set
   of boxes; a creature is built to its own proportions and owns its own. Chunks unload all
   day, so those have to go back.
@@ -420,6 +423,25 @@ roof means giving `getSurfaceData()` a ceiling argument first.
 `state.stats.met` and `state.stats.followed` are written by the walker and read by
 predicates in `book.js`, rather than the walker calling into the book — the same trace-based
 arrangement the rest of the list uses, and it keeps `mobs.js` from importing its own layer.
+
+#### The Tempest Maw
+
+The biggest thing in the game at 13 blocks, and the only one drawn to be read from
+across a valley rather than up close. It is all silhouette: a lopsided mass, three
+heads on stalks, five tentacles, and one lit mouth that is the brightest thing on it.
+
+- **The teeth are not decoration.** A lit throat with nothing across it reads as a
+  bright square — a screen, not a mouth. Two bars each way fixed it.
+- **The tentacles taper over six joints, not four.** Four thick segments hang like
+  legs, which is the one thing they must not look like. They nest, so one small angle
+  per segment compounds down the length into a slow curl, and each chain is offset by
+  its own index or the five of them sway as a single sheet.
+- **Its model's origin is the tentacle tips**, so `fly.cruise` of 3.5 leaves them
+  trailing just over the ground while the body rides thirteen blocks up. That is the
+  whole reason it looms rather than floating off as a speck.
+
+Like everything else here it is harmless — it has no `blast` and nothing that touches
+the player.
 
 #### Fizzlers going off
 

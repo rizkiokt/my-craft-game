@@ -866,7 +866,8 @@ export class PassiveMobManager {
 
     // The tangent to the circle, which is where it is actually going.
     entity.heading = Math.atan2(-Math.sin(entity.orbit), Math.cos(entity.orbit));
-    entity.bank = lerp(entity.bank, 0.42, clamp(dt * 1.5, 0, 1));
+    // The wyrm leans hard into its turn; the Maw is too big to bank and drifts.
+    entity.bank = lerp(entity.bank, spec.fly.bank ?? 0.42, clamp(dt * 1.5, 0, 1));
 
     if (distance < CREATURE_MET_DISTANCE * 3) {
       state.stats.met[entity.kind] = true;
@@ -883,6 +884,16 @@ export class PassiveMobManager {
     parts.tailPivots?.forEach((segment, index) => {
       segment.rotation.y = Math.sin(state.elapsed * 1.6 + index * 0.8 + entity.phase) * 0.18;
       segment.rotation.x = Math.sin(state.elapsed * 1.1 + index * 0.6) * 0.06;
+    });
+    // Each tentacle is a nested chain, so a small angle per segment compounds
+    // down its length into a long slow curl. Offsetting by the tentacle's own
+    // index keeps the five of them from moving as one sheet.
+    parts.tentacles?.forEach((chain, limbIndex) => {
+      chain.forEach((segment, index) => {
+        const drift = state.elapsed * 0.8 + limbIndex * 1.3 + index * 0.5 + entity.phase;
+        segment.rotation.x = Math.sin(drift) * 0.16;
+        segment.rotation.z = Math.cos(drift * 0.8) * 0.14;
+      });
     });
     if (parts.headPivot) {
       // Looking down at whatever it is circling.

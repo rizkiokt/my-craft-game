@@ -268,10 +268,112 @@ function createWyrmModel(kindId) {
   return root;
 }
 
+/* ------------------------------------------------------------------ *
+ * The Tempest Maw
+ * ------------------------------------------------------------------ */
+
+/**
+ * The biggest thing in the game, and the only one drawn to be seen from a
+ * long way off rather than up close. Everything about it is silhouette: a
+ * lopsided mass, a lit mouth in the front of it, three heads on stalks and a
+ * curtain of tentacles underneath. The tentacle tips sit at y = 0, so the
+ * body rides well clear of the ground at whatever height it is flying.
+ */
+function createMawModel(kindId) {
+  const mat = palette(kindId);
+  const root = new THREE.Group();
+  const glowBits = [];
+
+  // The mass. Deliberately several offset boxes rather than one: a single
+  // block reads as a building, and this wants to read as weather.
+  const body = box(0.62, 0.46, 0.5, mat.skin, 0, 0.74, 0);
+  root.add(body);
+  root.add(box(0.48, 0.3, 0.42, mat.cloth, -0.16, 0.95, -0.06));
+  root.add(box(0.36, 0.26, 0.34, mat.cloth, 0.22, 0.92, 0.08));
+  root.add(box(0.52, 0.22, 0.38, mat.cloth, 0.05, 0.56, -0.04));
+  root.add(box(0.3, 0.18, 0.26, mat.skin, -0.28, 0.66, 0.12));
+
+  // The mouth: a lit throat set into a dark ring of teeth. This is the one
+  // part that has to be legible from across a valley, so it is the brightest
+  // thing on the model and sits proud of the front face.
+  const throat = box(0.26, 0.26, 0.06, mat.glow, 0, 0.74, 0.26);
+  root.add(throat);
+  glowBits.push(throat);
+  for (const side of [-1, 1]) {
+    root.add(box(0.07, 0.34, 0.08, mat.dark, side * 0.17, 0.74, 0.27));
+    root.add(box(0.34, 0.07, 0.08, mat.dark, 0, 0.74 + side * 0.17, 0.27));
+  }
+  // Teeth across the opening. Without them the lit throat is a bright square
+  // and reads as a screen rather than as something with a mouth.
+  for (const offset of [-0.09, 0.03]) {
+    root.add(box(0.26, 0.035, 0.03, mat.dark, 0, 0.74 + offset, 0.3));
+  }
+  for (const offset of [-0.06, 0.06]) {
+    root.add(box(0.035, 0.26, 0.03, mat.dark, offset, 0.74, 0.3));
+  }
+
+  // Three heads on stalks, the way the thing it is named after has three.
+  const headPivot = new THREE.Group();
+  headPivot.position.set(0, 1.0, 0.06);
+  [-0.26, 0, 0.26].forEach((offset, index) => {
+    const stalk = new THREE.Group();
+    stalk.position.set(offset, 0, index === 1 ? 0.06 : 0);
+    const lift = index === 1 ? 0.16 : 0.08;
+    stalk.add(box(0.07, lift, 0.07, mat.cloth, 0, lift / 2, 0));
+    stalk.add(box(0.16, 0.15, 0.16, mat.skin, 0, lift + 0.08, 0));
+    for (const side of [-1, 1]) {
+      const eye = box(0.04, 0.03, 0.03, mat.glow, side * 0.04, lift + 0.09, 0.08);
+      stalk.add(eye);
+      glowBits.push(eye);
+    }
+    headPivot.add(stalk);
+  });
+  root.add(headPivot);
+
+  // Tentacles. Each is its own nested chain, so one sway value per segment
+  // composes down the whole length — the wyrm's tail trick, five times over.
+  const tentacles = [];
+  const roots = [
+    [-0.24, -0.16], [0.24, -0.16], [-0.2, 0.18], [0.2, 0.18], [0, 0],
+  ];
+  for (const [tx, tz] of roots) {
+    const chain = [];
+    let parent = root;
+    let anchorY = 0.52;
+    // Thin and tapering hard, over six joints rather than four: thick stumps
+    // hang like legs, and the whole point of them is that they are not.
+    for (let i = 0; i < 6; i++) {
+      const pivot = new THREE.Group();
+      pivot.position.set(i === 0 ? tx : 0, anchorY, i === 0 ? tz : 0);
+      const width = 0.085 - i * 0.011;
+      pivot.add(box(width, 0.12, width, i % 2 ? mat.cloth : mat.skin, 0, -0.06, 0));
+      parent.add(pivot);
+      chain.push(pivot);
+      parent = pivot;
+      anchorY = -0.115;
+    }
+    tentacles.push(chain);
+  }
+
+  root.userData.parts = {
+    body,
+    headPivot,
+    tentacles,
+    wingPivots: [],
+    tailPivots: [],
+    legPivots: [],
+    armPivots: [],
+    glowBits,
+    restArm: 0,
+  };
+  return root;
+}
+
 const BUILDERS = {
   biped: createBipedModel,
   fizzler: createFizzlerModel,
   wyrm: createWyrmModel,
+  maw: createMawModel,
 };
 
 /** Builds one creature, already scaled to the size its kind asks for. */
