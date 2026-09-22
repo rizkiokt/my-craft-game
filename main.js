@@ -17,7 +17,8 @@ import { DEFAULT_SPAWN } from "./src/constants.js";
 import { installInputHandlers } from "./src/input.js";
 import { installTouchHandlers, syncTouchControls } from "./src/touch.js";
 import { animationLoop, render } from "./src/loop.js";
-import { passiveMobs } from "./src/mobs.js";
+import { onCreatureBlast, passiveMobs } from "./src/mobs.js";
+import { explode } from "./src/tnt.js";
 import { onUnexpectedUnlock } from "./src/pointerLock.js";
 import { ensureValidPlayerPosition } from "./src/player.js";
 import { npcs } from "./src/npcs.js";
@@ -90,6 +91,8 @@ syncModePicker();
 // menu is registered here instead. The Options screen sits below touch.js for
 // the same reason, so the on-screen pad is re-synced from here too.
 onUnexpectedUnlock(openPauseMenu);
+// mobs.js sits below tnt.js and cannot set a Fizzler off by itself.
+onCreatureBlast((x, y, z, charge) => explode(x, y, z, charge, { credit: false }));
 onTouchSettingChanged(syncTouchControls);
 
 installMenuHandlers();

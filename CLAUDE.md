@@ -38,12 +38,13 @@ Modules are layered; a module may only import from a layer below it. `src/ui/*` 
 | 5 | `ui/hud.js`, `ui/inventory.js`, `ui/screens.js`, `ui/controlsScreen.js`, `ui/options.js`, `ui/menus.js`, `ui/worlds.js`, `ui/portals.js`, `ui/book.js` | Screens and overlays |
 | 6 | `actions.js`, `input.js`, `touch.js`, `loop.js`, `debugApi.js` | Input routing and the frame loop |
 
-**The import graph is acyclic — keep it that way.** Three places would otherwise close a loop and all use dependency inversion instead:
+**The import graph is acyclic — keep it that way.** These places would otherwise close a loop and all use dependency inversion instead:
 
 - `pointerLock.js` cannot import `ui/screens.js`, so it exposes `onUnexpectedUnlock(handler)` and `main.js` registers `openPauseMenu`.
 - `actions.js` cannot import `loop.js`, so `takeScreenshot()` sets `state.screenshotRequested` and `render()` performs the capture (the drawing buffer is not preserved, so it must happen in the same task as the draw).
 - `ui/options.js` cannot import `touch.js`, so it exposes `onTouchSettingChanged(handler)` and `main.js` registers `syncTouchControls`.
 - `book.js` cannot import `ui/hud.js`, so ticking something off pushes its title onto `state.bookToast` and `updateHud()` drains one per frame.
+- `mobs.js` cannot import `tnt.js`, so it exposes `onCreatureBlast(handler)` and `main.js` registers `explode`.
 
 DOM listeners are never attached at module scope. Each wiring module exports an `install*Handlers()` function that `main.js` calls once: `installMenuHandlers`, `installBookHandlers`, `installWorldsHandlers`, `installPortalHandlers`, `installOptionsHandlers`, `installInputHandlers`, `installTouchHandlers`, `installDebugApi`.
 
@@ -379,6 +380,10 @@ surprise rather than a death. `CREATURE_KINDS` is the whole roster, exactly as
 | Shambler | 1.8 | anywhere, slow | readily |
 | Fizzler | 1.7 | ordinary country | often |
 | Mega Fizzler | 6.2 | rare, ordinary country | rarely |
+
+The Mega Fizzler is **blue**, not a bigger green one. Two shapes that differ only in
+size are hard to judge distance against, and the one you want to be sure about at a
+glance is the one with the bigger blast.
 | Gloomstrider | 3.4 | the ground over the Ember Deep, rare | readily |
 | Void Wyrm | 2.4 | rare, flies | almost always |
 
@@ -415,6 +420,44 @@ roof means giving `getSurfaceData()` a ceiling argument first.
 `state.stats.met` and `state.stats.followed` are written by the walker and read by
 predicates in `book.js`, rather than the walker calling into the book — the same trace-based
 arrangement the rest of the list uses, and it keeps `mobs.js` from importing its own layer.
+
+#### Fizzlers going off
+
+The two Fizzlers are the only things in the game that break blocks without being
+asked to. A `blast` row on the kind is the whole feature: which charge in
+`BLAST_KINDS` it goes off as, the fuse, how often it thinks about it, the chance it
+goes through with it, how far off it insists on being, and how long until a
+replacement turns up.
+
+**It takes nothing off the player, and it cannot.** It goes through the ordinary
+`explode()`, which has never had a `damagePlayer()` call in it, and the shove sets
+`state.blastGrace` so the landing afterwards is free too — measured at full health
+before and after both sizes.
+
+Four details are load-bearing, and three of them are things that went wrong first:
+
+- **`explode()` takes `credit`.** A Fizzler going off is not the player setting a
+  charge off, and without the flag it ticked "Set off a charge" in the book for them.
+- **`chance` stops every roll lighting the fuse.** Without it each Fizzler went off on
+  its first roll: five bangs in the first minute, and then nothing. With it, measured
+  at one bang in three minutes with two Fizzlers loaded.
+- **`respawn` puts one back.** Without it they are simply used up — three minutes in
+  one place left the country all craters and no Fizzlers. `sweepDead()` books the
+  replacement and `drainRespawns()` puts it back, asking `getSurfaceData()` where the
+  floor is now, because the ground it stood on is a hole.
+- **`playerWorkWithin()` refuses to light up near anything you placed.** The scenery is
+  fair game; a hole through a child's house is not, and this is the rule `npcs.js`
+  already works to.
+
+The warning is a swell and a white flash, and there has to be one. **The flash tints the
+Fizzler's own materials**, which is why a Fizzler with a `blast` clones its two body
+colours instead of sharing the palette — tinting the shared one lit every Fizzler in the
+world at once. The face stays on the shared dark material, so it is still readable while
+the body is white. An enclosing white box was tried first and read as a white box rather
+than as the animal lighting up.
+
+Detonation never splices the entity out from under the update loop: it sets `dead` and
+`sweepDead()` runs after it.
 
 ### The player avatar
 

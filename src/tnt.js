@@ -257,7 +257,7 @@ export function updateTnt(dt) {
  * wave: small charges finish theirs on the spot, and the big one gets through
  * it over the next few frames, which is both cheaper and better to watch.
  */
-export function explode(cx, cy, cz, blockType = BLOCKS.tnt) {
+export function explode(cx, cy, cz, blockType = BLOCKS.tnt, { credit = true } = {}) {
   const kind = BLAST_KINDS[blockType] ?? BLAST_KINDS[BLOCKS.tnt];
   const wave = {
     cx, cy, cz, kind,
@@ -277,7 +277,11 @@ export function explode(cx, cy, cz, blockType = BLOCKS.tnt) {
   }
   shovePlayer(cx, cy, cz, kind);
   npcs.startle(cx, cz);
-  noteCharge(kind.name);
+  // A Fizzler going off by itself is not the player setting a charge off, and
+  // must not tick the book entry that asks them to.
+  if (credit) {
+    noteCharge(kind.name);
+  }
   state.saveDirty = true;
 
   if (kind.staged) {

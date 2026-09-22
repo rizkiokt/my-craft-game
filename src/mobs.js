@@ -2,6 +2,7 @@
 
 import * as THREE from "../node_modules/three/build/three.module.js";
 import {
+  BLAST_KINDS,
   BLOCKS,
   CAT_CURIOUS_DISTANCE,
   CREATURE_FOLLOW_GAP,
@@ -202,6 +203,17 @@ export function createVillagerModel() {
   return root;
 }
 
+/**
+ * `tnt.js` is a layer above this one, so a Fizzler cannot set itself off
+ * directly. `main.js` registers `explode()` here, the same inversion
+ * `pointerLock.js` uses to reach the pause menu.
+ */
+let blastHandler = null;
+
+export function onCreatureBlast(handler) {
+  blastHandler = handler;
+}
+
 export class PassiveMobManager {
   constructor(world, scene) {
     this.world = world;
@@ -211,6 +223,10 @@ export class PassiveMobManager {
     // disposes of a pet that is following you.
     this.pets = [];
     this.totalEntities = 0;
+    // Set when a Fizzler goes off, so the sweep only runs on frames that need it.
+    this.hasDead = false;
+    // Replacements for Fizzlers that have gone off. See sweepDead().
+    this.respawns = [];
     scene.add(this.root);
   }
 
@@ -264,6 +280,15 @@ export class PassiveMobManager {
       /** Seconds of getting nowhere while following; it gives up eventually. */
       stallTimer: 0,
       voiceTimer: 3 + hash3(definition.x, 17, definition.z) * 10,
+      /** Counts down to the next time a Fizzler considers going off. */
+      blastTimer: spec?.blast
+        ? spec.blast.every[0] * (0.3 + hash3(definition.x, 19, definition.z) * 0.7)
+        : 0,
+      /** Seconds of fuse left once it has decided to. Zero means not lit. */
+      fuse: 0,
+      dead: false,
+      /** Where it was spawned, so a replacement goes back to the same spot. */
+      origin: { kind: definition.kind, x: definition.x, y: definition.y, z: definition.z },
       /** Where the Void Wyrm is round its circle, and what it circles. */
       orbit: phase,
       centerX: definition.x,
@@ -292,6 +317,8 @@ export class PassiveMobManager {
     // day, so those have to go back or the card fills up with dead dragons.
     if (entity.spec) {
       entity.group.traverse((node) => node.geometry?.dispose());
+      // A Fizzler owns the two materials it flashes with; the rest are shared.
+      entity.parts.ownedMaterials?.forEach((material) => material.dispose());
     }
   }
 
@@ -519,6 +546,159 @@ export class PassiveMobManager {
   }
 
   /* ---------------------------------------------------------------- *
+   * Fizzlers going off
+   * ---------------------------------------------------------------- */
+
+  /**
+   * Whether anything in reach of the blast is something the player put there.
+   *
+   * The two Fizzlers are the only things in the game that break blocks without
+   * being asked to, and a hole through a child's house is not what anyone
+   * wanted from that. This is the same rule `npcs.js` works to — the scenery is
+   * fair game, your work is not.
+   */
+  playerWorkWithin(entity, radius) {
+    const bx = Math.floor(entity.x);
+    const by = Math.floor(entity.y);
+    const bz = Math.floor(entity.z);
+    // A coarser lattice for the big one, which would otherwise sample several
+    // thousand cells to answer a question asked every couple of minutes.
+    const step = radius > 6 ? 2 : 1;
+    for (let dy = -radius; dy <= radius; dy += step) {
+      for (let dz = -radius; dz <= radius; dz += step) {
+        for (let dx = -radius; dx <= radius; dx += step) {
+          if (dx * dx + dy * dy + dz * dz > radius * radius) {
+            continue;
+          }
+          if (this.world.hasEditAt(bx + dx, by + dy, bz + dz)) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  /** Decides whether to light the fuse, and resets the clock either way. */
+  considerBlast(entity, distance) {
+    const blast = entity.spec.blast;
+    const [low, high] = blast.every;
+    entity.blastTimer = low + Math.random() * (high - low);
+    // Close enough to be in your face is close enough to be startling rather
+    // than fun, and you would not see it happen from inside it either.
+    if (distance < blast.minDistance) {
+      return;
+    }
+    const charge = BLOCKS[blast.charge];
+    const radius = Math.ceil(BLAST_KINDS[charge]?.radius ?? 4);
+    if (this.playerWorkWithin(entity, radius)) {
+      return;
+    }
+    // Most of the time it thinks better of it. Lighting up on every roll came
+    // out as five bangs in the first minute and none left afterwards.
+    if (Math.random() > blast.chance) {
+      return;
+    }
+    entity.fuse = blast.fuse;
+    soundEngine.creatureVoice(entity.spec.voice);
+  }
+
+  /** The swell and the flash, then the bang. */
+  tickFuse(entity, dt) {
+    const spec = entity.spec;
+    entity.fuse -= dt;
+    const left = clamp(entity.fuse / spec.blast.fuse, 0, 1);
+    // It puffs up as the fuse burns down, and flashes faster the nearer it
+    // gets — the two together are the whole warning, and there has to be one.
+    const swell = 1 + (1 - left) * 0.4;
+    entity.group.scale.set(
+      spec.height * spec.bulk * swell,
+      spec.height * swell,
+      spec.height * spec.bulk * swell,
+    );
+    entity.group.position.set(entity.x, entity.y, entity.z);
+    entity.group.rotation.set(0, wrapAngle(entity.heading), 0);
+    const lit = Math.sin(state.elapsed * (7 + (1 - left) * 22)) > 0;
+    if (entity.parts.ownedMaterials && entity.flashOn !== lit) {
+      entity.flashOn = lit;
+      entity.parts.ownedMaterials.forEach((material, index) => {
+        material.color.setHex(lit ? 0xffffff : entity.parts.flashBase[index]);
+      });
+    }
+    entity.fuseTick = (entity.fuseTick ?? 0) - dt;
+    if (entity.fuseTick <= 0) {
+      entity.fuseTick = 0.1 + left * 0.25;
+      soundEngine.fuse();
+    }
+    if (entity.fuse <= 0) {
+      this.detonate(entity);
+    }
+  }
+
+  detonate(entity) {
+    const spec = entity.spec;
+    // Set off a little above its feet, so the crater is a bowl in the hillside
+    // rather than a shaft straight down from where it was standing.
+    blastHandler?.(
+      Math.floor(entity.x),
+      Math.floor(entity.y + spec.height * 0.3),
+      Math.floor(entity.z),
+      BLOCKS[spec.blast.charge],
+    );
+    state.stats.blasts = (state.stats.blasts ?? 0) + 1;
+    // Swept after the update loop, never spliced out from under it.
+    entity.dead = true;
+    this.hasDead = true;
+  }
+
+  /**
+   * Clears out anything that went off this frame, and books a replacement.
+   *
+   * Without the replacement the Fizzlers are simply used up: a few minutes in
+   * one place and the country is all craters and no Fizzlers.
+   */
+  sweepDead() {
+    this.hasDead = false;
+    for (const [key, entities] of this.entities) {
+      for (let i = entities.length - 1; i >= 0; i--) {
+        const entity = entities[i];
+        if (!entity.dead) {
+          continue;
+        }
+        const [low, high] = entity.spec.blast.respawn;
+        this.respawns.push({
+          key,
+          definition: entity.origin,
+          at: state.elapsed + low + Math.random() * (high - low),
+        });
+        this.disposeEntity(entity);
+        entities.splice(i, 1);
+        this.totalEntities -= 1;
+      }
+    }
+  }
+
+  /** Puts replacements back once their time is up. */
+  drainRespawns() {
+    for (let i = this.respawns.length - 1; i >= 0; i--) {
+      const pending = this.respawns[i];
+      if (state.elapsed < pending.at) {
+        continue;
+      }
+      this.respawns.splice(i, 1);
+      const bucket = this.entities.get(pending.key);
+      // Chunk gone in the meantime: it comes back with the chunk anyway.
+      if (!bucket) {
+        continue;
+      }
+      // The ground it stood on is a crater now, so ask where the floor is.
+      const surface = getSurfaceData(pending.definition.x, pending.definition.z);
+      bucket.push(this.createEntity({ ...pending.definition, y: surface.y }));
+      this.totalEntities += 1;
+    }
+  }
+
+  /* ---------------------------------------------------------------- *
    * The wandering creatures
    * ---------------------------------------------------------------- */
 
@@ -581,6 +761,19 @@ export class PassiveMobManager {
     if (distance < CREATURE_MET_DISTANCE) {
       state.stats.met[entity.kind] = true;
     }
+    // A lit Fizzler stops where it is and swells. Everything below is walking,
+    // and a thing about to go off does not walk.
+    if (entity.spec.blast) {
+      if (entity.fuse > 0) {
+        this.tickFuse(entity, dt);
+        return;
+      }
+      entity.blastTimer -= dt;
+      if (entity.blastTimer <= 0) {
+        this.considerBlast(entity, distance);
+      }
+    }
+
     this.considerFollowing(entity, dt, distance);
 
     entity.voiceTimer -= dt;
@@ -757,6 +950,12 @@ export class PassiveMobManager {
       entities.forEach((entity) => this.updateEntity(entity, dt));
     }
     this.pets.forEach((entity) => this.updateEntity(entity, dt));
+    if (this.hasDead) {
+      this.sweepDead();
+    }
+    if (this.respawns.length) {
+      this.drainRespawns();
+    }
   }
 
   getEntityCount() {

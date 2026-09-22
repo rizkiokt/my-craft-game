@@ -50,6 +50,7 @@ export const BOOK = [
   { id: "tagalong", title: "Get a creature to follow you", hint: "Stand near one a while, or just touch it.", check: () => state.stats.followed },
   { id: "wyrm", title: "Find the Void Wyrm", hint: "Look up. It circles, high and rarely.", check: () => Boolean(state.stats.met.voidwyrm) },
   { id: "creatures", title: "Meet all seven wandering creatures", hint: "Two of them only walk the ground above the Ember Deep.", check: () => countMet() >= CREATURE_COUNT },
+  { id: "fizzle", title: "Watch a Fizzler go off", hint: "They do it by themselves. It swells and flashes first.", check: () => (state.stats.blasts ?? 0) >= 1 },
 
   { id: "level10", title: "Reach level 10", hint: "Mining ore is the quick way.", check: () => getPlayerLevel() >= 10 },
   { id: "hearts20", title: "Get to twenty hearts", hint: "Level 20. You grow as well.", check: () => getMaxHearts() >= 20 },

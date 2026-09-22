@@ -127,14 +127,23 @@ function createFizzlerModel(kindId) {
   const root = new THREE.Group();
   const glowBits = [];
 
-  const body = box(0.3, 0.52, 0.22, mat.skin, 0, 0.46, 0);
+  // A Fizzler that can go off needs to flash white while its fuse burns, and
+  // the palette is shared by every Fizzler in the world — tinting that would
+  // light all of them at once. So the ones that blow up own their two body
+  // colours. The face stays on the shared dark material, which is what keeps
+  // it readable against the white.
+  const owned = spec.blast ? [mat.skin.clone(), mat.cloth.clone()] : null;
+  const skin = owned ? owned[0] : mat.skin;
+  const cloth = owned ? owned[1] : mat.cloth;
+
+  const body = box(0.3, 0.52, 0.22, skin, 0, 0.46, 0);
   root.add(body);
   // A band of the darker green, so it is not one flat colour end to end.
-  root.add(box(0.31, 0.1, 0.23, mat.cloth, 0, 0.3, 0));
+  root.add(box(0.31, 0.1, 0.23, cloth, 0, 0.3, 0));
 
   const headPivot = new THREE.Group();
   headPivot.position.set(0, 0.72, 0);
-  headPivot.add(box(0.34, 0.3, 0.3, mat.skin, 0, 0.15, 0));
+  headPivot.add(box(0.34, 0.3, 0.3, skin, 0, 0.15, 0));
   // The face: two eyes and the long mouth under them.
   for (const side of [-1, 1]) {
     headPivot.add(box(0.08, 0.08, 0.02, mat.dark, side * 0.085, 0.2, 0.15));
@@ -153,13 +162,23 @@ function createFizzlerModel(kindId) {
   const legPivots = [];
   for (const side of [-1, 1]) {
     for (const end of [1, -1]) {
-      const leg = limb(0.16, 0.2, 0.16, mat.cloth, side * 0.075, 0.2, end * 0.12);
+      const leg = limb(0.16, 0.2, 0.16, cloth, side * 0.075, 0.2, end * 0.12);
       legPivots.push(leg);
       root.add(leg);
     }
   }
 
-  root.userData.parts = { body, headPivot, legPivots, armPivots: [], glowBits, restArm: 0 };
+  root.userData.parts = {
+    body,
+    headPivot,
+    legPivots,
+    armPivots: [],
+    glowBits,
+    restArm: 0,
+    /** Tinted white and back while the fuse burns; disposed with the model. */
+    ownedMaterials: owned,
+    flashBase: owned ? [spec.skin, spec.cloth] : null,
+  };
   return root;
 }
 

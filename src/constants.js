@@ -259,6 +259,17 @@ export const CREATURE_MET_DISTANCE = 10;
  *   tall and scaled, so `bulk` is the only thing that changes the shape.
  * - `curiosity` is the chance, each time it looks up and sees you, that it
  *   decides to come along for a while.
+ * - `blast` is for the ones that go off by themselves: which charge in
+ *   `BLAST_KINDS` they go off as, how long the fuse burns, the seconds
+ *   between one thinking about it and the next, the chance it actually does,
+ *   how far off it insists on being, and how long before another turns up to
+ *   take its place. The blast wrecks the scenery and, like every other blast
+ *   in the game, takes nothing off the player.
+ *
+ *   **`chance` and `respawn` are both load-bearing.** Without the chance every
+ *   Fizzler goes off on its first roll, which came out as five bangs in the
+ *   first minute; without the respawn they are used up, and a few minutes in
+ *   one place left the country full of craters and empty of Fizzlers.
  * - `spawn.threshold` is a floor on `hash3` per chunk, so **higher is rarer**.
  */
 export const CREATURE_KINDS = {
@@ -295,14 +306,16 @@ export const CREATURE_KINDS = {
     build: "fizzler", voice: "hiss",
     skin: 0x5aa84a, cloth: 0x3f7c36, dark: 0x1d2c18,
     height: 1.7, bulk: 1, speed: 1.15, roam: 6, curiosity: 0.55,
+    blast: { charge: "tnt", fuse: 1.9, every: [70, 150], chance: 0.35, minDistance: 3.5, respawn: [50, 110] },
     spawn: { seed: 131, threshold: 0.82, minHeight: 9, maxHeight: 22 },
   },
   megafizzler: {
     name: "Mega Fizzler",
     blurb: "The same again, four times over",
     build: "fizzler", voice: "hiss",
-    skin: 0x4f9a3f, cloth: 0x2f6a28, dark: 0x16220f, glow: 0x9dff5c,
+    skin: 0x3f7ac4, cloth: 0x27538f, dark: 0x101d2e, glow: 0x86dcff,
     height: 6.2, bulk: 1.05, speed: 0.95, roam: 8, curiosity: 0.3,
+    blast: { charge: "super_tnt", fuse: 2.8, every: [150, 320], chance: 0.3, minDistance: 7, respawn: [90, 180] },
     spawn: { seed: 141, threshold: 0.965, minHeight: 9, maxHeight: 20 },
   },
   gloomstrider: {

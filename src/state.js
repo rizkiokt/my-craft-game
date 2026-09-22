@@ -37,6 +37,8 @@ export const state = {
     met: {},
     /** Whether one of them has ever decided to come along with you. */
     followed: false,
+    /** How many Fizzlers have gone off by themselves where you could see. */
+    blasts: 0,
   },
   /** Parked and driven cars. Saved; which one you are in is not. */
   cars: [],
