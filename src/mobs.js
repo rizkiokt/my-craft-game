@@ -1,7 +1,19 @@
-// Sheep and villager models plus their spawner.
+// Sheep, villagers, cats and the wandering creatures, plus their spawner.
 
 import * as THREE from "../node_modules/three/build/three.module.js";
-import { BLOCKS, CAT_CURIOUS_DISTANCE, PET_FOLLOW_DISTANCE, PET_TELEPORT_DISTANCE, PI } from "./constants.js";
+import {
+  BLOCKS,
+  CAT_CURIOUS_DISTANCE,
+  CREATURE_FOLLOW_GAP,
+  CREATURE_FOLLOW_GIVEUP,
+  CREATURE_KINDS,
+  CREATURE_MET_DISTANCE,
+  CREATURE_NOTICE_DISTANCE,
+  PET_FOLLOW_DISTANCE,
+  PET_TELEPORT_DISTANCE,
+  PI,
+} from "./constants.js";
+import { createCreatureModel } from "./creatures.js";
 import { clamp, hash3, lerp, lerpAngle, wrapAngle } from "./math.js";
 import { scene } from "./scene.js";
 import { soundEngine } from "./sound.js";
@@ -203,16 +215,21 @@ export class PassiveMobManager {
   }
 
   createEntity(definition) {
+    const spec = CREATURE_KINDS[definition.kind] ?? null;
     const coatIndex = definition.coat
       ?? Math.floor(hash3(definition.x, 3, definition.z) * CAT_COATS.length);
-    const model = definition.kind === "villager"
-      ? createVillagerModel()
-      : definition.kind === "cat"
-        ? createCatModel(coatIndex)
-        : createSheepModel();
+    const model = spec
+      ? createCreatureModel(definition.kind)
+      : definition.kind === "villager"
+        ? createVillagerModel()
+        : definition.kind === "cat"
+          ? createCatModel(coatIndex)
+          : createSheepModel();
     const phase = hash3(definition.x, definition.y, definition.z) * PI * 2;
     const entity = {
       kind: definition.kind,
+      /** Null for sheep, villagers and cats; the table row for the rest. */
+      spec,
       group: model,
       parts: model.userData.parts,
       x: definition.x,
@@ -227,12 +244,37 @@ export class PassiveMobManager {
       tamed: Boolean(definition.tamed),
       sitting: Boolean(definition.sitting),
       meowTimer: 4 + hash3(definition.x, 7, definition.z) * 12,
-      speed: definition.kind === "villager" ? 0.95 : definition.kind === "cat" ? 1.7 : 1.18,
+      speed: spec
+        ? spec.speed
+        : definition.kind === "villager" ? 0.95 : definition.kind === "cat" ? 1.7 : 1.18,
+      /** How far it will wander from where it started. */
+      roam: spec ? spec.roam : definition.kind === "villager" ? 5.4 : 4.2,
+      /** A tall creature can climb more of a bank than a cat can. */
+      stepUp: spec ? 1.4 + spec.height * 0.25 : 1.6,
+      strideRate: spec ? 11 / Math.sqrt(spec.height) : definition.kind === "villager" ? 9 : 11,
       moveTimer: 0.3 + hash3(definition.x, 9, definition.z) * 1.4,
       phase,
       stride: 0,
       headTurn: hash3(definition.x, 5, definition.z) * PI * 2,
+      /** Set while one has decided to tag along. See considerFollowing(). */
+      following: false,
+      followTimer: 0,
+      /** Counts down to the next look up to see whether you are worth joining. */
+      noticeTimer: 1 + hash3(definition.x, 13, definition.z) * 5,
+      /** Seconds of getting nowhere while following; it gives up eventually. */
+      stallTimer: 0,
+      voiceTimer: 3 + hash3(definition.x, 17, definition.z) * 10,
+      /** Where the Void Wyrm is round its circle, and what it circles. */
+      orbit: phase,
+      centerX: definition.x,
+      centerZ: definition.z,
+      bank: 0,
     };
+    if (spec) {
+      // Roll and heading have to compose in that order or a banked turn
+      // screws the whole animal round its own long axis.
+      model.rotation.order = "YXZ";
+    }
     model.position.set(entity.x, entity.y, entity.z);
     // Lets a raycast hit map back to the entity it belongs to.
     model.userData.entity = entity;
@@ -245,6 +287,36 @@ export class PassiveMobManager {
 
   disposeEntity(entity) {
     this.root.remove(entity.group);
+    // Sheep, villagers and cats share one set of geometries, but a creature is
+    // built to its own proportions and so owns its boxes. Chunks unload all
+    // day, so those have to go back or the card fills up with dead dragons.
+    if (entity.spec) {
+      entity.group.traverse((node) => node.geometry?.dispose());
+    }
+  }
+
+  /**
+   * One step across the ground, shared by everything that walks. Returns false
+   * without moving when the way is water, foliage or too steep a bank, which
+   * is the caller's cue to pick somewhere else to go.
+   */
+  walkOnGround(entity, dirX, dirZ, amount, dt) {
+    const nextX = entity.x + dirX * amount;
+    const nextZ = entity.z + dirZ * amount;
+    const surface = getSurfaceData(nextX, nextZ);
+    if (
+      surface.blockType === BLOCKS.water ||
+      surface.blockType === BLOCKS.leaves ||
+      Math.abs(surface.y - entity.y) > entity.stepUp
+    ) {
+      return false;
+    }
+    entity.x = nextX;
+    entity.z = nextZ;
+    entity.y = lerp(entity.y, surface.y, clamp(dt * 5.5, 0, 1));
+    entity.heading = lerpAngle(entity.heading, Math.atan2(dirX, dirZ), clamp(dt * 4.5, 0, 1));
+    entity.stride += dt * entity.strideRate;
+    return true;
   }
 
   syncLoadedChunks() {
@@ -339,7 +411,7 @@ export class PassiveMobManager {
   }
 
   pickTarget(entity) {
-    const radius = entity.kind === "villager" ? 5.4 : 4.2;
+    const radius = entity.roam;
     for (let attempt = 0; attempt < 6; attempt++) {
       const angle = Math.random() * PI * 2;
       const distance = 0.8 + Math.random() * radius;
@@ -349,7 +421,7 @@ export class PassiveMobManager {
       if (
         surface.blockType !== BLOCKS.water &&
         surface.blockType !== BLOCKS.leaves &&
-        Math.abs(surface.y - entity.y) <= 1.6
+        Math.abs(surface.y - entity.y) <= entity.stepUp
       ) {
         entity.targetX = candidateX;
         entity.targetZ = candidateZ;
@@ -365,6 +437,11 @@ export class PassiveMobManager {
   updateEntity(entity, dt) {
     if (entity.tamed) {
       this.updatePet(entity, dt);
+      return;
+    }
+
+    if (entity.spec) {
+      this.updateCreature(entity, dt);
       return;
     }
 
@@ -408,23 +485,9 @@ export class PassiveMobManager {
     const distance = Math.hypot(dx, dz);
     const walkAmount = Math.min(distance, entity.speed * dt);
     if (distance > 0.001) {
-      const dirX = dx / distance;
-      const dirZ = dz / distance;
-      const nextX = entity.x + dirX * walkAmount;
-      const nextZ = entity.z + dirZ * walkAmount;
-      const surface = getSurfaceData(nextX, nextZ);
-      if (
-        surface.blockType === BLOCKS.water ||
-        surface.blockType === BLOCKS.leaves ||
-        Math.abs(surface.y - entity.y) > 1.6
-      ) {
+      // Blocked: give up on this target and pick another next frame.
+      if (!this.walkOnGround(entity, dx / distance, dz / distance, walkAmount, dt)) {
         entity.moveTimer = 0;
-      } else {
-        entity.x = nextX;
-        entity.z = nextZ;
-        entity.y = lerp(entity.y, surface.y, clamp(dt * 5.5, 0, 1));
-        entity.heading = lerpAngle(entity.heading, Math.atan2(dirX, dirZ), clamp(dt * 4.5, 0, 1));
-        entity.stride += dt * (entity.kind === "villager" ? 9 : 11);
       }
     }
 
@@ -453,6 +516,240 @@ export class PassiveMobManager {
         leg.rotation.x = distance > 0.18 ? strideSwing * direction : 0;
       });
     }
+  }
+
+  /* ---------------------------------------------------------------- *
+   * The wandering creatures
+   * ---------------------------------------------------------------- */
+
+  /**
+   * Whether this one comes along with you for a bit.
+   *
+   * Every few seconds it looks up, and if you are close enough it rolls
+   * against its kind's `curiosity`. Rolling on a timer rather than every frame
+   * is what keeps it from being a foregone conclusion: standing next to a
+   * Shambler for ten seconds is usually enough, walking past it is not.
+   */
+  considerFollowing(entity, dt, distance) {
+    if (entity.following) {
+      entity.followTimer -= dt;
+      if (entity.followTimer <= 0 || distance > CREATURE_FOLLOW_GIVEUP) {
+        entity.following = false;
+        entity.stallTimer = 0;
+        // It wanders on from wherever it ended up, not from where it started,
+        // or it would walk all the way home the moment it lost interest.
+        entity.homeX = entity.x;
+        entity.homeZ = entity.z;
+        entity.moveTimer = 0;
+        entity.noticeTimer = 10 + Math.random() * 16;
+      }
+      return;
+    }
+    entity.noticeTimer -= dt;
+    if (entity.noticeTimer > 0) {
+      return;
+    }
+    entity.noticeTimer = 3 + Math.random() * 4;
+    if (distance > CREATURE_NOTICE_DISTANCE || Math.random() > entity.spec.curiosity) {
+      return;
+    }
+    this.startFollowing(entity);
+  }
+
+  /** Asked ones stay much longer than ones that came along by themselves. */
+  startFollowing(entity, asked = false) {
+    entity.following = true;
+    entity.stallTimer = 0;
+    entity.followTimer = asked ? 120 : 15 + Math.random() * 25;
+    // A predicate in the book reads this; nothing here can call into it.
+    state.stats.followed = true;
+    soundEngine.creatureVoice(entity.spec.voice);
+    return entity.followTimer;
+  }
+
+  stopFollowing(entity) {
+    entity.following = false;
+    entity.followTimer = 0;
+    entity.homeX = entity.x;
+    entity.homeZ = entity.z;
+    entity.noticeTimer = 12 + Math.random() * 12;
+  }
+
+  updateCreature(entity, dt) {
+    const distance = Math.hypot(state.player.x - entity.x, state.player.z - entity.z);
+    // Close enough to have got a proper look at it. The book reads this.
+    if (distance < CREATURE_MET_DISTANCE) {
+      state.stats.met[entity.kind] = true;
+    }
+    this.considerFollowing(entity, dt, distance);
+
+    entity.voiceTimer -= dt;
+    if (entity.voiceTimer <= 0) {
+      entity.voiceTimer = 8 + Math.random() * 16;
+      if (distance < 18) {
+        soundEngine.creatureVoice(entity.spec.voice);
+      }
+    }
+
+    if (entity.spec.fly) {
+      this.updateFlier(entity, dt, distance);
+      return;
+    }
+
+    const player = state.player;
+    let moving = false;
+    // Its own size decides how close is close enough; the big ones would be
+    // standing on top of you at the distance that suits a Bonekin.
+    const gap = CREATURE_FOLLOW_GAP + entity.spec.height * 0.4;
+
+    if (entity.following) {
+      if (distance > gap) {
+        const dirX = (player.x - entity.x) / distance;
+        const dirZ = (player.z - entity.z) / distance;
+        const step = entity.speed * dt * clamp(distance / 6, 0.75, 1.8);
+        moving = this.walkOnGround(entity, dirX, dirZ, step, dt);
+        // Wedged against something it cannot climb: let it off rather than
+        // leaving it treading against a wall for the rest of the follow.
+        entity.stallTimer = moving ? 0 : entity.stallTimer + dt;
+        if (entity.stallTimer > 6) {
+          this.stopFollowing(entity);
+        }
+      } else {
+        entity.stallTimer = 0;
+        entity.heading = lerpAngle(
+          entity.heading,
+          Math.atan2(player.x - entity.x, player.z - entity.z),
+          clamp(dt * 4, 0, 1),
+        );
+      }
+    } else {
+      entity.moveTimer -= dt;
+      const toTarget = Math.hypot(entity.targetX - entity.x, entity.targetZ - entity.z);
+      if (toTarget <= 0.2 || entity.moveTimer <= 0) {
+        this.pickTarget(entity);
+      }
+      const dx = entity.targetX - entity.x;
+      const dz = entity.targetZ - entity.z;
+      const remaining = Math.hypot(dx, dz);
+      if (remaining > 0.001) {
+        const amount = Math.min(remaining, entity.speed * dt);
+        moving = this.walkOnGround(entity, dx / remaining, dz / remaining, amount, dt);
+        if (!moving) {
+          entity.moveTimer = 0;
+        }
+      }
+    }
+
+    this.animateCreature(entity, dt, moving, distance);
+  }
+
+  /**
+   * The Void Wyrm. It does not walk anywhere: it holds a circle in the air,
+   * around home normally and around you once it has taken an interest, which
+   * is both far easier than pathfinding and what a dragon ought to look like.
+   */
+  updateFlier(entity, dt, distance) {
+    const spec = entity.spec;
+    const player = state.player;
+    const wantCenterX = entity.following ? player.x : entity.homeX;
+    const wantCenterZ = entity.following ? player.z : entity.homeZ;
+    // Easing the centre rather than setting it is what stops the whole circle
+    // jumping sideways the moment it decides to come and look at you.
+    const drift = clamp(dt * 0.9, 0, 1);
+    entity.centerX = lerp(entity.centerX, wantCenterX, drift);
+    entity.centerZ = lerp(entity.centerZ, wantCenterZ, drift);
+
+    const radius = entity.following ? 7 : spec.roam;
+    entity.orbit += (spec.speed / radius) * dt;
+    entity.x = entity.centerX + Math.cos(entity.orbit) * radius;
+    entity.z = entity.centerZ + Math.sin(entity.orbit) * radius;
+
+    // Height is measured from whatever is under it, so it clears a hill rather
+    // than flying into one, and drops to have a look when it is following.
+    const ground = getSurfaceData(entity.x, entity.z).y;
+    const ride = entity.following ? spec.fly.dive : spec.fly.cruise;
+    const wantY = ground + ride + Math.sin(state.elapsed * 0.5 + entity.phase) * 1.3;
+    entity.y = lerp(entity.y, wantY, clamp(dt * 1.1, 0, 1));
+
+    // The tangent to the circle, which is where it is actually going.
+    entity.heading = Math.atan2(-Math.sin(entity.orbit), Math.cos(entity.orbit));
+    entity.bank = lerp(entity.bank, 0.42, clamp(dt * 1.5, 0, 1));
+
+    if (distance < CREATURE_MET_DISTANCE * 3) {
+      state.stats.met[entity.kind] = true;
+    }
+
+    entity.group.position.set(entity.x, entity.y, entity.z);
+    entity.group.rotation.set(0, wrapAngle(entity.heading), entity.bank);
+
+    const parts = entity.parts;
+    const flap = Math.sin(state.elapsed * 2.6 + entity.phase);
+    parts.wingPivots?.forEach((wing, index) => {
+      wing.rotation.z = (index === 0 ? -1 : 1) * (0.25 + flap * 0.55);
+    });
+    parts.tailPivots?.forEach((segment, index) => {
+      segment.rotation.y = Math.sin(state.elapsed * 1.6 + index * 0.8 + entity.phase) * 0.18;
+      segment.rotation.x = Math.sin(state.elapsed * 1.1 + index * 0.6) * 0.06;
+    });
+    if (parts.headPivot) {
+      // Looking down at whatever it is circling.
+      parts.headPivot.rotation.x = entity.following ? -0.28 : -0.1;
+      parts.headPivot.rotation.y = Math.sin(state.elapsed * 0.7 + entity.headTurn) * 0.2;
+    }
+    this.pulseGlow(entity, 3.2);
+  }
+
+  /** Legs, arms, head and whatever glows, for everything that walks. */
+  animateCreature(entity, dt, moving, distance) {
+    const parts = entity.parts;
+    const spec = entity.spec;
+    const bob = Math.sin(state.elapsed * 3.1 + entity.phase) * 0.03 * spec.height;
+    entity.group.position.set(entity.x, entity.y + bob, entity.z);
+    entity.group.rotation.set(0, wrapAngle(entity.heading), 0);
+
+    const swing = moving ? Math.sin(entity.stride) * 0.55 : 0;
+    const quad = parts.legPivots.length === 4;
+    parts.legPivots.forEach((leg, index) => {
+      // Diagonal pairs on four legs, plain alternation on two.
+      const direction = quad
+        ? (index === 0 || index === 3 ? 1 : -1)
+        : (index % 2 === 0 ? 1 : -1);
+      leg.rotation.x = swing * direction;
+    });
+    parts.armPivots.forEach((arm, index) => {
+      // Arms lead with the opposite leg, and sway a little when standing.
+      const direction = index % 2 === 0 ? -1 : 1;
+      arm.rotation.x = parts.restArm
+        + swing * 0.45 * direction
+        + Math.sin(state.elapsed * 1.1 + entity.phase) * 0.05;
+    });
+
+    if (parts.headPivot) {
+      const watching = entity.following || distance < CREATURE_NOTICE_DISTANCE * 0.5;
+      const toPlayer = wrapAngle(
+        Math.atan2(state.player.x - entity.x, state.player.z - entity.z) - entity.heading,
+      );
+      // It only turns its head your way while it can plausibly see you, and
+      // never further than a neck goes, so it is a glance rather than a stare.
+      const wantY = watching ? clamp(toPlayer, -1.1, 1.1) : Math.sin(state.elapsed * 0.8 + entity.headTurn) * 0.25;
+      parts.headPivot.rotation.y = lerp(parts.headPivot.rotation.y, wantY, clamp(dt * 4, 0, 1));
+      parts.headPivot.rotation.x = Math.sin(state.elapsed * 1.4 + entity.phase) * 0.04;
+    }
+    this.pulseGlow(entity, 2.1);
+  }
+
+  /**
+   * Eyes and embers breathe rather than sit at one brightness. The materials
+   * are shared across every creature of a kind, so this scales the meshes
+   * instead of touching the colour, which would pulse all of them at once.
+   */
+  pulseGlow(entity, rate) {
+    const bits = entity.parts.glowBits;
+    if (!bits?.length) {
+      return;
+    }
+    const pulse = 1 + Math.sin(state.elapsed * rate + entity.phase) * 0.18;
+    bits.forEach((bit) => bit.scale.set(pulse, pulse, 1));
   }
 
   update(dt) {

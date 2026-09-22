@@ -271,6 +271,26 @@ export function interact(breaking, isPress = false) {
     return;
   }
 
+  // One of the wandering creatures: touching it asks it along, or sends it
+  // back to its own business. They come and go by themselves as well, so this
+  // is only a way of hurrying that along.
+  if (!breaking && creature && creature.spec) {
+    if (isPress) {
+      // Spend the press, or holding the button flips this many times a click.
+      state.usePressed = false;
+      if (creature.following) {
+        passiveMobs.stopFollowing(creature);
+        showToast(`${creature.spec.name} wanders off`);
+      } else {
+        passiveMobs.startFollowing(creature, true);
+        spawnHearts(creature.x, creature.y + creature.spec.height * 0.6, creature.z);
+        showToast(`${creature.spec.name} comes along with you`);
+      }
+      state.saveDirty = true;
+    }
+    return;
+  }
+
   if (!state.target) {
     if (breaking) {
       resetBreakState();

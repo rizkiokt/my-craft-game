@@ -494,6 +494,53 @@ export class SoundEngine {
     this.pulse({ frequency: base * 1.5, type: "sine", gain: 0.01, decay: 0.28, bend: 0.7, time: 0.09, wet: 0.5 });
   }
 
+  /**
+   * The wandering creatures, one voice per kind named in `CREATURE_KINDS`.
+   *
+   * All five are deliberately soft-edged. These things are two to six blocks
+   * of skeleton and dragon walking up behind a child, and the sound is the
+   * only thing telling them whether that is alarming or friendly.
+   */
+  creatureVoice(voice) {
+    if (voice === "rattle") {
+      // Bones knocking together: a handful of dry ticks, not one hit.
+      for (let i = 0; i < 5; i++) {
+        this.noise({
+          gain: 0.02 * vary(0.3), decay: 0.05, highpass: 1500 * vary(0.3),
+          lowpass: 6000, sweep: 0.5, time: i * 0.045 * vary(0.4), wet: 0.6,
+        });
+      }
+      return;
+    }
+    if (voice === "groan") {
+      const base = 96 * vary(0.1);
+      this.pulse({ frequency: base, type: "sawtooth", gain: 0.022, decay: 0.7, bend: 0.72, wet: 0.7 });
+      this.pulse({ frequency: base * 2.02, type: "sine", gain: 0.008, decay: 0.55, bend: 0.8, time: 0.05, wet: 0.7 });
+      this.noise({ gain: 0.01, decay: 0.5, highpass: 200, lowpass: 900, sweep: 0.5, wet: 0.7 });
+      return;
+    }
+    if (voice === "hiss") {
+      // Rising, then nothing at all happens. That is the joke.
+      this.noise({ gain: 0.028, decay: 0.62, highpass: 900, lowpass: 5200, sweep: 1.7, wet: 0.5, q: 1.4 });
+      this.noise({ gain: 0.012, decay: 0.5, highpass: 2600, lowpass: 9000, sweep: 1.4, time: 0.08, wet: 0.5 });
+      return;
+    }
+    if (voice === "rumble") {
+      // Felt more than heard, which is the whole character of the thing.
+      const base = 44 * vary(0.08);
+      this.pulse({ frequency: base, type: "sine", gain: 0.05, decay: 1.5, bend: 0.85, wet: 0.85 });
+      this.pulse({ frequency: base * 1.5, type: "triangle", gain: 0.016, decay: 1.1, bend: 0.9, time: 0.12, wet: 0.85 });
+      this.noise({ gain: 0.01, decay: 1.2, highpass: 40, lowpass: 320, sweep: 0.6, wet: 0.9 });
+      return;
+    }
+    // The wyrm: a long call that falls away, heard from a long way off.
+    const base = 150 * vary(0.1);
+    this.pulse({ frequency: base, type: "sawtooth", gain: 0.03, decay: 1.2, bend: 0.55, wet: 0.9 });
+    this.pulse({ frequency: base * 1.5, type: "triangle", gain: 0.014, decay: 1, bend: 0.6, time: 0.06, wet: 0.9 });
+    this.pulse({ frequency: base * 0.5, type: "sine", gain: 0.022, decay: 1.4, bend: 0.7, wet: 0.9 });
+    this.noise({ gain: 0.009, decay: 0.9, highpass: 300, lowpass: 2400, sweep: 0.4, time: 0.1, wet: 0.9 });
+  }
+
   /** Lighting a portal, and going through one. */
   portal(travelling = false) {
     const base = travelling ? 180 : 300;

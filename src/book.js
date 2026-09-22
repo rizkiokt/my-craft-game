@@ -10,7 +10,7 @@
 // state — honking, lighting a portal, travelling through one — are marked by
 // hand.
 
-import { BIOME_TYPES, BLOCKS, CITY_PLAN, ITEMS, SNOW_REALM } from "./constants.js";
+import { BIOME_TYPES, BLOCKS, CITY_PLAN, CREATURE_KINDS, ITEMS, SNOW_REALM } from "./constants.js";
 import { isInsideRect } from "./math.js";
 import { getMaxHearts, getPlayerLevel } from "./growth.js";
 import { state } from "./state.js";
@@ -23,6 +23,9 @@ const CITY_TOWER_TOP = CITY_PLAN.baseHeight + 13;
 
 /** Five: forest, dunes, swamp, canyon and the Ember Deep. */
 const BIOME_COUNT = BIOME_TYPES.length;
+
+/** Seven, from the Bonekin to the Void Wyrm. */
+const CREATURE_COUNT = Object.keys(CREATURE_KINDS).length;
 
 /**
  * Roughly in the order someone would meet them, because the screen is read
@@ -43,6 +46,10 @@ export const BOOK = [
   { id: "under", title: "Duck right under the water", hint: "Everything goes quiet.", check: () => state.submerged },
   { id: "cat", title: "Make friends with a cat", hint: "Walk up to one and touch it." },
   { id: "friend", title: "Ask a friend to follow you", hint: "Touch one of the five." },
+  { id: "creature", title: "Meet one of the wandering creatures", hint: "None of them bite. Walk up and look.", check: () => countMet() >= 1 },
+  { id: "tagalong", title: "Get a creature to follow you", hint: "Stand near one a while, or just touch it.", check: () => state.stats.followed },
+  { id: "wyrm", title: "Find the Void Wyrm", hint: "Look up. It circles, high and rarely.", check: () => Boolean(state.stats.met.voidwyrm) },
+  { id: "creatures", title: "Meet all seven wandering creatures", hint: "Two of them only walk the ground above the Ember Deep.", check: () => countMet() >= CREATURE_COUNT },
 
   { id: "level10", title: "Reach level 10", hint: "Mining ore is the quick way.", check: () => getPlayerLevel() >= 10 },
   { id: "hearts20", title: "Get to twenty hearts", hint: "Level 20. You grow as well.", check: () => getMaxHearts() >= 20 },
@@ -71,6 +78,11 @@ export const BOOK = [
 
 function countBiomes() {
   return Object.keys(state.stats.biomes).length;
+}
+
+/** Each creature marks itself: mobs.js writes into stats, and this reads it. */
+function countMet() {
+  return Object.keys(state.stats.met ?? {}).length;
 }
 
 /** Ticks an entry off, once. Safe to call every frame. */

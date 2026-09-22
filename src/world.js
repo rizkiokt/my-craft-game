@@ -1,6 +1,6 @@
 // Voxel storage, terrain generation and block access.
 
-import { BLOCKS, CHUNK_SIZE, CITY_PLAN, DEFAULT_RENDER_DISTANCE, DEFAULT_SPAWN, LIGHT_HEIGHT, LIGHT_MAX_Y, LIGHT_MIN_Y, MAX_BUILD_HEIGHT, MAX_LIGHT, MAX_RENDER_DISTANCE, MAX_WORLD_Y, MIN_RENDER_DISTANCE, MIN_WORLD_Y, SNOW_REALM, SUBURB_PLAN, TORCH_LIGHT, WATER_LEVEL } from "./constants.js";
+import { BLOCKS, CHUNK_SIZE, CITY_PLAN, CREATURE_KINDS, DEFAULT_RENDER_DISTANCE, DEFAULT_SPAWN, LIGHT_HEIGHT, LIGHT_MAX_Y, LIGHT_MIN_Y, MAX_BUILD_HEIGHT, MAX_LIGHT, MAX_RENDER_DISTANCE, MAX_WORLD_Y, MIN_RENDER_DISTANCE, MIN_WORLD_Y, SNOW_REALM, SUBURB_PLAN, TORCH_LIGHT, WATER_LEVEL } from "./constants.js";
 
 /** Six-way neighbours used by the light flood fill. */
 const NEIGHBOUR_OFFSETS = [
@@ -231,7 +231,7 @@ export class World {
       }
     }
 
-    const canSpawnFaunaAt = (x, z, { allowSand = false, minHeight = 8, maxHeight: maxAllowedHeight = 18 } = {}) => {
+    const canSpawnFaunaAt = (x, z, { allowSand = false, minHeight = 8, maxHeight: maxAllowedHeight = 18, biome = null } = {}) => {
       const index = z * CHUNK_SIZE + x;
       const height = heights[index];
       if (height < minHeight || height > maxAllowedHeight) {
@@ -239,6 +239,14 @@ export class World {
       }
       if (!allowSand && chunk.sandy[index] === 1) {
         return false;
+      }
+      // A creature that belongs to one biome has to be properly inside it,
+      // not out on the blend where the patch is only half itself.
+      if (biome) {
+        const here = chunk.biomes[index];
+        if (here?.region.id !== biome || here.blend < 0.5) {
+          return false;
+        }
       }
       if (getSnowBlend(cx * CHUNK_SIZE + x, cz * CHUNK_SIZE + z) > 0) {
         return false;
@@ -287,6 +295,13 @@ export class World {
     tryAddFauna("sheep", 71, 0.68, { allowSand: false, minHeight: 9, maxHeight: 18 });
     tryAddFauna("villager", 81, 0.84, { allowSand: false, minHeight: 10, maxHeight: 16 });
     tryAddFauna("cat", 91, 0.58, { allowSand: false, minHeight: 9, maxHeight: 20 });
+
+    // The wandering creatures come straight off their own table, so adding an
+    // eighth means a row in CREATURE_KINDS and nothing here.
+    for (const [kind, spec] of Object.entries(CREATURE_KINDS)) {
+      const { seed, threshold, ...options } = spec.spawn;
+      tryAddFauna(kind, seed, threshold, options);
+    }
 
     for (let z = 1; z < CHUNK_SIZE - 1; z++) {
       for (let x = 1; x < CHUNK_SIZE - 1; x++) {

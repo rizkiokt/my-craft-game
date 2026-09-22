@@ -33,7 +33,7 @@ Modules are layered; a module may only import from a layer below it. `src/ui/*` 
 | 0 | `constants.js`, `dom.js`, `math.js` | Tables, element handles, noise/util maths. No imports. |
 | 1 | `settings.js`, `bindings.js`, `state.js`, `recipes.js` | Options, control scheme, mutable state, recipe tables |
 | 2 | `worldgen.js`, `textures.js`, `world.js`, `items.js`, `enchanting.js`, `growth.js` | Terrain, atlas, voxel storage, item rules, XP, body size |
-| 3 | `scene.js`, `icons.js`, `chunkMesh.js`, `sound.js`, `mobs.js`, `particles.js`, `playerModel.js`, `book.js` | Three.js resources, singletons, the goal list |
+| 3 | `scene.js`, `icons.js`, `chunkMesh.js`, `sound.js`, `creatures.js`, `mobs.js`, `particles.js`, `playerModel.js`, `book.js` | Three.js resources, singletons, the goal list |
 | 4 | `player.js`, `interaction.js`, `crafting.js`, `combat.js`, `drops.js`, `portals.js`, `tnt.js`, `vehicle.js`, `pointerLock.js`, `fullscreen.js`, `save.js` | Gameplay systems |
 | 5 | `ui/hud.js`, `ui/inventory.js`, `ui/screens.js`, `ui/controlsScreen.js`, `ui/options.js`, `ui/menus.js`, `ui/worlds.js`, `ui/portals.js`, `ui/book.js` | Screens and overlays |
 | 6 | `actions.js`, `input.js`, `touch.js`, `loop.js`, `debugApi.js` | Input routing and the frame loop |
@@ -359,6 +359,62 @@ Two ordering rules in `interact()` matter:
 - It only fires when `isPress` is true. Right-click is polled while held, so without the
   edge the sit toggle would flip on and off many times per click. `state.usePressed` is set
   on the press, cleared when the interaction lands, and reset when the button is released.
+
+### Wandering creatures
+
+`src/creatures.js` draws seven creatures and `PassiveMobManager` walks them, the same
+split as `playerModel.js` and `npcs.js`. They are ordinary chunk fauna alongside the
+sheep — `chunk.fauna` entries with a `kind` that appears in `CREATURE_KINDS`.
+
+**None of them fight, and there is no code here that could make them.** The frightening
+shapes are the point: they are borrowed silhouettes attached to animals that walk about
+and sometimes decide to come with you, so the first one a child meets in a cave is a
+surprise rather than a death. `CREATURE_KINDS` is the whole roster, exactly as
+`BLAST_KINDS` and `VEHICLE_KINDS` are — an eighth is a table row.
+
+| Creature | Height | Where | Comes along |
+|---|---|---|---|
+| Bonekin | 1.8 | anywhere, including sand | often |
+| Charbone | 2.2 | the ground over the Ember Deep | sometimes |
+| Shambler | 1.8 | anywhere, slow | readily |
+| Fizzler | 1.7 | ordinary country | often |
+| Mega Fizzler | 6.2 | rare, ordinary country | rarely |
+| Gloomstrider | 3.4 | the ground over the Ember Deep, rare | readily |
+| Void Wyrm | 2.4 | rare, flies | almost always |
+
+Four things carry the weight:
+
+- **One model factory per shape, and every model is drawn one unit tall.**
+  `createCreatureModel()` scales by the kind's `height`, so a 1.8-block Bonekin and a
+  6.2-block Mega Fizzler differ by one number. Glowing parts are `MeshBasicMaterial`, not
+  Lambert: something that glows has to stay lit in the dark of the Ember Deep, which is
+  exactly where the world's own light would put it out.
+- **Following is a roll on a timer, not a distance test.** Every few seconds one looks up,
+  and if you are inside `CREATURE_NOTICE_DISTANCE` it rolls against its `curiosity`.
+  Checking every frame made it a foregone conclusion — walking past would recruit the whole
+  field. Now standing with a Shambler for ten seconds usually works and walking past
+  usually does not. Touching one asks it directly, and an asked follow lasts much longer.
+  A follow that gets nowhere for six seconds is dropped, so nothing treads against a wall
+  for the rest of its turn.
+- **The Void Wyrm flies on rails.** It holds a circle around a centre that eases from its
+  home towards the player when it takes an interest, so the whole orbit slides across
+  rather than snapping, and its height is measured from the ground under it so it clears
+  hills instead of flying into them. Its roll is applied with `rotation.order = "YXZ"`, or
+  a banked turn screws it round its own length.
+- **`disposeEntity()` disposes creature geometry.** Sheep, villagers and cats share one set
+  of boxes; a creature is built to its own proportions and owns its own. Chunks unload all
+  day, so those have to go back.
+
+**They walk on the surface and nowhere else**, which is why the two Ember Deep creatures
+spawn on the glowing ground *above* the cavern rather than inside it. `getSurfaceData()` —
+which every walker uses to find the floor — scans down from the sky and stops at the first
+solid thing, so inside a roofed cavern it reports the hilltop. Anything spawned down there
+finds every direction a two-storey climb and stands still for ever. Putting them under a
+roof means giving `getSurfaceData()` a ceiling argument first.
+
+`state.stats.met` and `state.stats.followed` are written by the walker and read by
+predicates in `book.js`, rather than the walker calling into the book — the same trace-based
+arrangement the rest of the list uses, and it keeps `mobs.js` from importing its own layer.
 
 ### The player avatar
 

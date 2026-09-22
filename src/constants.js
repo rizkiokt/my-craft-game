@@ -231,6 +231,103 @@ export const PET_FOLLOW_DISTANCE = 2.4;
 export const PET_TELEPORT_DISTANCE = 18;
 
 /* ------------------------------------------------------------------ *
+ * Wandering creatures
+ * ------------------------------------------------------------------ */
+
+/** How near you have to be before one of them notices you at all. */
+export const CREATURE_NOTICE_DISTANCE = 12;
+/** How closely one that has decided to tag along actually walks. */
+export const CREATURE_FOLLOW_GAP = 2.6;
+/** Past this it has lost you and goes back to wandering. */
+export const CREATURE_FOLLOW_GIVEUP = 30;
+/** Near enough to count as having met one, for the book. */
+export const CREATURE_MET_DISTANCE = 10;
+
+/**
+ * The wandering creatures.
+ *
+ * **None of them fight, and none of them are meant to.** This game has no
+ * combat in it — they are here to be come across, walked with and looked at,
+ * which is why the frightening-looking ones are the friendliest of the lot.
+ *
+ * One row per creature, the way `BLAST_KINDS` and `VEHICLE_KINDS` work: an
+ * eighth is a table entry rather than another branch. `build` picks the model
+ * factory, `spawn` is read straight by `ensureChunk()`, and everything else
+ * is read by the walker.
+ *
+ * - `height` is the whole creature in blocks; the models are drawn one unit
+ *   tall and scaled, so `bulk` is the only thing that changes the shape.
+ * - `curiosity` is the chance, each time it looks up and sees you, that it
+ *   decides to come along for a while.
+ * - `spawn.threshold` is a floor on `hash3` per chunk, so **higher is rarer**.
+ */
+export const CREATURE_KINDS = {
+  bonekin: {
+    name: "Bonekin",
+    blurb: "A polite rack of bones that would rather follow than fight",
+    build: "biped", voice: "rattle",
+    skin: 0xe7e2d2, cloth: 0xb9b3a0, dark: 0x4c4a44,
+    height: 1.82, bulk: 0.78, speed: 1.3, roam: 6, curiosity: 0.5,
+    armsForward: true,
+    spawn: { seed: 101, threshold: 0.86, minHeight: 9, maxHeight: 24, allowSand: true },
+  },
+  charbone: {
+    name: "Charbone",
+    blurb: "Burnt black and still glowing at the seams",
+    build: "biped", voice: "rattle",
+    skin: 0x38333a, cloth: 0x241f26, dark: 0x15121a, glow: 0xff7a2a,
+    height: 2.15, bulk: 0.82, speed: 1.15, roam: 5, curiosity: 0.35,
+    armsForward: true, emberSeams: true,
+    spawn: { seed: 111, threshold: 0.7, minHeight: 14, maxHeight: 33, biome: "ember" },
+  },
+  shambler: {
+    name: "Shambler",
+    blurb: "Slow, green, and delighted to see anybody at all",
+    build: "biped", voice: "groan",
+    skin: 0x6f9a54, cloth: 0x3f5f8a, dark: 0x2c3f22,
+    height: 1.78, bulk: 0.95, speed: 0.85, roam: 5, curiosity: 0.6,
+    armsForward: true,
+    spawn: { seed: 121, threshold: 0.84, minHeight: 8, maxHeight: 22, allowSand: true },
+  },
+  fizzler: {
+    name: "Fizzler",
+    blurb: "Hisses when it is pleased. Nothing ever comes of it",
+    build: "fizzler", voice: "hiss",
+    skin: 0x5aa84a, cloth: 0x3f7c36, dark: 0x1d2c18,
+    height: 1.7, bulk: 1, speed: 1.15, roam: 6, curiosity: 0.55,
+    spawn: { seed: 131, threshold: 0.82, minHeight: 9, maxHeight: 22 },
+  },
+  megafizzler: {
+    name: "Mega Fizzler",
+    blurb: "The same again, four times over",
+    build: "fizzler", voice: "hiss",
+    skin: 0x4f9a3f, cloth: 0x2f6a28, dark: 0x16220f, glow: 0x9dff5c,
+    height: 6.2, bulk: 1.05, speed: 0.95, roam: 8, curiosity: 0.3,
+    spawn: { seed: 141, threshold: 0.965, minHeight: 9, maxHeight: 20 },
+  },
+  gloomstrider: {
+    name: "Gloomstrider",
+    blurb: "Blind, enormous, and follows the sound of your footsteps",
+    build: "biped", voice: "rumble",
+    skin: 0x2b5b62, cloth: 0x14292e, dark: 0x0b1619, glow: 0x35e0c8,
+    height: 3.4, bulk: 1.15, speed: 0.8, roam: 6, curiosity: 0.7,
+    /** Long arms that hang past the hip: the whole silhouette of it. */
+    ribs: true, armLength: 0.48,
+    spawn: { seed: 151, threshold: 0.9, minHeight: 14, maxHeight: 33, biome: "ember" },
+  },
+  voidwyrm: {
+    name: "Void Wyrm",
+    blurb: "Circles overhead and comes down to see who you are",
+    build: "wyrm", voice: "wyrm",
+    skin: 0x3d3356, cloth: 0x2a2140, dark: 0x14101f, glow: 0xc45cff,
+    height: 2.4, bulk: 1, speed: 4.2, roam: 16, curiosity: 0.8,
+    /** Holds this far above whatever the ground turned out to be. */
+    fly: { cruise: 11, dive: 3.4 },
+    spawn: { seed: 161, threshold: 0.975, minHeight: 8, maxHeight: 26, allowSand: true },
+  },
+};
+
+/* ------------------------------------------------------------------ *
  * Lighting
  * ------------------------------------------------------------------ */
 

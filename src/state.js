@@ -31,7 +31,13 @@ export const state = {
   /** Things ticked off in the book, and the counters a few of them need. */
   book: {},
   bookToast: [],
-  stats: { broken: 0, placed: 0, driven: 0, biomes: {}, places: {}, charges: [] },
+  stats: {
+    broken: 0, placed: 0, driven: 0, biomes: {}, places: {}, charges: [],
+    /** Which wandering creatures you have been close enough to look at. */
+    met: {},
+    /** Whether one of them has ever decided to come along with you. */
+    followed: false,
+  },
   /** Parked and driven cars. Saved; which one you are in is not. */
   cars: [],
   nextCarId: 1,
